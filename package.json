@@ -1,0 +1,17 @@
+{
+  "name": "nestmate-matching-backend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "node --check src/main.js",
+    "start": "node src/main.js",
+    "test": "node --test \"src/**/*.test.js\""
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {}
+}
