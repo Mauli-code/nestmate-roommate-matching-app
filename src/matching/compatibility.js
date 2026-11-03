@@ -1,12 +1,4 @@
-import { RoommateProfile } from './profile';
-
-type ProfileBudget = Pick<RoommateProfile, 'budget'>;
-type ProfileLocation = Pick<RoommateProfile, 'preferredArea'>;
-
-export function budgetCompatibility(
-  firstProfile: ProfileBudget,
-  secondProfile: ProfileBudget,
-): number {
+function budgetCompatibility(firstProfile, secondProfile) {
   const firstBudget = readBudget(firstProfile?.budget);
   const secondBudget = readBudget(secondProfile?.budget);
 
@@ -20,10 +12,7 @@ export function budgetCompatibility(
   return 1 - difference / largerBudget;
 }
 
-export function locationCompatibility(
-  firstProfile: ProfileLocation,
-  secondProfile: ProfileLocation,
-): number {
+function locationCompatibility(firstProfile, secondProfile) {
   const firstArea = readLocation(firstProfile?.preferredArea);
   const secondArea = readLocation(secondProfile?.preferredArea);
 
@@ -34,7 +23,7 @@ export function locationCompatibility(
   return firstArea === secondArea ? 1 : 0;
 }
 
-function readBudget(value: unknown): number | undefined {
+function readBudget(value) {
   if (value === undefined || value === null) {
     return undefined;
   }
@@ -46,7 +35,7 @@ function readBudget(value: unknown): number | undefined {
   return value;
 }
 
-function readLocation(value: unknown): string | undefined {
+function readLocation(value) {
   if (value === undefined || value === null) {
     return undefined;
   }
@@ -58,3 +47,5 @@ function readLocation(value: unknown): string | undefined {
   const normalizedArea = value.trim().toLowerCase();
   return normalizedArea || undefined;
 }
+
+module.exports = { budgetCompatibility, locationCompatibility };
