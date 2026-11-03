@@ -1,0 +1,142 @@
+/**
+ * Realistic Mock Data for NestMate Mobile Discovery
+ * Aligns with backend MatchingProfile schema and accommodation requirements
+ */
+
+export const CURRENT_USER = {
+  id: 'user-me',
+  name: 'Alex Rivera',
+  location: 'Lower Manhattan, NY',
+  university: 'NYU Stern / Tech Professional',
+  budget: 1200,
+  moveInDate: '2026-12-01',
+  preferredArea: 'Central',
+  lifestyle: {
+    sleepSchedule: 'flexible',
+    cleanliness: 'medium',
+    smoking: false,
+    pets: false,
+  },
+  stats: {
+    activeMatches: 14,
+    pendingRequests: 3,
+    savedAccommodations: 5,
+  },
+};
+
+export const MOCK_RECOMMENDED_ROOMMATES = [
+  {
+    id: 'candidate-1',
+    name: 'Sarah Chen',
+    age: 23,
+    role: 'UX Designer & NYU Grad Student',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+    budget: 1200,
+    preferredArea: 'Central',
+    moveInDate: '2026-12-01',
+    score: 96,
+    breakdown: {
+      budget: 1,
+      location: 1,
+      lifestyle: 0.95,
+      habitsAndPreferences: 0.9,
+    },
+    lifestyle: {
+      sleepSchedule: 'flexible',
+      cleanliness: 'medium',
+      smoking: false,
+      pets: false,
+    },
+    tags: ['Quiet hours', 'Plant lover', 'Organized'],
+  },
+  {
+    id: 'candidate-2',
+    name: 'David Miller',
+    age: 25,
+    role: 'Software Engineer @ Stripe',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+    budget: 1250,
+    preferredArea: 'Central',
+    moveInDate: '2026-12-15',
+    score: 91,
+    breakdown: {
+      budget: 0.96,
+      location: 1,
+      lifestyle: 0.9,
+      habitsAndPreferences: 0.8,
+    },
+    lifestyle: {
+      sleepSchedule: 'flexible',
+      cleanliness: 'high',
+      smoking: false,
+      pets: false,
+    },
+    tags: ['Tech & Coding', 'Weekend hiker', 'No smoking'],
+  },
+  {
+    id: 'candidate-3',
+    name: 'Priya Sharma',
+    age: 22,
+    role: 'Biomedical Graduate Student',
+    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=400&q=80',
+    budget: 1100,
+    preferredArea: 'Central',
+    moveInDate: '2026-12-01',
+    score: 88,
+    breakdown: {
+      budget: 0.91,
+      location: 1,
+      lifestyle: 0.85,
+      habitsAndPreferences: 0.75,
+    },
+    lifestyle: {
+      sleepSchedule: 'early',
+      cleanliness: 'high',
+      smoking: false,
+      pets: false,
+    },
+    tags: ['Early riser', 'Quiet studier', 'Vegetarian'],
+  },
+];
+
+export const MOCK_RECOMMENDED_ACCOMMODATIONS = [
+  {
+    id: 'accom-1',
+    title: 'Modern 2BR Flat with Sunlit Living Room',
+    rent: 1150,
+    deposit: 1150,
+    type: 'Private Room',
+    location: 'East Village, Manhattan',
+    distance: '0.6 miles to NYU campus',
+    image: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80',
+    amenities: ['In-unit Laundry', 'Fast WiFi', 'AC', 'Dishwasher'],
+    availability: 'Available Dec 1',
+    isFavorite: false,
+  },
+  {
+    id: 'accom-2',
+    title: 'Spacious Brownstone Shared Apartment',
+    rent: 980,
+    deposit: 980,
+    type: 'Shared 3BR',
+    location: 'Brooklyn Heights',
+    distance: '15 min subway commute',
+    image: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80',
+    amenities: ['Furnished', 'Rooftop Access', 'Doorman', 'Gym'],
+    availability: 'Immediate',
+    isFavorite: true,
+  },
+  {
+    id: 'accom-3',
+    title: 'Minimalist Studio with Skyline Views',
+    rent: 1350,
+    deposit: 1350,
+    type: 'Entire Apartment',
+    location: 'Long Island City',
+    distance: '2 stops to Midtown',
+    image: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=80',
+    amenities: ['Elevator', 'Gym', 'Balcony', 'Concierge'],
+    availability: 'Available Jan 1',
+    isFavorite: false,
+  },
+];
