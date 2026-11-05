@@ -23,6 +23,7 @@ import {
   Button,
   Card,
   SearchBar,
+  RoommateCard,
 } from '../../src/components';
 import { MOCK_RECOMMENDED_ROOMMATES } from '../../src/data/mockData';
 
@@ -126,22 +127,12 @@ export default function DiscoverScreen() {
           }
           ListEmptyComponent={renderEmptyState}
           renderItem={({ item }) => (
-            <Card
-              variant="elevated"
-              style={styles.placeholderCard}
+            <RoommateCard
+              roommate={item}
               onPress={() => router.push(`/roommate/${item.id}`)}
-            >
-              <View style={styles.cardHeader}>
-                <Text style={styles.cardName}>{item.name}, {item.age}</Text>
-                <Badge
-                  label={`${item.score}% Match`}
-                  variant={item.score >= 90 ? 'success' : 'primary'}
-                  size="sm"
-                />
-              </View>
-              <Text style={styles.cardRole}>{item.role}</Text>
-              <Text style={styles.cardArea}>📍 {item.preferredArea} • ${item.budget}/mo</Text>
-            </Card>
+              onViewBreakdown={() => router.push(`/roommate/${item.id}`)}
+              onMatchRequest={() => {}}
+            />
           )}
         />
       )}
