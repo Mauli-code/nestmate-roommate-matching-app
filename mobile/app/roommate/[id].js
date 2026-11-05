@@ -23,20 +23,28 @@ import {
   Button,
   Card,
   CompatibilityBreakdown,
+  MatchRequestModal,
 } from '../../src/components';
+import { useMatchRequests } from '../../src/hooks/useMatchRequests';
 import { MOCK_RECOMMENDED_ROOMMATES } from '../../src/data/mockData';
 
 export default function RoommateDetailsScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const [isSaved, setIsSaved] = useState(false);
-  const [isRequested, setIsRequested] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+
+  const { isRequested, sendRequest } = useMatchRequests();
 
   // Find roommate by id
   const roommate = MOCK_RECOMMENDED_ROOMMATES.find((r) => r.id === id) || MOCK_RECOMMENDED_ROOMMATES[0];
+  const requested = isRequested(roommate.id);
 
-  const handleMatchRequest = () => {
-    setIsRequested(true);
+  const handleMatchRequest = async () => {
+    const res = await sendRequest(roommate);
+    if (res.success) {
+      setShowModal(true);
+    }
   };
 
   return (
@@ -232,21 +240,28 @@ export default function RoommateDetailsScreen() {
       {/* Sticky Bottom Actions */}
       <View style={styles.bottomBar}>
         <Button
-          title={isRequested ? 'Request Sent' : 'Send Match Request'}
-          variant={isRequested ? 'secondary' : 'primary'}
+          title={requested ? 'Request Sent (Pending)' : 'Send Match Request'}
+          variant={requested ? 'secondary' : 'primary'}
           size="lg"
-          disabled={isRequested}
+          disabled={requested}
           icon={
             <Ionicons
-              name={isRequested ? 'checkmark-circle' : 'person-add'}
+              name={requested ? 'checkmark-circle' : 'person-add'}
               size={18}
-              color={isRequested ? COLORS.primaryDark : COLORS.textInverse}
+              color={requested ? COLORS.primaryDark : COLORS.textInverse}
             />
           }
           onPress={handleMatchRequest}
           style={styles.actionButton}
         />
       </View>
+
+      {/* Confirmation Modal */}
+      <MatchRequestModal
+        visible={showModal}
+        candidate={roommate}
+        onClose={() => setShowModal(false)}
+      />
     </SafeAreaView>
   );
 }

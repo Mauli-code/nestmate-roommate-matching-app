@@ -6,3 +6,4 @@ export { default as Badge } from './Badge';
 export { default as RoommateCard } from './RoommateCard';
 export { default as CompatibilityBreakdown } from './CompatibilityBreakdown';
 export { default as RoommateFilterModal } from './RoommateFilterModal';
+export { default as MatchRequestModal } from './MatchRequestModal';
