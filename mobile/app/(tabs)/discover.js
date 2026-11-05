@@ -38,9 +38,17 @@ const DEFAULT_FILTERS = {
   petsOnly: false,
 };
 
+const SORT_OPTIONS = [
+  { id: 'compatibility', label: 'Highest Match', icon: 'sparkles' },
+  { id: 'budget_asc', label: 'Lowest Budget', icon: 'arrow-down' },
+  { id: 'budget_desc', label: 'Highest Budget', icon: 'arrow-up' },
+  { id: 'location', label: 'By Location', icon: 'location-outline' },
+];
+
 export default function DiscoverScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('compatibility');
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
@@ -60,9 +68,9 @@ export default function DiscoverScreen() {
     return count;
   }, [filters]);
 
-  // Client-side filtering logic
-  const filteredRoommates = useMemo(() => {
-    return MOCK_RECOMMENDED_ROOMMATES.filter((r) => {
+  // Client-side filtering and sorting logic
+  const filteredAndSortedRoommates = useMemo(() => {
+    const list = MOCK_RECOMMENDED_ROOMMATES.filter((r) => {
       // Search query
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase().trim();
@@ -111,7 +119,24 @@ export default function DiscoverScreen() {
 
       return true;
     });
-  }, [searchQuery, filters]);
+
+    // Sort according to selected sort option
+    return list.sort((a, b) => {
+      if (sortBy === 'compatibility') {
+        return b.score - a.score;
+      }
+      if (sortBy === 'budget_asc') {
+        return a.budget - b.budget;
+      }
+      if (sortBy === 'budget_desc') {
+        return b.budget - a.budget;
+      }
+      if (sortBy === 'location') {
+        return a.preferredArea.localeCompare(b.preferredArea);
+      }
+      return 0;
+    });
+  }, [searchQuery, filters, sortBy]);
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
@@ -162,7 +187,7 @@ export default function DiscoverScreen() {
           </Text>
         </View>
         <Badge
-          label={`${filteredRoommates.length} Matches`}
+          label={`${filteredAndSortedRoommates.length} Matches`}
           variant="primary"
           size="md"
         />
@@ -178,6 +203,46 @@ export default function DiscoverScreen() {
           onFilterPress={() => setIsFilterModalOpen(true)}
           hasActiveFilters={activeFiltersCount > 0}
         />
+      </View>
+
+      {/* Sorting Selector Bar */}
+      <View style={styles.sortSection}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.sortScroll}
+        >
+          <Text style={styles.sortPrefix}>Sort:</Text>
+          {SORT_OPTIONS.map((opt) => {
+            const isSelected = sortBy === opt.id;
+            return (
+              <TouchableOpacity
+                key={opt.id}
+                activeOpacity={0.7}
+                onPress={() => setSortBy(opt.id)}
+                style={[
+                  styles.sortPill,
+                  isSelected && styles.sortPillSelected,
+                ]}
+              >
+                <Ionicons
+                  name={opt.icon}
+                  size={12}
+                  color={isSelected ? COLORS.textInverse : COLORS.textSecondary}
+                  style={styles.sortIcon}
+                />
+                <Text
+                  style={[
+                    styles.sortPillText,
+                    isSelected && styles.sortPillTextSelected,
+                  ]}
+                >
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
 
       {/* Active Filter Pills Bar */}
@@ -201,7 +266,7 @@ export default function DiscoverScreen() {
         </View>
       ) : (
         <FlatList
-          data={filteredRoommates}
+          data={filteredAndSortedRoommates}
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
@@ -265,7 +330,48 @@ const styles = StyleSheet.create({
   searchSection: {
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.sm,
+    paddingBottom: SPACING.xs,
+  },
+  sortSection: {
     paddingBottom: SPACING.sm,
+  },
+  sortScroll: {
+    paddingHorizontal: SPACING.lg,
+    alignItems: 'center',
+    gap: SPACING.xs + 2,
+  },
+  sortPrefix: {
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.semiBold,
+    color: COLORS.textSecondary,
+    marginRight: 2,
+  },
+  sortPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 5,
+    borderRadius: RADII.pill,
+    gap: 4,
+  },
+  sortPillSelected: {
+    backgroundColor: COLORS.navyDark,
+    borderColor: COLORS.navyDark,
+  },
+  sortIcon: {
+    marginRight: 1,
+  },
+  sortPillText: {
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.medium,
+    color: COLORS.textSecondary,
+  },
+  sortPillTextSelected: {
+    color: COLORS.textInverse,
+    fontWeight: TYPOGRAPHY.semiBold,
   },
   activeFiltersBar: {
     flexDirection: 'row',
