@@ -25,7 +25,9 @@ import {
   SearchBar,
   RoommateCard,
   RoommateFilterModal,
+  MatchRequestModal,
 } from '../../src/components';
+import { useMatchRequests } from '../../src/hooks/useMatchRequests';
 import { MOCK_RECOMMENDED_ROOMMATES } from '../../src/data/mockData';
 
 const DEFAULT_FILTERS = {
@@ -53,7 +55,9 @@ export default function DiscoverScreen() {
   const [loading, setLoading] = useState(false);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
-  const [requestedMap, setRequestedMap] = useState({});
+  const [modalCandidate, setModalCandidate] = useState(null);
+
+  const { isRequested, sendRequest, refreshRequests } = useMatchRequests();
 
   // Calculate active filter count
   const activeFiltersCount = useMemo(() => {
@@ -150,11 +154,11 @@ export default function DiscoverScreen() {
     setFilters(DEFAULT_FILTERS);
   };
 
-  const handleMatchRequest = (candidateId) => {
-    setRequestedMap((prev) => ({
-      ...prev,
-      [candidateId]: true,
-    }));
+  const handleMatchRequest = async (candidate) => {
+    const res = await sendRequest(candidate);
+    if (res.success) {
+      setModalCandidate(candidate);
+    }
   };
 
   const renderEmptyState = () => (
@@ -284,8 +288,8 @@ export default function DiscoverScreen() {
               roommate={item}
               onPress={() => router.push(`/roommate/${item.id}`)}
               onViewBreakdown={() => router.push(`/roommate/${item.id}`)}
-              onMatchRequest={() => handleMatchRequest(item.id)}
-              isRequested={!!requestedMap[item.id]}
+              onMatchRequest={() => handleMatchRequest(item)}
+              isRequested={isRequested(item.id)}
             />
           )}
         />
@@ -298,6 +302,12 @@ export default function DiscoverScreen() {
         filters={filters}
         onApply={(newFilters) => setFilters(newFilters)}
         onReset={(defaultFilters) => setFilters(defaultFilters)}
+      />
+      {/* Match Request Confirmation Modal */}
+      <MatchRequestModal
+        visible={!!modalCandidate}
+        candidate={modalCandidate}
+        onClose={() => setModalCandidate(null)}
       />
     </SafeAreaView>
   );
