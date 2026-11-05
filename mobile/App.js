@@ -14,6 +14,7 @@ import { fetchMatches } from './src/api/matches';
 const DEFAULT_PROFILE_ID = 'user-1';
 
 export default function App() {
+  const [screen, setScreen] = useState('home');
   const [profileId, setProfileId] = useState(DEFAULT_PROFILE_ID);
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -39,10 +40,63 @@ export default function App() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>Roommate recommendations</Text>
-        <Text style={styles.subtitle}>
-          Ranked by budget, location, lifestyle, and habits.
-        </Text>
+        {screen === 'home' ? (
+          <HomeScreen onFindRoommates={() => setScreen('matches')} />
+        ) : (
+          <RecommendationsScreen
+            errorMessage={errorMessage}
+            hasLoaded={hasLoaded}
+            loading={loading}
+            matches={matches}
+            onBack={() => setScreen('home')}
+            onFindMatches={loadMatches}
+            profileId={profileId}
+            setProfileId={setProfileId}
+          />
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function HomeScreen({ onFindRoommates }) {
+  return (
+    <View style={styles.home}>
+      <Text style={styles.logo}>NestMate</Text>
+      <Text style={styles.homeTitle}>Find a roommate who fits your lifestyle.</Text>
+      <Text style={styles.homeSubtitle}>
+        Compare compatibility across budget, location, lifestyle, and habits.
+      </Text>
+      <Pressable
+        accessibilityRole="button"
+        onPress={onFindRoommates}
+        style={({ pressed }) => [styles.primaryButton, pressed && styles.buttonPressed]}
+      >
+        <Text style={styles.primaryButtonText}>Find roommates</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function RecommendationsScreen({
+  errorMessage,
+  hasLoaded,
+  loading,
+  matches,
+  onBack,
+  onFindMatches,
+  profileId,
+  setProfileId,
+}) {
+  return (
+    <>
+      <Pressable accessibilityRole="button" onPress={onBack} style={styles.backButton}>
+        <Text style={styles.backText}>‹ Home</Text>
+      </Pressable>
+      <Text style={styles.title}>Roommate recommendations</Text>
+      <Text style={styles.subtitle}>
+        Ranked by budget, location, lifestyle, and habits.
+      </Text>
 
         <View style={styles.searchRow}>
           <TextInput
@@ -56,7 +110,7 @@ export default function App() {
           <Pressable
             accessibilityRole="button"
             disabled={loading}
-            onPress={loadMatches}
+            onPress={onFindMatches}
             style={({ pressed }) => [
               styles.button,
               pressed && styles.buttonPressed,
@@ -78,7 +132,7 @@ export default function App() {
           <View style={styles.errorCard}>
             <Text style={styles.errorTitle}>Could not load recommendations</Text>
             <Text style={styles.errorText}>{errorMessage}</Text>
-            <Pressable onPress={loadMatches} style={styles.retryButton}>
+            <Pressable onPress={onFindMatches} style={styles.retryButton}>
               <Text style={styles.retryText}>Try again</Text>
             </Pressable>
           </View>
@@ -108,8 +162,7 @@ export default function App() {
             </Text>
           </View>
         )}
-      </ScrollView>
-    </SafeAreaView>
+    </>
   );
 }
 
@@ -144,6 +197,22 @@ function formatCategory(category) {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#f8fafc' },
   container: { padding: 24, gap: 16 },
+  home: { flex: 1, justifyContent: 'center', minHeight: 560, gap: 18 },
+  logo: { color: '#2563eb', fontSize: 18, fontWeight: '800', letterSpacing: 1 },
+  homeTitle: { color: '#0f172a', fontSize: 34, fontWeight: '800', lineHeight: 42 },
+  homeSubtitle: { color: '#64748b', fontSize: 16, lineHeight: 24 },
+  primaryButton: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#2563eb',
+    borderRadius: 10,
+    marginTop: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+  },
+  primaryButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  backButton: { alignSelf: 'flex-start', paddingVertical: 4 },
+  backText: { color: '#2563eb', fontSize: 16, fontWeight: '700' },
   title: { color: '#0f172a', fontSize: 28, fontWeight: '700' },
   subtitle: { color: '#64748b', fontSize: 15, lineHeight: 22 },
   searchRow: { flexDirection: 'row', gap: 8 },

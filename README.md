@@ -50,10 +50,11 @@ empty candidate list returns `200` with an empty `matches` array.
 
 ## Mobile app
 
-The Expo React Native app is in [`mobile/`](./mobile/). It requests the endpoint when the user
-enters a profile ID and taps **Find**. Each result shows the candidate ID, compatibility score,
-and every score-breakdown category. Loading, empty, network, and API error states are shown in
-the screen instead of using hardcoded recommendations.
+The Expo React Native app is in [`mobile/`](./mobile/). Its home screen introduces NestMate and
+provides a **Find roommates** entry point. The recommendations screen requests the endpoint when
+the user enters a profile ID and taps **Find**. Each result shows the candidate ID, compatibility
+score, and every score-breakdown category. Loading, empty, network, and API error states are shown
+in the screen instead of using hardcoded recommendations.
 
 Run the backend first:
 
