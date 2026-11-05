@@ -4,3 +4,4 @@ export { default as Input } from './Input';
 export { default as SearchBar } from './SearchBar';
 export { default as Badge } from './Badge';
 export { default as RoommateCard } from './RoommateCard';
+export { default as CompatibilityBreakdown } from './CompatibilityBreakdown';
