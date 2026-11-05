@@ -11,7 +11,10 @@ export default function RootLayout() {
           headerShown: false,
           contentStyle: { backgroundColor: '#F8FAFC' },
         }}
-      />
+      >
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="roommate/[id]" options={{ headerShown: false, presentation: 'card' }} />
+      </Stack>
     </SafeAreaProvider>
   );
 }
