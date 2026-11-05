@@ -20,7 +20,7 @@ The mobile UI is designed specifically for students and professionals looking fo
 ### Tech Stack
 - **Framework**: React Native with Expo (SDK 58)
 - **Language**: JavaScript
-- **Navigation**: Expo Router (file-based navigation with tabs)
+- **Navigation**: Expo Router (file-based navigation with tabs and dynamic routes)
 - **Styling**: React Native `StyleSheet` with centralized design tokens
 - **Icons**: `@expo/vector-icons` (Ionicons)
 - **Storage**: `@react-native-async-storage/async-storage`
@@ -31,12 +31,14 @@ mobile/
 ├── app/                      # Expo Router file-based routes
 │   ├── _layout.js            # Root layout with SafeAreaProvider & Stack
 │   ├── index.js              # Entry redirect to (tabs)
-│   └── (tabs)/               # Bottom tab navigation
-│       ├── _layout.js        # Tab bar configuration & icons
-│       ├── index.js          # Home / Discovery screen
-│       ├── discover.js       # Discover & recommendations screen
-│       ├── saved.js          # Bookmarked roommates & accommodations
-│       └── profile.js        # User profile & preferences
+│   ├── (tabs)/               # Bottom tab navigation
+│   │   ├── _layout.js        # Tab bar configuration & icons
+│   │   ├── index.js          # Home / Discovery screen
+│   │   ├── discover.js       # Roommate discovery with search & sorting
+│   │   ├── saved.js          # Bookmarked roommates & accommodations
+│   │   └── profile.js        # User profile & preferences
+│   └── roommate/
+│       └── [id].js           # Roommate profile details & compatibility breakdown
 ├── src/
 │   ├── components/           # Reusable UI component library
 │   │   ├── Button.js         # Primary, secondary, outline, danger buttons
@@ -44,12 +46,22 @@ mobile/
 │   │   ├── Input.js          # Form text inputs with icons & validation
 │   │   ├── SearchBar.js      # Search input with filter toggle
 │   │   ├── Badge.js          # Compatibility & status pills
+│   │   ├── RoommateCard.js   # Roommate recommendation card
+│   │   ├── CompatibilityBreakdown.js # 4-pillar visual scoring breakdown
+│   │   ├── RoommateFilterModal.js    # Filter bottom sheet modal
+│   │   ├── MatchRequestModal.js      # Match request confirmation dialog
 │   │   └── index.js
 │   ├── constants/            # Design system tokens
 │   │   ├── theme.js          # Palette (Navy/Blue), Typography, Spacing, Shadows
 │   │   └── index.js
+│   ├── hooks/
+│   │   └── useMatchRequests.js # Hook for managing match request states
+│   ├── services/
+│   │   └── matchRequestService.js # Match request storage & API client
 │   └── data/
 │       └── mockData.js       # Realistic mock data aligned with backend schemas
+├── test/
+│   └── roommateJourney.test.js # Automated verification for roommate discovery journey
 ├── assets/                   # App icons, splash screens, and images
 ├── app.json                  # Expo project configuration
 └── package.json              # Mobile dependencies and scripts
@@ -89,6 +101,11 @@ mobile/
    - Press `w` to open in the **Web browser**.
    - Scan the QR code using the **Expo Go** app on your physical device.
 
+5. **Run mobile journey tests**:
+   ```bash
+   node --test mobile/test/roommateJourney.test.js
+   ```
+
 ---
 
 ## 4. Backend Development (`/src`)
@@ -109,12 +126,23 @@ npm test
 
 ---
 
-## 5. Mobile Day 1 Implementation Summary
+## 5. Development Progress
 
+### Day 1 Summary
 - [x] Initialized Expo mobile application inside `mobile/`.
 - [x] Configured Expo Router with file-based routing and root stack.
 - [x] Established design system with navy, soft blue, and white palette, spacing, typography, and shadows.
-- [x] Built reusable components: `Button` (with variants, loading, icons), `Card` (elevated, flat), `Input`, `SearchBar`, and `Badge`.
-- [x] Implemented bottom tab navigation (`Home`, `Discover`, `Saved`, `Profile`) with active indicators.
-- [x] Built polished Home / Discovery screen with user greeting, search bar, filter pills, Smart Match algorithm banner, quick stats, top roommate matches, and featured accommodation cards.
+- [x] Built reusable components: `Button`, `Card`, `Input`, `SearchBar`, and `Badge`.
+- [x] Implemented bottom tab navigation (`Home`, `Discover`, `Saved`, `Profile`).
+- [x] Built initial Home screen with user greeting, search bar, filter pills, and recommendation preview cards.
 - [x] Preserved all existing backend files and unit tests.
+
+### Day 2 Summary (Roommate Discovery & Recommendations)
+- [x] **Roommate Discovery Screen**: Polished `discover.js` with responsive card layout, search bar, active filter count, loading indicator, and empty states.
+- [x] **Recommendation Cards**: `RoommateCard.js` displaying profile photo, age, role, budget ($/mo), area, lifestyle chips (cleanliness, sleep schedule, smoking, pets), and match percentage badge.
+- [x] **Profile Details Screen**: `roommate/[id].js` dynamic route with full introduction, key lease specs, habits grid, roommate preferences (WFH, cooking, guests), and interest tags.
+- [x] **Compatibility Breakdown Component**: `CompatibilityBreakdown.js` visualizing the 4 pillars (Budget, Location, Lifestyle, Habits) with progress bars, color thresholds, and mathematical verification that category scores sum strictly to the backend total score (25 pts each = 100 max).
+- [x] **Client-Side Filters**: `RoommateFilterModal.js` bottom sheet filtering by preferred area, max budget, minimum score threshold (80%+, 85%+, 90%+), sleep schedule, cleanliness, non-smoking only, and pet-friendly.
+- [x] **Sorting Controls**: Real-time sorting by Highest Match, Lowest Budget, Highest Budget, and Preferred Location.
+- [x] **Match Request Interactions**: `matchRequestService.js` and `useMatchRequests.js` with AsyncStorage persistence, duplicate prevention, and `MatchRequestModal.js` confirmation feedback.
+- [x] **User Journey Verification**: `roommateJourney.test.js` validating compatibility scoring math, filtering accuracy, and sorting order.
