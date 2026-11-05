@@ -22,6 +22,7 @@ import {
   Badge,
   Button,
   Card,
+  CompatibilityBreakdown,
 } from '../../src/components';
 import { MOCK_RECOMMENDED_ROOMMATES } from '../../src/data/mockData';
 
@@ -120,6 +121,15 @@ export default function RoommateDetailsScreen() {
               <Text style={styles.infoLabel}>Lease Duration</Text>
               <Text style={styles.infoValue}>{roommate.leaseDuration || '12 Months'}</Text>
             </View>
+          </View>
+
+          {/* Compatibility Breakdown Card */}
+          <View style={styles.section}>
+            <CompatibilityBreakdown
+              score={roommate.score}
+              breakdown={roommate.breakdown}
+              candidateName={roommate.name}
+            />
           </View>
 
           {/* About Me / Introduction */}
