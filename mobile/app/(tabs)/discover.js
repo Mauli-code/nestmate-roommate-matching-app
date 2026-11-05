@@ -24,27 +24,94 @@ import {
   Card,
   SearchBar,
   RoommateCard,
+  RoommateFilterModal,
 } from '../../src/components';
 import { MOCK_RECOMMENDED_ROOMMATES } from '../../src/data/mockData';
+
+const DEFAULT_FILTERS = {
+  location: 'All',
+  maxBudget: null,
+  minScore: 0,
+  sleepSchedule: 'Any',
+  cleanliness: 'Any',
+  nonSmokerOnly: false,
+  petsOnly: false,
+};
 
 export default function DiscoverScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [roommates, setRoommates] = useState(MOCK_RECOMMENDED_ROOMMATES);
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const [requestedMap, setRequestedMap] = useState({});
 
-  // Filtered list based on search
+  // Calculate active filter count
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (filters.location !== 'All') count++;
+    if (filters.maxBudget !== null) count++;
+    if (filters.minScore > 0) count++;
+    if (filters.sleepSchedule !== 'Any') count++;
+    if (filters.cleanliness !== 'Any') count++;
+    if (filters.nonSmokerOnly) count++;
+    if (filters.petsOnly) count++;
+    return count;
+  }, [filters]);
+
+  // Client-side filtering logic
   const filteredRoommates = useMemo(() => {
-    if (!searchQuery.trim()) return roommates;
-    const query = searchQuery.toLowerCase().trim();
-    return roommates.filter((r) =>
-      r.name.toLowerCase().includes(query) ||
-      r.role.toLowerCase().includes(query) ||
-      r.preferredArea.toLowerCase().includes(query) ||
-      (r.tags && r.tags.some((t) => t.toLowerCase().includes(query)))
-    );
-  }, [roommates, searchQuery]);
+    return MOCK_RECOMMENDED_ROOMMATES.filter((r) => {
+      // Search query
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase().trim();
+        const matchesQuery =
+          r.name.toLowerCase().includes(query) ||
+          r.role.toLowerCase().includes(query) ||
+          r.preferredArea.toLowerCase().includes(query) ||
+          (r.tags && r.tags.some((t) => t.toLowerCase().includes(query)));
+        if (!matchesQuery) return false;
+      }
+
+      // Location
+      if (filters.location !== 'All' && r.preferredArea.toLowerCase() !== filters.location.toLowerCase()) {
+        return false;
+      }
+
+      // Max Budget
+      if (filters.maxBudget !== null && r.budget > filters.maxBudget) {
+        return false;
+      }
+
+      // Min Score
+      if (filters.minScore > 0 && r.score < filters.minScore) {
+        return false;
+      }
+
+      // Sleep Schedule
+      if (filters.sleepSchedule !== 'Any' && r.lifestyle?.sleepSchedule !== filters.sleepSchedule) {
+        return false;
+      }
+
+      // Cleanliness
+      if (filters.cleanliness !== 'Any' && r.lifestyle?.cleanliness !== filters.cleanliness) {
+        return false;
+      }
+
+      // Non-smoker only
+      if (filters.nonSmokerOnly && r.lifestyle?.smoking === true) {
+        return false;
+      }
+
+      // Pets only
+      if (filters.petsOnly && !r.lifestyle?.pets) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [searchQuery, filters]);
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
@@ -53,24 +120,32 @@ export default function DiscoverScreen() {
     }, 800);
   }, []);
 
-  const handleResetSearch = () => {
+  const handleResetFilters = () => {
     setSearchQuery('');
+    setFilters(DEFAULT_FILTERS);
+  };
+
+  const handleMatchRequest = (candidateId) => {
+    setRequestedMap((prev) => ({
+      ...prev,
+      [candidateId]: true,
+    }));
   };
 
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
       <View style={styles.emptyIconCircle}>
-        <Ionicons name="search-outline" size={36} color={COLORS.primary} />
+        <Ionicons name="filter-outline" size={36} color={COLORS.primary} />
       </View>
-      <Text style={styles.emptyTitle}>No Roommates Found</Text>
+      <Text style={styles.emptyTitle}>No Matching Roommates</Text>
       <Text style={styles.emptyText}>
-        We couldn't find any roommate matches matching "{searchQuery}". Try searching for another area, name, or role.
+        No profiles match your active filters and search query. Try broadening your budget, area, or score criteria.
       </Text>
       <Button
-        title="Clear Search"
+        title="Reset All Filters"
         variant="secondary"
         size="md"
-        onPress={handleResetSearch}
+        onPress={handleResetFilters}
         style={styles.emptyButton}
       />
     </View>
@@ -100,10 +175,23 @@ export default function DiscoverScreen() {
           onChangeText={setSearchQuery}
           placeholder="Search by name, role, area, or vibe..."
           onClear={() => setSearchQuery('')}
-          onFilterPress={() => {}}
-          hasActiveFilters={false}
+          onFilterPress={() => setIsFilterModalOpen(true)}
+          hasActiveFilters={activeFiltersCount > 0}
         />
       </View>
+
+      {/* Active Filter Pills Bar */}
+      {activeFiltersCount > 0 && (
+        <View style={styles.activeFiltersBar}>
+          <View style={styles.activeBadge}>
+            <Ionicons name="funnel" size={12} color={COLORS.primaryDark} />
+            <Text style={styles.activeBadgeText}>{activeFiltersCount} Active Filter{activeFiltersCount > 1 ? 's' : ''}</Text>
+          </View>
+          <TouchableOpacity onPress={handleResetFilters} activeOpacity={0.7}>
+            <Text style={styles.clearFiltersText}>Clear All</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Content */}
       {loading ? (
@@ -131,11 +219,21 @@ export default function DiscoverScreen() {
               roommate={item}
               onPress={() => router.push(`/roommate/${item.id}`)}
               onViewBreakdown={() => router.push(`/roommate/${item.id}`)}
-              onMatchRequest={() => {}}
+              onMatchRequest={() => handleMatchRequest(item.id)}
+              isRequested={!!requestedMap[item.id]}
             />
           )}
         />
       )}
+
+      {/* Filter Modal */}
+      <RoommateFilterModal
+        visible={isFilterModalOpen}
+        onClose={() => setIsFilterModalOpen(false)}
+        filters={filters}
+        onApply={(newFilters) => setFilters(newFilters)}
+        onReset={(defaultFilters) => setFilters(defaultFilters)}
+      />
     </SafeAreaView>
   );
 }
@@ -167,11 +265,38 @@ const styles = StyleSheet.create({
   searchSection: {
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.sm,
-    paddingBottom: SPACING.md,
+    paddingBottom: SPACING.sm,
+  },
+  activeFiltersBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.sm,
+  },
+  activeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.softBlue,
+    borderRadius: RADII.pill,
+    paddingHorizontal: SPACING.sm + 2,
+    paddingVertical: 3,
+    gap: 4,
+  },
+  activeBadgeText: {
+    fontSize: 11,
+    color: COLORS.primaryDark,
+    fontWeight: TYPOGRAPHY.semiBold,
+  },
+  clearFiltersText: {
+    fontSize: 12,
+    color: COLORS.danger,
+    fontWeight: TYPOGRAPHY.medium,
   },
   listContent: {
     paddingHorizontal: SPACING.lg,
     paddingBottom: SPACING.xxxl,
+    paddingTop: SPACING.xs,
     gap: SPACING.md,
   },
   loadingContainer: {
@@ -214,30 +339,6 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.lg,
   },
   emptyButton: {
-    minWidth: 140,
-  },
-  placeholderCard: {
-    marginBottom: SPACING.xs,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  cardName: {
-    fontSize: TYPOGRAPHY.md.fontSize,
-    fontWeight: TYPOGRAPHY.bold,
-    color: COLORS.navyDark,
-  },
-  cardRole: {
-    fontSize: TYPOGRAPHY.xs.fontSize,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
-  cardArea: {
-    fontSize: TYPOGRAPHY.xs.fontSize,
-    color: COLORS.primaryDark,
-    marginTop: 6,
-    fontWeight: TYPOGRAPHY.medium,
+    minWidth: 160,
   },
 });
