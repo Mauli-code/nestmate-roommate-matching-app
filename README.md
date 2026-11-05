@@ -47,3 +47,33 @@ The repository is intentionally still an application boundary. Configure a real 
 implementation in `MatchingModule` before running the endpoint; otherwise it returns a service
 unavailable response. Missing `profileId` returns `400`, an unknown profile returns `404`, and an
 empty candidate list returns `200` with an empty `matches` array.
+
+## Mobile app
+
+The Expo React Native app is in [`mobile/`](./mobile/). It requests the endpoint when the user
+enters a profile ID and taps **Find**. Each result shows the candidate ID, compatibility score,
+and every score-breakdown category. Loading, empty, network, and API error states are shown in
+the screen instead of using hardcoded recommendations.
+
+Run the backend first:
+
+```bash
+npm install
+PORT=3001 npm start
+```
+
+In another terminal, run the mobile app:
+
+```bash
+cd mobile
+npm install
+EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:3001 npm start
+```
+
+Use `http://127.0.0.1:3001` for an iOS simulator or web browser. For a physical phone, replace
+the address with the computer's local-network IP address. Android emulators use `10.0.2.2` to
+reach the host computer.
+
+The current backend intentionally returns `503` until a real implementation of
+`MATCHING_PROFILE_REPOSITORY` is configured. Once profiles are connected, the same screen will
+display the live ranked recommendations.
