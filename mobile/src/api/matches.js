@@ -29,9 +29,23 @@ export async function fetchMatches(profileId) {
     throw new Error(body.message || `The request failed (${response.status}).`);
   }
 
-  if (!body || !Array.isArray(body.matches)) {
+  if (
+    !body ||
+    !Array.isArray(body.matches) ||
+    body.matches.some(
+      (match) =>
+        !match ||
+        typeof match.candidateId !== 'string' ||
+        typeof match.score !== 'number' ||
+        !match.breakdown ||
+        typeof match.breakdown !== 'object',
+    )
+  ) {
     throw new Error('The backend returned an invalid matches response.');
   }
 
-  return body;
+  return {
+    ...body,
+    matches: [...body.matches].sort((first, second) => second.score - first.score),
+  };
 }

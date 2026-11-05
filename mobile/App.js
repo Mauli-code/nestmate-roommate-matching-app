@@ -98,80 +98,90 @@ function RecommendationsScreen({
         Ranked by budget, location, lifestyle, and habits.
       </Text>
 
-        <View style={styles.searchRow}>
-          <TextInput
-            accessibilityLabel="Profile ID"
-            autoCapitalize="none"
-            onChangeText={setProfileId}
-            placeholder="Your profile ID"
-            style={styles.input}
-            value={profileId}
-          />
-          <Pressable
-            accessibilityRole="button"
-            disabled={loading}
-            onPress={onFindMatches}
-            style={({ pressed }) => [
-              styles.button,
-              pressed && styles.buttonPressed,
-              loading && styles.buttonDisabled,
-            ]}
-          >
-            <Text style={styles.buttonText}>Find</Text>
+      <View style={styles.searchRow}>
+        <TextInput
+          accessibilityLabel="Profile ID"
+          autoCapitalize="none"
+          onChangeText={setProfileId}
+          placeholder="Your profile ID"
+          style={styles.input}
+          value={profileId}
+        />
+        <Pressable
+          accessibilityRole="button"
+          disabled={loading}
+          onPress={onFindMatches}
+          style={({ pressed }) => [
+            styles.button,
+            pressed && styles.buttonPressed,
+            loading && styles.buttonDisabled,
+          ]}
+        >
+          <Text style={styles.buttonText}>Find</Text>
+        </Pressable>
+      </View>
+
+      <Text style={styles.resultsLabel}>
+        {hasLoaded ? `${matches.length} recommendation${matches.length === 1 ? '' : 's'}` : 'Recommendations'}
+      </Text>
+
+      {loading && (
+        <View style={styles.state}>
+          <ActivityIndicator color="#2563eb" size="large" />
+          <Text style={styles.stateText}>Finding compatible roommates...</Text>
+        </View>
+      )}
+
+      {!loading && errorMessage !== '' && (
+        <View style={styles.errorCard}>
+          <Text style={styles.errorTitle}>Could not load recommendations</Text>
+          <Text style={styles.errorText}>{errorMessage}</Text>
+          <Pressable onPress={onFindMatches} style={styles.retryButton}>
+            <Text style={styles.retryText}>Try again</Text>
           </Pressable>
         </View>
+      )}
 
-        {loading && (
+      {!loading &&
+        errorMessage === '' &&
+        hasLoaded &&
+        matches.length === 0 && (
           <View style={styles.state}>
-            <ActivityIndicator color="#2563eb" size="large" />
-            <Text style={styles.stateText}>Finding compatible roommates...</Text>
-          </View>
-        )}
-
-        {!loading && errorMessage !== '' && (
-          <View style={styles.errorCard}>
-            <Text style={styles.errorTitle}>Could not load recommendations</Text>
-            <Text style={styles.errorText}>{errorMessage}</Text>
-            <Pressable onPress={onFindMatches} style={styles.retryButton}>
-              <Text style={styles.retryText}>Try again</Text>
-            </Pressable>
-          </View>
-        )}
-
-        {!loading &&
-          errorMessage === '' &&
-          hasLoaded &&
-          matches.length === 0 && (
-            <View style={styles.state}>
-              <Text style={styles.emptyTitle}>No matches yet</Text>
-              <Text style={styles.stateText}>
-                There are no candidate profiles available for this account.
-              </Text>
-            </View>
-          )}
-
-        {!loading &&
-          errorMessage === '' &&
-          matches.map((match) => <MatchCard key={match.candidateId} match={match} />)}
-
-        {!loading && !hasLoaded && errorMessage === '' && (
-          <View style={styles.state}>
-            <Text style={styles.emptyTitle}>Ready to find your match?</Text>
+            <Text style={styles.emptyTitle}>No matches yet</Text>
             <Text style={styles.stateText}>
-              Enter a profile ID and tap Find to load recommendations.
+              There are no candidate profiles available for this account.
             </Text>
           </View>
         )}
+
+      {!loading &&
+        errorMessage === '' &&
+        matches.map((match, index) => (
+          <MatchCard
+            key={`${match.candidateId || 'unknown'}-${index}`}
+            match={match}
+            rank={index + 1}
+          />
+        ))}
+
+      {!loading && !hasLoaded && errorMessage === '' && (
+        <View style={styles.state}>
+          <Text style={styles.emptyTitle}>Ready to find your match?</Text>
+          <Text style={styles.stateText}>
+            Enter a profile ID and tap Find to load recommendations.
+          </Text>
+        </View>
+      )}
     </>
   );
 }
 
-function MatchCard({ match }) {
+function MatchCard({ match, rank }) {
   return (
     <View style={styles.matchCard}>
       <View style={styles.matchHeader}>
         <View>
-          <Text style={styles.candidateLabel}>Candidate</Text>
+          <Text style={styles.candidateLabel}>#{rank} candidate profile</Text>
           <Text style={styles.candidateId}>{match.candidateId || 'Unknown'}</Text>
         </View>
         <Text style={styles.score}>{match.score}%</Text>
@@ -215,6 +225,7 @@ const styles = StyleSheet.create({
   backText: { color: '#2563eb', fontSize: 16, fontWeight: '700' },
   title: { color: '#0f172a', fontSize: 28, fontWeight: '700' },
   subtitle: { color: '#64748b', fontSize: 15, lineHeight: 22 },
+  resultsLabel: { color: '#334155', fontSize: 15, fontWeight: '700' },
   searchRow: { flexDirection: 'row', gap: 8 },
   input: {
     backgroundColor: '#fff',
