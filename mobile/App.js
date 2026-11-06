@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { fetchMatches } from './src/api/matches';
 import { savePreferences as savePreferencesRequest } from './src/api/preferences';
+import { login, logout, readSession, register } from './src/api/auth';
 import { validatePreferences } from './src/preferences';
 
 const DEFAULT_PROFILE_ID = 'user-1';
@@ -18,6 +19,8 @@ const DEFAULT_PROFILE_ID = 'user-1';
 export default function App() {
   const [screen, setScreen] = useState('home');
   const [profileId, setProfileId] = useState(DEFAULT_PROFILE_ID);
+  const [session, setSession] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -34,12 +37,23 @@ export default function App() {
     drinking: '',
   });
 
+  useEffect(() => {
+    readSession()
+      .then((savedSession) => {
+        if (savedSession) {
+          setSession(savedSession);
+          setProfileId(savedSession.user.id);
+        }
+      })
+      .finally(() => setAuthReady(true));
+  }, []);
+
   const loadMatches = useCallback(async () => {
     setLoading(true);
     setErrorMessage('');
 
     try {
-      const result = await fetchMatches(profileId);
+      const result = await fetchMatches(profileId, session?.token);
       setMatches(result.matches);
       setHasLoaded(true);
     } catch (error) {
@@ -48,7 +62,33 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, [profileId]);
+  }, [profileId, session]);
+
+  if (!authReady) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.state}>
+          <ActivityIndicator color="#2563eb" size="large" />
+          <Text style={styles.stateText}>Loading your account...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!session) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <ScrollView contentContainerStyle={styles.container}>
+          <AuthScreen
+            onAuthenticated={(newSession) => {
+              setSession(newSession);
+              setProfileId(newSession.user.id);
+            }}
+          />
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -57,6 +97,12 @@ export default function App() {
           <HomeScreen
             onFindRoommates={() => setScreen('matches')}
             onSetPreferences={() => setScreen('preferences')}
+            onLogout={async () => {
+              await logout(session.token);
+              setSession(null);
+              setScreen('home');
+            }}
+            userName={session.user.fullName}
           />
         ) : screen === 'preferences' ? (
           <PreferenceSetupScreen
@@ -68,6 +114,7 @@ export default function App() {
             profileId={profileId}
             preferences={preferences}
             setPreferences={setPreferences}
+            token={session.token}
           />
         ) : screen === 'details' ? (
           <ProfileDetailsScreen
@@ -95,10 +142,87 @@ export default function App() {
   );
 }
 
-function HomeScreen({ onFindRoommates, onSetPreferences }) {
+function AuthScreen({ onAuthenticated }) {
+  const [mode, setMode] = useState('login');
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  async function submit() {
+    setErrorMessage('');
+    if (!email.trim() || password.length < 8 || (mode === 'register' && fullName.trim().length < 2)) {
+      setErrorMessage(mode === 'register'
+        ? 'Enter your name, a valid email, and a password with at least 8 characters.'
+        : 'Enter your email and a password with at least 8 characters.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = mode === 'register'
+        ? await register(fullName, email, password)
+        : await login(email, password);
+      onAuthenticated({ token: result.accessToken, user: result.user });
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <View style={styles.authCard}>
+      <Text style={styles.logo}>NestMate</Text>
+      <Text style={styles.title}>{mode === 'register' ? 'Create your account' : 'Welcome back'}</Text>
+      <Text style={styles.subtitle}>Sign in to manage your roommate preferences.</Text>
+      {mode === 'register' && (
+        <TextInput
+          autoCapitalize="words"
+          onChangeText={setFullName}
+          placeholder="Full name"
+          style={styles.input}
+          value={fullName}
+        />
+      )}
+      <TextInput
+        autoCapitalize="none"
+        keyboardType="email-address"
+        onChangeText={setEmail}
+        placeholder="Email address"
+        style={styles.input}
+        value={email}
+      />
+      <TextInput
+        onChangeText={setPassword}
+        placeholder="Password (8+ characters)"
+        secureTextEntry
+        style={styles.input}
+        value={password}
+      />
+      {errorMessage !== '' && <Text style={styles.fieldError}>{errorMessage}</Text>}
+      <Pressable
+        disabled={loading}
+        onPress={submit}
+        style={({ pressed }) => [styles.primaryButton, pressed && styles.buttonPressed]}
+      >
+        <Text style={styles.primaryButtonText}>{loading ? 'Please wait...' : mode === 'register' ? 'Register' : 'Log in'}</Text>
+      </Pressable>
+      <Pressable onPress={() => setMode(mode === 'register' ? 'login' : 'register')} style={styles.secondaryButton}>
+        <Text style={styles.secondaryButtonText}>
+          {mode === 'register' ? 'Already have an account? Log in' : 'New to NestMate? Register'}
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function HomeScreen({ onFindRoommates, onLogout, onSetPreferences, userName }) {
   return (
     <View style={styles.home}>
       <Text style={styles.logo}>NestMate</Text>
+      <Text style={styles.welcomeText}>Welcome, {userName}</Text>
       <Text style={styles.homeTitle}>Find a roommate who fits your lifestyle.</Text>
       <Text style={styles.homeSubtitle}>
         Compare compatibility across budget, location, lifestyle, and habits.
@@ -117,11 +241,14 @@ function HomeScreen({ onFindRoommates, onSetPreferences }) {
       >
         <Text style={styles.secondaryButtonText}>Set my preferences</Text>
       </Pressable>
+      <Pressable accessibilityRole="button" onPress={onLogout} style={styles.secondaryButton}>
+        <Text style={styles.secondaryButtonText}>Log out</Text>
+      </Pressable>
     </View>
   );
 }
 
-function PreferenceSetupScreen({ onBack, onSaved, preferences, profileId, setPreferences }) {
+function PreferenceSetupScreen({ onBack, onSaved, preferences, profileId, setPreferences, token }) {
   const [errors, setErrors] = useState({});
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -142,7 +269,7 @@ function PreferenceSetupScreen({ onBack, onSaved, preferences, profileId, setPre
       setSaving(true);
       setSaveError('');
       try {
-        await savePreferencesRequest(profileId, preferences);
+        await savePreferencesRequest(profileId, preferences, token);
         setSaved(true);
         await onSaved();
       } catch (error) {
@@ -524,7 +651,9 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#f8fafc' },
   container: { padding: 24, gap: 16 },
   home: { flex: 1, justifyContent: 'center', minHeight: 560, gap: 18 },
+  authCard: { flex: 1, justifyContent: 'center', minHeight: 560, gap: 16 },
   logo: { color: '#2563eb', fontSize: 18, fontWeight: '800', letterSpacing: 1 },
+  welcomeText: { color: '#334155', fontSize: 16, fontWeight: '600' },
   homeTitle: { color: '#0f172a', fontSize: 34, fontWeight: '800', lineHeight: 42 },
   homeSubtitle: { color: '#64748b', fontSize: 16, lineHeight: 24 },
   primaryButton: {

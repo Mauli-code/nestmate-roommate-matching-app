@@ -1,10 +1,11 @@
 const { Module } = require('@nestjs/common');
+const { AuthModule } = require('./auth/auth.module');
 const { MatchingModule } = require('./matching/matching.module');
 
 class AppModule {}
 
 Module({
-  imports: [MatchingModule],
+  imports: [AuthModule, MatchingModule],
 })(AppModule);
 
 module.exports = { AppModule };
