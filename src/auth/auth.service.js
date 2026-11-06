@@ -1,4 +1,6 @@
 const crypto = require('node:crypto');
+const fs = require('node:fs/promises');
+const path = require('node:path');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const {
@@ -86,6 +88,39 @@ class AuthService {
     );
   }
 
+  async uploadPhoto(userId, file) {
+    const user = await this.repository.findById(userId);
+    if (!user) {
+      throw new UnauthorizedException('User account was not found');
+    }
+
+    if (!file) {
+      throw new BadRequestException('A profile photo is required');
+    }
+
+    const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+    if (!allowedTypes.has(file.mimetype)) {
+      await this.removeUploadedFile(file);
+      throw new BadRequestException('Only JPEG, PNG, and WebP images are supported');
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      await this.removeUploadedFile(file);
+      throw new BadRequestException('Profile photos must be 5 MB or smaller');
+    }
+
+    if (user.photoPath && user.photoPath !== file.path) {
+      await fs.unlink(user.photoPath).catch(() => {});
+    }
+
+    const updatedUser = await this.repository.save({
+      ...user,
+      photoPath: file.path,
+    });
+
+    return this.profileResponse(updatedUser, await profileRepository.findProfile(userId));
+  }
+
   verifyToken(token) {
     if (!token || revokedTokens.has(token)) {
       throw new UnauthorizedException('Authentication token is invalid');
@@ -130,7 +165,20 @@ class AuthService {
   }
 
   publicUser(user) {
-    return { id: user.id, fullName: user.fullName, email: user.email };
+    return {
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      photoUrl: user.photoPath
+        ? `/uploads/profile-photos/${path.basename(user.photoPath)}`
+        : null,
+    };
+  }
+
+  async removeUploadedFile(file) {
+    if (file?.path) {
+      await fs.unlink(file.path).catch(() => {});
+    }
   }
 
   profileResponse(user, preferences) {
