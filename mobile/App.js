@@ -20,6 +20,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [selectedMatch, setSelectedMatch] = useState(null);
 
   const loadMatches = useCallback(async () => {
     setLoading(true);
@@ -42,6 +43,11 @@ export default function App() {
       <ScrollView contentContainerStyle={styles.container}>
         {screen === 'home' ? (
           <HomeScreen onFindRoommates={() => setScreen('matches')} />
+        ) : screen === 'details' ? (
+          <ProfileDetailsScreen
+            match={selectedMatch}
+            onBack={() => setScreen('matches')}
+          />
         ) : (
           <RecommendationsScreen
             errorMessage={errorMessage}
@@ -50,6 +56,10 @@ export default function App() {
             matches={matches}
             onBack={() => setScreen('home')}
             onFindMatches={loadMatches}
+            onSelectMatch={(match) => {
+              setSelectedMatch(match);
+              setScreen('details');
+            }}
             profileId={profileId}
             setProfileId={setProfileId}
           />
@@ -85,6 +95,7 @@ function RecommendationsScreen({
   matches,
   onBack,
   onFindMatches,
+  onSelectMatch,
   profileId,
   setProfileId,
 }) {
@@ -160,6 +171,7 @@ function RecommendationsScreen({
           <MatchCard
             key={`${match.candidateId || 'unknown'}-${index}`}
             match={match}
+            onPress={() => onSelectMatch(match)}
             rank={index + 1}
           />
         ))}
@@ -176,9 +188,14 @@ function RecommendationsScreen({
   );
 }
 
-function MatchCard({ match, rank }) {
+function MatchCard({ match, onPress, rank }) {
   return (
-    <View style={styles.matchCard}>
+    <Pressable
+      accessibilityHint="Opens the roommate profile details"
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.matchCard, pressed && styles.buttonPressed]}
+    >
       <View style={styles.matchHeader}>
         <View>
           <Text style={styles.candidateLabel}>#{rank} candidate profile</Text>
@@ -194,8 +211,79 @@ function MatchCard({ match, rank }) {
           <Text style={styles.breakdownValue}>{Math.round(value * 100)}%</Text>
         </View>
       ))}
+      <Text style={styles.viewDetailsText}>View profile details</Text>
+    </Pressable>
+  );
+}
+
+function ProfileDetailsScreen({ match, onBack }) {
+  const profile = match?.profile || match?.profileDetails || {};
+  const lifestyle = profile.lifestyle || {};
+
+  return (
+    <>
+      <Pressable accessibilityRole="button" onPress={onBack} style={styles.backButton}>
+        <Text style={styles.backText}>‹ Recommendations</Text>
+      </Pressable>
+      <Text style={styles.title}>Roommate profile</Text>
+      <Text style={styles.subtitle}>
+        Details currently available from the matching response.
+      </Text>
+
+      <View style={styles.detailsCard}>
+        <Text style={styles.candidateLabel}>PROFILE</Text>
+        <Text style={styles.detailsName}>{match?.candidateId || 'Unknown'}</Text>
+        <DetailRow label="Compatibility score" value={formatScore(match?.score)} />
+        <DetailRow label="Budget" value={formatValue(profile.budget)} />
+        <DetailRow label="Preferred location" value={formatValue(profile.preferredArea)} />
+        <DetailRow label="Move-in date" value={formatValue(profile.moveInDate)} />
+      </View>
+
+      <View style={styles.detailsCard}>
+        <Text style={styles.detailsSectionTitle}>Lifestyle and habits</Text>
+        <DetailRow label="Sleep schedule" value={formatValue(lifestyle.sleepSchedule)} />
+        <DetailRow label="Cleanliness" value={formatValue(lifestyle.cleanliness)} />
+        <DetailRow label="Smoking" value={formatBoolean(lifestyle.smoking)} />
+        <DetailRow label="Pets" value={formatBoolean(lifestyle.pets)} />
+      </View>
+
+      <View style={styles.detailsCard}>
+        <Text style={styles.detailsSectionTitle}>Score breakdown</Text>
+        {Object.entries(match?.breakdown || {}).map(([category, value]) => (
+          <DetailRow
+            key={category}
+            label={formatCategory(category)}
+            value={`${Math.round(value * 100)}%`}
+          />
+        ))}
+      </View>
+    </>
+  );
+}
+
+function DetailRow({ label, value }) {
+  return (
+    <View style={styles.detailRow}>
+      <Text style={styles.breakdownLabel}>{label}</Text>
+      <Text style={styles.detailValue}>{value}</Text>
     </View>
   );
+}
+
+function formatValue(value) {
+  return value === undefined || value === null || value === '' ? 'Not provided' : String(value);
+}
+
+function formatBoolean(value) {
+  if (typeof value !== 'boolean') {
+    return 'Not provided';
+  }
+
+  return value ? 'Yes' : 'No';
+}
+
+function formatScore(score) {
+  return typeof score === 'number' ? `${score}%` : 'Not provided';
 }
 
 function formatCategory(category) {
@@ -278,4 +366,17 @@ const styles = StyleSheet.create({
   breakdownRow: { flexDirection: 'row', justifyContent: 'space-between' },
   breakdownLabel: { color: '#64748b', fontSize: 14 },
   breakdownValue: { color: '#334155', fontSize: 14, fontWeight: '600' },
+  viewDetailsText: { color: '#2563eb', fontSize: 14, fontWeight: '700', marginTop: 4 },
+  detailsCard: {
+    backgroundColor: '#fff',
+    borderColor: '#e2e8f0',
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 12,
+    padding: 18,
+  },
+  detailsName: { color: '#0f172a', fontSize: 24, fontWeight: '800', marginTop: 2 },
+  detailsSectionTitle: { color: '#0f172a', fontSize: 17, fontWeight: '700' },
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 16 },
+  detailValue: { color: '#334155', flex: 1, fontSize: 14, fontWeight: '600', textAlign: 'right' },
 });
