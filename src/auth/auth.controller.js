@@ -1,4 +1,12 @@
-const { Body, Controller, Post, Req, UseGuards } = require('@nestjs/common');
+const {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Put,
+  Req,
+  UseGuards,
+} = require('@nestjs/common');
 const { AuthGuard } = require('./auth.guard');
 const { AuthService } = require('./auth.service');
 
@@ -18,6 +26,14 @@ class AuthController {
   async logout(request) {
     return this.authService.revokeToken(request.authToken);
   }
+
+  async getProfile(request) {
+    return this.authService.getProfile(request.user.sub);
+  }
+
+  async updateProfile(request, body) {
+    return this.authService.updateProfile(request.user.sub, body);
+  }
 }
 
 Controller('api/auth')(AuthController);
@@ -31,5 +47,20 @@ const logoutDescriptor = Object.getOwnPropertyDescriptor(AuthController.prototyp
 Post('logout')(AuthController.prototype, 'logout', logoutDescriptor);
 Req()(AuthController.prototype, 'logout', 0);
 UseGuards(AuthGuard)(AuthController.prototype, 'logout', logoutDescriptor);
+const getProfileDescriptor = Object.getOwnPropertyDescriptor(
+  AuthController.prototype,
+  'getProfile',
+);
+Get('profile')(AuthController.prototype, 'getProfile', getProfileDescriptor);
+Req()(AuthController.prototype, 'getProfile', 0);
+UseGuards(AuthGuard)(AuthController.prototype, 'getProfile', getProfileDescriptor);
+const updateProfileDescriptor = Object.getOwnPropertyDescriptor(
+  AuthController.prototype,
+  'updateProfile',
+);
+Put('profile')(AuthController.prototype, 'updateProfile', updateProfileDescriptor);
+Req()(AuthController.prototype, 'updateProfile', 0);
+Body()(AuthController.prototype, 'updateProfile', 1);
+UseGuards(AuthGuard)(AuthController.prototype, 'updateProfile', updateProfileDescriptor);
 
 module.exports = { AuthController };

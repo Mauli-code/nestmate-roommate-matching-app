@@ -8,6 +8,7 @@ const {
   UnauthorizedException,
 } = require('@nestjs/common');
 const userRepository = require('./user-repository');
+const profileRepository = require('../matching/profile-repository');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'nestmate-development-secret';
 const TOKEN_LIFETIME = '1h';
@@ -55,6 +56,36 @@ class AuthService {
     };
   }
 
+  async getProfile(userId) {
+    const user = await this.repository.findById(userId);
+    if (!user) {
+      throw new UnauthorizedException('User account was not found');
+    }
+
+    return this.profileResponse(user, await profileRepository.findProfile(userId));
+  }
+
+  async updateProfile(userId, body) {
+    const user = await this.repository.findById(userId);
+    if (!user) {
+      throw new UnauthorizedException('User account was not found');
+    }
+
+    if (typeof body?.fullName !== 'string' || body.fullName.trim().length < 2) {
+      throw new BadRequestException('Full name must contain at least 2 characters');
+    }
+
+    const updatedUser = await this.repository.save({
+      ...user,
+      fullName: body.fullName.trim(),
+    });
+
+    return this.profileResponse(
+      updatedUser,
+      await profileRepository.findProfile(userId),
+    );
+  }
+
   verifyToken(token) {
     if (!token || revokedTokens.has(token)) {
       throw new UnauthorizedException('Authentication token is invalid');
@@ -100,6 +131,13 @@ class AuthService {
 
   publicUser(user) {
     return { id: user.id, fullName: user.fullName, email: user.email };
+  }
+
+  profileResponse(user, preferences) {
+    return {
+      user: this.publicUser(user),
+      preferences: preferences || null,
+    };
   }
 }
 
