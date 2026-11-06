@@ -10,6 +10,8 @@ import {
   View,
 } from 'react-native';
 import { fetchMatches } from './src/api/matches';
+import { savePreferences as savePreferencesRequest } from './src/api/preferences';
+import { validatePreferences } from './src/preferences';
 
 const DEFAULT_PROFILE_ID = 'user-1';
 
@@ -21,6 +23,16 @@ export default function App() {
   const [errorMessage, setErrorMessage] = useState('');
   const [hasLoaded, setHasLoaded] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState(null);
+  const [preferences, setPreferences] = useState({
+    minBudget: '',
+    maxBudget: '',
+    preferredArea: '',
+    sleepSchedule: '',
+    foodHabits: '',
+    cleanliness: '',
+    smoking: '',
+    drinking: '',
+  });
 
   const loadMatches = useCallback(async () => {
     setLoading(true);
@@ -42,7 +54,17 @@ export default function App() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
         {screen === 'home' ? (
-          <HomeScreen onFindRoommates={() => setScreen('matches')} />
+          <HomeScreen
+            onFindRoommates={() => setScreen('matches')}
+            onSetPreferences={() => setScreen('preferences')}
+          />
+        ) : screen === 'preferences' ? (
+          <PreferenceSetupScreen
+            onBack={() => setScreen('home')}
+            profileId={profileId}
+            preferences={preferences}
+            setPreferences={setPreferences}
+          />
         ) : screen === 'details' ? (
           <ProfileDetailsScreen
             match={selectedMatch}
@@ -69,7 +91,7 @@ export default function App() {
   );
 }
 
-function HomeScreen({ onFindRoommates }) {
+function HomeScreen({ onFindRoommates, onSetPreferences }) {
   return (
     <View style={styles.home}>
       <Text style={styles.logo}>NestMate</Text>
@@ -84,8 +106,196 @@ function HomeScreen({ onFindRoommates }) {
       >
         <Text style={styles.primaryButtonText}>Find roommates</Text>
       </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        onPress={onSetPreferences}
+        style={styles.secondaryButton}
+      >
+        <Text style={styles.secondaryButtonText}>Set my preferences</Text>
+      </Pressable>
     </View>
   );
+}
+
+function PreferenceSetupScreen({ onBack, preferences, profileId, setPreferences }) {
+  const [errors, setErrors] = useState({});
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+
+  function updatePreference(field, value) {
+    setPreferences((current) => ({ ...current, [field]: value }));
+    setSaved(false);
+    setSaveError('');
+    setErrors((current) => ({ ...current, [field]: undefined }));
+  }
+
+  async function savePreferences() {
+    const validationErrors = validatePreferences(preferences);
+    setErrors(validationErrors);
+
+    if (Object.keys(validationErrors).length === 0) {
+      setSaving(true);
+      setSaveError('');
+      try {
+        await savePreferencesRequest(profileId, preferences);
+        setSaved(true);
+      } catch (error) {
+        setSaveError(error.message);
+      } finally {
+        setSaving(false);
+      }
+    }
+  }
+
+  return (
+    <>
+      <Pressable accessibilityRole="button" onPress={onBack} style={styles.backButton}>
+        <Text style={styles.backText}>‹ Home</Text>
+      </Pressable>
+      <Text style={styles.title}>My roommate preferences</Text>
+      <Text style={styles.subtitle}>
+        Tell us what matters to you so matching results can use your preferences.
+      </Text>
+
+      <View style={styles.formCard}>
+        <Text style={styles.formSectionTitle}>Budget and location</Text>
+        <Text style={styles.fieldLabel}>Monthly budget range</Text>
+        <View style={styles.budgetRow}>
+          <TextInput
+            accessibilityLabel="Minimum monthly budget"
+            keyboardType="numeric"
+            onChangeText={(value) => updatePreference('minBudget', value)}
+            placeholder="Minimum"
+            style={styles.input}
+            value={preferences.minBudget}
+          />
+          <Text style={styles.rangeSeparator}>to</Text>
+          <TextInput
+            accessibilityLabel="Maximum monthly budget"
+            keyboardType="numeric"
+            onChangeText={(value) => updatePreference('maxBudget', value)}
+            placeholder="Maximum"
+            style={styles.input}
+            value={preferences.maxBudget}
+          />
+        </View>
+        <FieldError message={errors.minBudget || errors.maxBudget} />
+        <Text style={styles.fieldLabel}>Preferred location</Text>
+        <TextInput
+          accessibilityLabel="Preferred location"
+          onChangeText={(value) => updatePreference('preferredArea', value)}
+          placeholder="e.g. Central"
+          style={styles.input}
+          value={preferences.preferredArea}
+        />
+        <FieldError message={errors.preferredArea} />
+      </View>
+
+      <PreferenceGroup
+        error={errors.sleepSchedule}
+        label="Sleeping habits"
+        options={[
+          ['early', 'Early sleeper'],
+          ['flexible', 'Flexible'],
+          ['late', 'Night owl'],
+        ]}
+        selected={preferences.sleepSchedule}
+        onSelect={(value) => updatePreference('sleepSchedule', value)}
+      />
+      <PreferenceGroup
+        error={errors.foodHabits}
+        label="Food habits"
+        options={[
+          ['vegetarian', 'Vegetarian'],
+          ['nonVegetarian', 'Non-vegetarian'],
+          ['any', 'No preference'],
+        ]}
+        selected={preferences.foodHabits}
+        onSelect={(value) => updatePreference('foodHabits', value)}
+      />
+      <PreferenceGroup
+        error={errors.cleanliness}
+        label="Cleanliness preference"
+        options={[
+          ['low', 'Relaxed'],
+          ['medium', 'Balanced'],
+          ['high', 'Very tidy'],
+        ]}
+        selected={preferences.cleanliness}
+        onSelect={(value) => updatePreference('cleanliness', value)}
+      />
+      <PreferenceGroup
+        error={errors.smoking}
+        label="Smoking preference"
+        options={[
+          ['no', 'Non-smoker'],
+          ['yes', 'Smoker is okay'],
+        ]}
+        selected={preferences.smoking}
+        onSelect={(value) => updatePreference('smoking', value)}
+      />
+      <PreferenceGroup
+        error={errors.drinking}
+        label="Drinking preference"
+        options={[
+          ['no', 'Never'],
+          ['occasionally', 'Occasionally'],
+          ['yes', 'No preference'],
+        ]}
+        selected={preferences.drinking}
+        onSelect={(value) => updatePreference('drinking', value)}
+      />
+
+      {saved && (
+        <View style={styles.successCard}>
+          <Text style={styles.successText}>
+            Preferences saved successfully.
+          </Text>
+        </View>
+      )}
+      {saveError !== '' && (
+        <View style={styles.errorCard}>
+          <Text style={styles.errorText}>{saveError}</Text>
+        </View>
+      )}
+      <Pressable
+        accessibilityRole="button"
+        disabled={saving}
+        onPress={savePreferences}
+        style={({ pressed }) => [styles.primaryButton, pressed && styles.buttonPressed]}
+      >
+        <Text style={styles.primaryButtonText}>{saving ? 'Saving...' : 'Save preferences'}</Text>
+      </Pressable>
+    </>
+  );
+}
+
+function PreferenceGroup({ error, label, onSelect, options, selected }) {
+  return (
+    <View style={styles.formCard}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <View style={styles.optionRow}>
+        {options.map(([value, text]) => (
+          <Pressable
+            accessibilityRole="button"
+            key={value}
+            onPress={() => onSelect(value)}
+            style={[styles.optionButton, selected === value && styles.optionButtonSelected]}
+          >
+            <Text style={[styles.optionText, selected === value && styles.optionTextSelected]}>
+              {text}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      <FieldError message={error} />
+    </View>
+  );
+}
+
+function FieldError({ message }) {
+  return message ? <Text style={styles.fieldError}>{message}</Text> : null;
 }
 
 function RecommendationsScreen({
@@ -309,6 +519,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   primaryButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  secondaryButton: { alignSelf: 'flex-start', paddingVertical: 8 },
+  secondaryButtonText: { color: '#2563eb', fontSize: 16, fontWeight: '700' },
   backButton: { alignSelf: 'flex-start', paddingVertical: 4 },
   backText: { color: '#2563eb', fontSize: 16, fontWeight: '700' },
   title: { color: '#0f172a', fontSize: 28, fontWeight: '700' },
@@ -325,6 +537,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 11,
   },
+  budgetRow: { alignItems: 'center', flexDirection: 'row', gap: 8 },
+  rangeSeparator: { color: '#64748b', fontSize: 14 },
+  formCard: {
+    backgroundColor: '#fff',
+    borderColor: '#e2e8f0',
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 12,
+    padding: 18,
+  },
+  formSectionTitle: { color: '#0f172a', fontSize: 18, fontWeight: '700' },
+  fieldLabel: { color: '#334155', fontSize: 15, fontWeight: '700' },
+  fieldError: { color: '#b91c1c', fontSize: 13 },
+  optionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  optionButton: {
+    borderColor: '#cbd5e1',
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  optionButtonSelected: { backgroundColor: '#dbeafe', borderColor: '#2563eb' },
+  optionText: { color: '#475569', fontSize: 14 },
+  optionTextSelected: { color: '#1d4ed8', fontWeight: '700' },
+  successCard: {
+    backgroundColor: '#f0fdf4',
+    borderColor: '#bbf7d0',
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 16,
+  },
+  successText: { color: '#166534', lineHeight: 21 },
   button: {
     alignItems: 'center',
     backgroundColor: '#2563eb',
