@@ -1,4 +1,4 @@
-export async function savePreferences(profileId, preferences) {
+export async function savePreferences(profileId, preferences, token) {
   const trimmedProfileId = profileId.trim();
   if (!trimmedProfileId) {
     throw new Error('Enter a profile ID before saving preferences.');
@@ -7,10 +7,13 @@ export async function savePreferences(profileId, preferences) {
   let response;
   try {
     response = await fetch(
-      `${process.env.EXPO_PUBLIC_API_BASE_URL || 'http://10.0.2.2:3001'}/api/profiles/${encodeURIComponent(trimmedProfileId)}/preferences`,
+      `${process.env.EXPO_PUBLIC_API_BASE_URL || 'http://10.0.2.2:3001'}/api/matches/${encodeURIComponent(trimmedProfileId)}/preferences`,
       {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(preferences),
       },
     );

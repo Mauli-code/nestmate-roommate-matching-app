@@ -1,7 +1,7 @@
 const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_BASE_URL || 'http://10.0.2.2:3001';
 
-export async function fetchMatches(profileId) {
+export async function fetchMatches(profileId, token) {
   const trimmedProfileId = profileId.trim();
   if (!trimmedProfileId) {
     throw new Error('Enter a profile ID before searching.');
@@ -11,6 +11,7 @@ export async function fetchMatches(profileId) {
   try {
     response = await fetch(
       `${API_BASE_URL}/api/matches?profileId=${encodeURIComponent(trimmedProfileId)}`,
+      { headers: { Authorization: `Bearer ${token}` } },
     );
   } catch {
     throw new Error(

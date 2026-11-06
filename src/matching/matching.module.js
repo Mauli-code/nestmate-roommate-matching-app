@@ -1,4 +1,6 @@
 const { Module } = require('@nestjs/common');
+const { AuthModule } = require('../auth/auth.module');
+const { AuthGuard } = require('../auth/auth.guard');
 const {
   MATCHING_PROFILE_REPOSITORY,
   profileRepository,
@@ -9,6 +11,7 @@ const { MatchingService } = require('./matching.service');
 const MatchingModule = class {};
 
 Module({
+  imports: [AuthModule],
   controllers: [MatchingController],
   providers: [
     {

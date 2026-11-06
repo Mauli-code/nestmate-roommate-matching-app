@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { BadRequestException, NotFoundException } = require('@nestjs/common');
+const { ForbiddenException } = require('@nestjs/common');
 const { MatchingController } = require('./matching.controller');
 
 test('returns ranked matches for a profile id', async () => {
@@ -22,7 +23,9 @@ test('returns ranked matches for a profile id', async () => {
     }),
   };
 
-  const result = await new MatchingController(service).getMatches('profile-1');
+  const result = await new MatchingController(service).getMatches('profile-1', {
+    user: { sub: 'profile-1' },
+  });
 
   assert.deepEqual(result, {
     profileId: 'profile-1',
@@ -54,11 +57,27 @@ test('passes service errors through for invalid and missing profiles', async () 
   };
 
   await assert.rejects(
-    () => new MatchingController(invalidProfileService).getMatches(''),
+    () => new MatchingController(invalidProfileService).getMatches('', {
+      user: { sub: '' },
+    }),
     (error) => error instanceof BadRequestException,
   );
   await assert.rejects(
-    () => new MatchingController(missingProfileService).getMatches('missing'),
+    () => new MatchingController(missingProfileService).getMatches('missing', {
+      user: { sub: 'missing' },
+    }),
     (error) => error instanceof NotFoundException,
+  );
+});
+
+test('rejects access to another user profile', async () => {
+  const service = { getMatches: async () => ({}) };
+
+  await assert.rejects(
+    () =>
+      new MatchingController(service).getMatches('other-user', {
+        user: { sub: 'current-user' },
+      }),
+    (error) => error instanceof ForbiddenException,
   );
 });
