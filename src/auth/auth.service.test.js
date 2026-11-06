@@ -7,6 +7,7 @@ function createService() {
   const users = new Map();
   return new AuthService({
     findByEmail: async (email) => [...users.values()].find((user) => user.email === email) || null,
+    findById: async (id) => users.get(id) || null,
     save: async (user) => {
       users.set(user.id, user);
       return user;
@@ -53,4 +54,31 @@ test('revokes a token during logout', async () => {
   assert.equal(service.verifyToken(accessToken).email, 'logout@example.com');
   service.revokeToken(accessToken);
   assert.throws(() => service.verifyToken(accessToken), UnauthorizedException);
+});
+
+test('retrieves and updates the authenticated user profile', async () => {
+  const users = new Map();
+  const service = new AuthService({
+    findByEmail: async (email) => [...users.values()].find((user) => user.email === email) || null,
+    findById: async (id) => users.get(id) || null,
+    save: async (user) => {
+      users.set(user.id, user);
+      return user;
+    },
+  });
+  const { user } = await service.register('Original Name', 'profile@example.com', 'password123');
+
+  const initialProfile = await service.getProfile(user.id);
+  const updatedProfile = await service.updateProfile(user.id, { fullName: 'Updated Name' });
+
+  assert.equal(initialProfile.user.fullName, 'Original Name');
+  assert.equal(updatedProfile.user.fullName, 'Updated Name');
+  assert.equal(updatedProfile.user.email, 'profile@example.com');
+});
+
+test('rejects profile access for an unknown user', async () => {
+  await assert.rejects(
+    () => createService().getProfile('missing-user'),
+    (error) => error instanceof UnauthorizedException,
+  );
 });

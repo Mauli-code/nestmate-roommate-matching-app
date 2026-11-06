@@ -12,6 +12,7 @@ import {
 import { fetchMatches } from './src/api/matches';
 import { savePreferences as savePreferencesRequest } from './src/api/preferences';
 import { login, logout, readSession, register } from './src/api/auth';
+import { fetchProfile, updateProfile } from './src/api/profile';
 import { validatePreferences } from './src/preferences';
 
 const DEFAULT_PROFILE_ID = 'user-1';
@@ -96,6 +97,7 @@ export default function App() {
         {screen === 'home' ? (
           <HomeScreen
             onFindRoommates={() => setScreen('matches')}
+            onProfile={() => setScreen('profile')}
             onSetPreferences={() => setScreen('preferences')}
             onLogout={async () => {
               await logout(session.token);
@@ -103,6 +105,11 @@ export default function App() {
               setScreen('home');
             }}
             userName={session.user.fullName}
+          />
+        ) : screen === 'profile' ? (
+          <ProfileScreen
+            onBack={() => setScreen('home')}
+            token={session.token}
           />
         ) : screen === 'preferences' ? (
           <PreferenceSetupScreen
@@ -218,7 +225,7 @@ function AuthScreen({ onAuthenticated }) {
   );
 }
 
-function HomeScreen({ onFindRoommates, onLogout, onSetPreferences, userName }) {
+function HomeScreen({ onFindRoommates, onLogout, onProfile, onSetPreferences, userName }) {
   return (
     <View style={styles.home}>
       <Text style={styles.logo}>NestMate</Text>
@@ -241,10 +248,116 @@ function HomeScreen({ onFindRoommates, onLogout, onSetPreferences, userName }) {
       >
         <Text style={styles.secondaryButtonText}>Set my preferences</Text>
       </Pressable>
+      <Pressable accessibilityRole="button" onPress={onProfile} style={styles.secondaryButton}>
+        <Text style={styles.secondaryButtonText}>View my profile</Text>
+      </Pressable>
       <Pressable accessibilityRole="button" onPress={onLogout} style={styles.secondaryButton}>
         <Text style={styles.secondaryButtonText}>Log out</Text>
       </Pressable>
     </View>
+  );
+}
+
+function ProfileScreen({ onBack, token }) {
+  const [profile, setProfile] = useState(null);
+  const [fullName, setFullName] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const loadProfile = useCallback(async () => {
+    setLoading(true);
+    setErrorMessage('');
+    try {
+      const result = await fetchProfile(token);
+      setProfile(result);
+      setFullName(result.user.fullName);
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
+
+  async function saveName() {
+    if (fullName.trim().length < 2) {
+      setErrorMessage('Full name must contain at least 2 characters.');
+      return;
+    }
+
+    setSaving(true);
+    setMessage('');
+    setErrorMessage('');
+    try {
+      const result = await updateProfile(token, fullName);
+      setProfile(result);
+      setFullName(result.user.fullName);
+      setMessage('Profile updated successfully.');
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <Pressable accessibilityRole="button" onPress={onBack} style={styles.backButton}>
+        <Text style={styles.backText}>‹ Home</Text>
+      </Pressable>
+      <Text style={styles.title}>My profile</Text>
+      {loading && <Text style={styles.stateText}>Loading profile...</Text>}
+      {!loading && errorMessage !== '' && (
+        <View style={styles.errorCard}>
+          <Text style={styles.errorText}>{errorMessage}</Text>
+          <Pressable onPress={loadProfile} style={styles.retryButton}>
+            <Text style={styles.retryText}>Try again</Text>
+          </Pressable>
+        </View>
+      )}
+      {!loading && profile && (
+        <>
+          <View style={styles.detailsCard}>
+            <Text style={styles.detailsSectionTitle}>Personal information</Text>
+            <TextInput
+              accessibilityLabel="Full name"
+              onChangeText={setFullName}
+              style={styles.input}
+              value={fullName}
+            />
+            <DetailRow label="Email" value={profile.user.email} />
+            <Pressable
+              disabled={saving}
+              onPress={saveName}
+              style={({ pressed }) => [styles.primaryButton, pressed && styles.buttonPressed]}
+            >
+              <Text style={styles.primaryButtonText}>{saving ? 'Saving...' : 'Save name'}</Text>
+            </Pressable>
+          </View>
+          <View style={styles.detailsCard}>
+            <Text style={styles.detailsSectionTitle}>Saved roommate preferences</Text>
+            {profile.preferences ? (
+              <>
+                <DetailRow label="Budget" value={formatValue(profile.preferences.budget)} />
+                <DetailRow label="Location" value={formatValue(profile.preferences.preferredArea)} />
+                <DetailRow label="Food habits" value={formatValue(profile.preferences.foodHabits)} />
+                <DetailRow label="Drinking" value={formatValue(profile.preferences.drinking)} />
+                <DetailRow label="Sleep schedule" value={formatValue(profile.preferences.lifestyle?.sleepSchedule)} />
+                <DetailRow label="Cleanliness" value={formatValue(profile.preferences.lifestyle?.cleanliness)} />
+              </>
+            ) : (
+              <Text style={styles.stateText}>No roommate preferences saved yet.</Text>
+            )}
+          </View>
+          {message !== '' && <Text style={styles.successText}>{message}</Text>}
+        </>
+      )}
+    </>
   );
 }
 
