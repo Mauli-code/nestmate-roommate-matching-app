@@ -40,6 +40,79 @@ test('rejects an empty profile id', async () => {
   );
 });
 
+test('recalculates matches from the latest saved profile preferences', async () => {
+  const profiles = new Map([
+    [
+      'user-1',
+      {
+        id: 'user-1',
+        budget: 500,
+        preferredArea: 'North',
+        lifestyle: {
+          sleepSchedule: 'late',
+          cleanliness: 'low',
+          smoking: true,
+          pets: true,
+        },
+      },
+    ],
+    [
+      'candidate-1',
+      {
+        id: 'candidate-1',
+        budget: 1000,
+        preferredArea: 'Central',
+        lifestyle: {
+          sleepSchedule: 'flexible',
+          cleanliness: 'medium',
+          smoking: false,
+          pets: false,
+        },
+      },
+    ],
+    [
+      'candidate-2',
+      {
+        id: 'candidate-2',
+        budget: 500,
+        preferredArea: 'North',
+        lifestyle: {
+          sleepSchedule: 'late',
+          cleanliness: 'low',
+          smoking: true,
+          pets: true,
+        },
+      },
+    ],
+  ]);
+  const repository = {
+    findProfile: async (id) => profiles.get(id) || null,
+    findCandidates: async (id) => [...profiles.values()].filter((profile) => profile.id !== id),
+  };
+  const service = new MatchingService(repository);
+
+  const firstResult = await service.getMatches('user-1');
+  profiles.set('user-1', {
+    ...profiles.get('user-1'),
+    budget: 1000,
+    preferredArea: 'Central',
+    lifestyle: {
+      sleepSchedule: 'flexible',
+      cleanliness: 'medium',
+      smoking: false,
+      pets: false,
+    },
+  });
+  const updatedResult = await service.getMatches('user-1');
+
+  assert.equal(firstResult.matches[0].candidateId, 'candidate-2');
+  assert.equal(updatedResult.matches[0].candidateId, 'candidate-1');
+  assert.notEqual(
+    firstResult.matches.find((match) => match.candidateId === 'candidate-1').score,
+    updatedResult.matches.find((match) => match.candidateId === 'candidate-1').score,
+  );
+});
+
 function profile(id, overrides = {}) {
   return {
     id,

@@ -61,6 +61,10 @@ export default function App() {
         ) : screen === 'preferences' ? (
           <PreferenceSetupScreen
             onBack={() => setScreen('home')}
+            onSaved={async () => {
+              setScreen('matches');
+              await loadMatches();
+            }}
             profileId={profileId}
             preferences={preferences}
             setPreferences={setPreferences}
@@ -117,7 +121,7 @@ function HomeScreen({ onFindRoommates, onSetPreferences }) {
   );
 }
 
-function PreferenceSetupScreen({ onBack, preferences, profileId, setPreferences }) {
+function PreferenceSetupScreen({ onBack, onSaved, preferences, profileId, setPreferences }) {
   const [errors, setErrors] = useState({});
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -140,6 +144,7 @@ function PreferenceSetupScreen({ onBack, preferences, profileId, setPreferences 
       try {
         await savePreferencesRequest(profileId, preferences);
         setSaved(true);
+        await onSaved();
       } catch (error) {
         setSaveError(error.message);
       } finally {
@@ -339,6 +344,19 @@ function RecommendationsScreen({
           ]}
         >
           <Text style={styles.buttonText}>Find</Text>
+        </Pressable>
+        <Pressable
+          accessibilityLabel="Refresh recommendations"
+          accessibilityRole="button"
+          disabled={loading}
+          onPress={onFindMatches}
+          style={({ pressed }) => [
+            styles.refreshButton,
+            pressed && styles.buttonPressed,
+            loading && styles.buttonDisabled,
+          ]}
+        >
+          <Text style={styles.refreshText}>↻</Text>
         </Pressable>
       </View>
 
@@ -579,6 +597,15 @@ const styles = StyleSheet.create({
   buttonPressed: { opacity: 0.8 },
   buttonDisabled: { opacity: 0.5 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  refreshButton: {
+    alignItems: 'center',
+    borderColor: '#2563eb',
+    borderRadius: 10,
+    borderWidth: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+  },
+  refreshText: { color: '#2563eb', fontSize: 22, fontWeight: '700' },
   state: { alignItems: 'center', padding: 32, gap: 8 },
   stateText: { color: '#64748b', fontSize: 15, textAlign: 'center' },
   emptyTitle: { color: '#0f172a', fontSize: 18, fontWeight: '700' },
