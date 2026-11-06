@@ -5,8 +5,15 @@ const {
   Post,
   Put,
   Req,
+  UploadedFile,
+  UseInterceptors,
   UseGuards,
 } = require('@nestjs/common');
+const { FileInterceptor } = require('@nestjs/platform-express');
+const { diskStorage } = require('multer');
+const crypto = require('node:crypto');
+const fs = require('node:fs');
+const path = require('node:path');
 const { AuthGuard } = require('./auth.guard');
 const { AuthService } = require('./auth.service');
 
@@ -33,6 +40,10 @@ class AuthController {
 
   async updateProfile(request, body) {
     return this.authService.updateProfile(request.user.sub, body);
+  }
+
+  async uploadPhoto(request, file) {
+    return this.authService.uploadPhoto(request.user.sub, file);
   }
 }
 
@@ -62,5 +73,29 @@ Put('profile')(AuthController.prototype, 'updateProfile', updateProfileDescripto
 Req()(AuthController.prototype, 'updateProfile', 0);
 Body()(AuthController.prototype, 'updateProfile', 1);
 UseGuards(AuthGuard)(AuthController.prototype, 'updateProfile', updateProfileDescriptor);
+const uploadPhotoDescriptor = Object.getOwnPropertyDescriptor(
+  AuthController.prototype,
+  'uploadPhoto',
+);
+const photoDirectory = path.join(process.cwd(), 'uploads', 'profile-photos');
+fs.mkdirSync(photoDirectory, { recursive: true });
+Post('profile/photo')(AuthController.prototype, 'uploadPhoto', uploadPhotoDescriptor);
+UploadedFile()(AuthController.prototype, 'uploadPhoto', 1);
+UseGuards(AuthGuard)(AuthController.prototype, 'uploadPhoto', uploadPhotoDescriptor);
+UseInterceptors(
+  FileInterceptor('photo', {
+    storage: diskStorage({
+      destination: photoDirectory,
+      filename: (_request, file, callback) => {
+        callback(null, `${crypto.randomUUID()}${path.extname(file.originalname).toLowerCase()}`);
+      },
+    }),
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: (_request, file, callback) => {
+      const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+      callback(null, allowedTypes.has(file.mimetype));
+    },
+  }),
+)(AuthController.prototype, 'uploadPhoto', uploadPhotoDescriptor);
 
 module.exports = { AuthController };

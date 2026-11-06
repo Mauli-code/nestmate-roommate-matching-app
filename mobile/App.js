@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -13,6 +14,8 @@ import { fetchMatches } from './src/api/matches';
 import { savePreferences as savePreferencesRequest } from './src/api/preferences';
 import { login, logout, readSession, register } from './src/api/auth';
 import { fetchProfile, updateProfile } from './src/api/profile';
+import { resolvePhotoUrl, uploadProfilePhoto } from './src/api/photo';
+import * as ImagePicker from 'expo-image-picker';
 import { validatePreferences } from './src/preferences';
 
 const DEFAULT_PROFILE_ID = 'user-1';
@@ -265,6 +268,8 @@ function ProfileScreen({ onBack, token }) {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
@@ -288,6 +293,47 @@ function ProfileScreen({ onBack, token }) {
     if (fullName.trim().length < 2) {
       setErrorMessage('Full name must contain at least 2 characters.');
       return;
+    }
+
+    async function choosePhoto() {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        setErrorMessage('Photo library permission is required to choose a profile photo.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        mediaTypes: ['images'],
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets?.[0]) {
+        const image = result.assets[0];
+        if (image.fileSize && image.fileSize > 5 * 1024 * 1024) {
+          setErrorMessage('Choose an image that is 5 MB or smaller.');
+          return;
+        }
+        setSelectedPhoto(image);
+        setErrorMessage('');
+        setMessage('');
+      }
+    }
+
+    async function savePhoto() {
+      if (!selectedPhoto) return;
+      setUploadingPhoto(true);
+      setErrorMessage('');
+      try {
+        const result = await uploadProfilePhoto(token, selectedPhoto);
+        setProfile(result);
+        setSelectedPhoto(null);
+        setMessage('Profile photo updated successfully.');
+      } catch (error) {
+        setErrorMessage(error.message);
+      } finally {
+        setUploadingPhoto(false);
+      }
     }
 
     setSaving(true);
@@ -322,6 +368,33 @@ function ProfileScreen({ onBack, token }) {
       )}
       {!loading && profile && (
         <>
+          <View style={styles.detailsCard}>
+            <Text style={styles.detailsSectionTitle}>Profile photo</Text>
+            {(selectedPhoto || profile.user.photoUrl) ? (
+              <Image
+                source={{ uri: selectedPhoto?.uri || resolvePhotoUrl(profile.user.photoUrl) }}
+                style={styles.profilePhoto}
+              />
+            ) : (
+              <Text style={styles.stateText}>No profile photo uploaded yet.</Text>
+            )}
+            <Pressable onPress={choosePhoto} style={styles.secondaryButton}>
+              <Text style={styles.secondaryButtonText}>
+                {profile.user.photoUrl ? 'Choose a replacement' : 'Choose a photo'}
+              </Text>
+            </Pressable>
+            {selectedPhoto && (
+              <Pressable
+                disabled={uploadingPhoto}
+                onPress={savePhoto}
+                style={({ pressed }) => [styles.primaryButton, pressed && styles.buttonPressed]}
+              >
+                <Text style={styles.primaryButtonText}>
+                  {uploadingPhoto ? 'Uploading...' : 'Upload photo'}
+                </Text>
+              </Pressable>
+            )}
+          </View>
           <View style={styles.detailsCard}>
             <Text style={styles.detailsSectionTitle}>Personal information</Text>
             <TextInput
@@ -887,6 +960,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 12,
     padding: 18,
+  },
+  profilePhoto: {
+    alignSelf: 'center',
+    borderRadius: 64,
+    height: 128,
+    width: 128,
   },
   detailsName: { color: '#0f172a', fontSize: 24, fontWeight: '800', marginTop: 2 },
   detailsSectionTitle: { color: '#0f172a', fontSize: 17, fontWeight: '700' },

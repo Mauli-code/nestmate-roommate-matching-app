@@ -72,6 +72,18 @@ The Expo React Native app is in [`mobile/`](./mobile/). It provides registration
 stores the access token with `expo-secure-store`, and removes it on logout. The recommendations
 and preference screens send the bearer token to the protected backend routes.
 
+Profile photos are uploaded with:
+
+```text
+POST /api/auth/profile/photo
+```
+
+Send a multipart form field named `photo` with a JPEG, PNG, or WebP image no larger than 5 MB.
+The backend stores the file in `uploads/profile-photos/` and stores only its path in the in-memory
+user record. The `uploads/` directory is ignored by Git and files are served through `/uploads`.
+The mobile profile screen requests gallery permission, previews the selected image, and uploads it
+after the user confirms.
+
 Run the backend first:
 
 ```bash
