@@ -42,6 +42,65 @@ class MatchingService {
       throw new BadRequestException('profileId is required');
     }
   }
+
+  async savePreferences(profileId, preferences) {
+    this.validateProfileId(profileId);
+    const profile = this.validatePreferences(profileId, preferences);
+    return this.profileRepository.saveProfile(profile);
+  }
+
+  validatePreferences(profileId, preferences) {
+    if (!preferences || typeof preferences !== 'object' || Array.isArray(preferences)) {
+      throw new BadRequestException('Preference data is required');
+    }
+
+    const minBudget = Number(preferences.minBudget);
+    const maxBudget = Number(preferences.maxBudget);
+    const preferredArea = preferences.preferredArea;
+    const requiredFields = [
+      'sleepSchedule',
+      'foodHabits',
+      'cleanliness',
+      'smoking',
+      'drinking',
+    ];
+
+    if (
+      !Number.isInteger(minBudget) ||
+      minBudget <= 0 ||
+      !Number.isInteger(maxBudget) ||
+      maxBudget < minBudget
+    ) {
+      throw new BadRequestException(
+        'Budget values must be positive whole numbers, with maximum at least minimum',
+      );
+    }
+
+    if (typeof preferredArea !== 'string' || !preferredArea.trim()) {
+      throw new BadRequestException('preferredArea is required');
+    }
+
+    if (requiredFields.some((field) => typeof preferences[field] !== 'string' || !preferences[field].trim())) {
+      throw new BadRequestException('All lifestyle preferences are required');
+    }
+
+    return {
+      id: profileId,
+      budget: Math.round((minBudget + maxBudget) / 2),
+      minBudget,
+      maxBudget,
+      moveInDate: preferences.moveInDate || '',
+      preferredArea: preferredArea.trim(),
+      lifestyle: {
+        sleepSchedule: preferences.sleepSchedule,
+        cleanliness: preferences.cleanliness,
+        smoking: preferences.smoking === 'yes',
+        pets: preferences.pets || 'not-specified',
+      },
+      foodHabits: preferences.foodHabits,
+      drinking: preferences.drinking,
+    };
+  }
 }
 
 Injectable()(MatchingService);

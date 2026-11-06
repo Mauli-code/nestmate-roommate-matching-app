@@ -1,22 +1,10 @@
-const { Module, ServiceUnavailableException } = require('@nestjs/common');
+const { Module } = require('@nestjs/common');
 const {
   MATCHING_PROFILE_REPOSITORY,
+  profileRepository,
 } = require('./matching.repository');
 const { MatchingController } = require('./matching.controller');
 const { MatchingService } = require('./matching.service');
-
-const missingProfileRepository = {
-  findProfile: async () => {
-    throw new ServiceUnavailableException(
-      'MatchingProfileRepository has not been configured',
-    );
-  },
-  findCandidates: async () => {
-    throw new ServiceUnavailableException(
-      'MatchingProfileRepository has not been configured',
-    );
-  },
-};
 
 const MatchingModule = class {};
 
@@ -30,7 +18,7 @@ Module({
     },
     {
       provide: MATCHING_PROFILE_REPOSITORY,
-      useValue: missingProfileRepository,
+      useValue: profileRepository,
     },
   ],
   exports: [MatchingService],
