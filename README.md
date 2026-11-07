@@ -84,6 +84,20 @@ user record. The `uploads/` directory is ignored by Git and files are served thr
 The mobile profile screen requests gallery permission, previews the selected image, and uploads it
 after the user confirms.
 
+## Favorite roommates
+
+Authenticated users can manage their own saved roommates:
+
+```text
+POST   /api/favorites/<roommateId>
+DELETE /api/favorites/<roommateId>
+GET    /api/favorites
+```
+
+Favorites are stored as user-to-roommate relationships in the in-memory favorites repository.
+Duplicate saves are rejected, and the list includes the roommate profile plus the latest
+compatibility score and breakdown. All three endpoints require a bearer token.
+
 Run the backend first:
 
 ```bash

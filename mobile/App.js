@@ -15,6 +15,7 @@ import { savePreferences as savePreferencesRequest } from './src/api/preferences
 import { login, logout, readSession, register } from './src/api/auth';
 import { fetchProfile, updateProfile } from './src/api/profile';
 import { resolvePhotoUrl, uploadProfilePhoto } from './src/api/photo';
+import { addFavorite, fetchFavorites, removeFavorite } from './src/api/favorites';
 import * as ImagePicker from 'expo-image-picker';
 import { validatePreferences } from './src/preferences';
 
@@ -30,6 +31,10 @@ export default function App() {
   const [errorMessage, setErrorMessage] = useState('');
   const [hasLoaded, setHasLoaded] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState(null);
+  const [detailsBackScreen, setDetailsBackScreen] = useState('matches');
+  const [favorites, setFavorites] = useState([]);
+  const [favoritesLoading, setFavoritesLoading] = useState(false);
+  const [favoritesError, setFavoritesError] = useState('');
   const [preferences, setPreferences] = useState({
     minBudget: '',
     maxBudget: '',
@@ -68,6 +73,44 @@ export default function App() {
     }
   }, [profileId, session]);
 
+  const loadFavorites = useCallback(async () => {
+    if (!session?.token) return;
+    setFavoritesLoading(true);
+    setFavoritesError('');
+    try {
+      const result = await fetchFavorites(session.token);
+      setFavorites(Array.isArray(result?.favorites) ? result.favorites : []);
+    } catch (error) {
+      setFavoritesError(error.message);
+    } finally {
+      setFavoritesLoading(false);
+    }
+  }, [session]);
+
+  useEffect(() => {
+    loadFavorites();
+  }, [loadFavorites]);
+
+  async function toggleFavorite(roommateId) {
+    const alreadyFavorite = favorites.some(
+      (favorite) => favorite.roommate?.id === roommateId,
+    );
+    setFavoritesError('');
+    try {
+      if (alreadyFavorite) {
+        await removeFavorite(roommateId, session.token);
+        setFavorites((current) =>
+          current.filter((favorite) => favorite.roommate?.id !== roommateId),
+        );
+      } else {
+        await addFavorite(roommateId, session.token);
+        await loadFavorites();
+      }
+    } catch (error) {
+      setFavoritesError(error.message);
+    }
+  }
+
   if (!authReady) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -100,6 +143,7 @@ export default function App() {
         {screen === 'home' ? (
           <HomeScreen
             onFindRoommates={() => setScreen('matches')}
+            onFavorites={() => setScreen('favorites')}
             onProfile={() => setScreen('profile')}
             onSetPreferences={() => setScreen('preferences')}
             onLogout={async () => {
@@ -129,7 +173,25 @@ export default function App() {
         ) : screen === 'details' ? (
           <ProfileDetailsScreen
             match={selectedMatch}
-            onBack={() => setScreen('matches')}
+            onBack={() => setScreen(detailsBackScreen)}
+          />
+        ) : screen === 'favorites' ? (
+          <FavoritesScreen
+            errorMessage={favoritesError}
+            favorites={favorites}
+            loading={favoritesLoading}
+            onBack={() => setScreen('home')}
+            onRefresh={loadFavorites}
+            onSelectFavorite={(favorite) => {
+              setSelectedMatch({
+                candidateId: favorite.roommate?.id,
+                score: favorite.compatibility?.score,
+                breakdown: favorite.compatibility?.breakdown,
+                profile: favorite.roommate?.profile,
+              });
+              setDetailsBackScreen('favorites');
+              setScreen('details');
+            }}
           />
         ) : (
           <RecommendationsScreen
@@ -141,8 +203,11 @@ export default function App() {
             onFindMatches={loadMatches}
             onSelectMatch={(match) => {
               setSelectedMatch(match);
+              setDetailsBackScreen('matches');
               setScreen('details');
             }}
+            favoriteIds={favorites.map((favorite) => favorite.roommate?.id)}
+            onToggleFavorite={toggleFavorite}
             profileId={profileId}
             setProfileId={setProfileId}
           />
@@ -228,7 +293,14 @@ function AuthScreen({ onAuthenticated }) {
   );
 }
 
-function HomeScreen({ onFindRoommates, onLogout, onProfile, onSetPreferences, userName }) {
+function HomeScreen({
+  onFavorites,
+  onFindRoommates,
+  onLogout,
+  onProfile,
+  onSetPreferences,
+  userName,
+}) {
   return (
     <View style={styles.home}>
       <Text style={styles.logo}>NestMate</Text>
@@ -253,6 +325,9 @@ function HomeScreen({ onFindRoommates, onLogout, onProfile, onSetPreferences, us
       </Pressable>
       <Pressable accessibilityRole="button" onPress={onProfile} style={styles.secondaryButton}>
         <Text style={styles.secondaryButtonText}>View my profile</Text>
+      </Pressable>
+      <Pressable accessibilityRole="button" onPress={onFavorites} style={styles.secondaryButton}>
+        <Text style={styles.secondaryButtonText}>My favorite roommates</Text>
       </Pressable>
       <Pressable accessibilityRole="button" onPress={onLogout} style={styles.secondaryButton}>
         <Text style={styles.secondaryButtonText}>Log out</Text>
@@ -618,12 +693,14 @@ function FieldError({ message }) {
 
 function RecommendationsScreen({
   errorMessage,
+  favoriteIds,
   hasLoaded,
   loading,
   matches,
   onBack,
   onFindMatches,
   onSelectMatch,
+  onToggleFavorite,
   profileId,
   setProfileId,
 }) {
@@ -711,8 +788,10 @@ function RecommendationsScreen({
         matches.map((match, index) => (
           <MatchCard
             key={`${match.candidateId || 'unknown'}-${index}`}
+            isFavorite={favoriteIds.includes(match.candidateId)}
             match={match}
             onPress={() => onSelectMatch(match)}
+            onToggleFavorite={() => onToggleFavorite(match.candidateId)}
             rank={index + 1}
           />
         ))}
@@ -729,7 +808,7 @@ function RecommendationsScreen({
   );
 }
 
-function MatchCard({ match, onPress, rank }) {
+function MatchCard({ isFavorite, match, onPress, onToggleFavorite, rank }) {
   return (
     <Pressable
       accessibilityHint="Opens the roommate profile details"
@@ -752,8 +831,95 @@ function MatchCard({ match, onPress, rank }) {
           <Text style={styles.breakdownValue}>{Math.round(value * 100)}%</Text>
         </View>
       ))}
-      <Text style={styles.viewDetailsText}>View profile details</Text>
+      <View style={styles.matchActions}>
+        <Text style={styles.viewDetailsText}>View profile details</Text>
+        <Pressable
+          accessibilityLabel={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+          accessibilityRole="button"
+          onPress={onToggleFavorite}
+          style={styles.favoriteButton}
+        >
+          <Text style={styles.favoriteText}>{isFavorite ? '♥ Saved' : '♡ Save'}</Text>
+        </Pressable>
+      </View>
     </Pressable>
+  );
+}
+
+function FavoritesScreen({
+  errorMessage,
+  favorites,
+  loading,
+  onBack,
+  onRefresh,
+  onSelectFavorite,
+}) {
+  return (
+    <>
+      <Pressable accessibilityRole="button" onPress={onBack} style={styles.backButton}>
+        <Text style={styles.backText}>‹ Home</Text>
+      </Pressable>
+      <View style={styles.favoriteTitleRow}>
+        <View>
+          <Text style={styles.title}>Favorite roommates</Text>
+          <Text style={styles.subtitle}>Roommates you saved for later.</Text>
+        </View>
+        <Pressable
+          accessibilityLabel="Refresh favorites"
+          accessibilityRole="button"
+          disabled={loading}
+          onPress={onRefresh}
+          style={styles.refreshButton}
+        >
+          <Text style={styles.refreshText}>↻</Text>
+        </Pressable>
+      </View>
+      {loading && (
+        <View style={styles.state}>
+          <ActivityIndicator color="#2563eb" size="large" />
+          <Text style={styles.stateText}>Loading favorites...</Text>
+        </View>
+      )}
+      {!loading && errorMessage !== '' && (
+        <View style={styles.errorCard}>
+          <Text style={styles.errorTitle}>Could not load favorites</Text>
+          <Text style={styles.errorText}>{errorMessage}</Text>
+          <Pressable onPress={onRefresh} style={styles.retryButton}>
+            <Text style={styles.retryText}>Try again</Text>
+          </Pressable>
+        </View>
+      )}
+      {!loading && errorMessage === '' && favorites.length === 0 && (
+        <View style={styles.state}>
+          <Text style={styles.emptyTitle}>No favorites yet</Text>
+          <Text style={styles.stateText}>
+            Save a roommate from your recommendations to see them here.
+          </Text>
+        </View>
+      )}
+      {!loading &&
+        errorMessage === '' &&
+        favorites.map((favorite) => (
+          <Pressable
+            accessibilityRole="button"
+            key={favorite.roommate?.id}
+            onPress={() => onSelectFavorite(favorite)}
+            style={({ pressed }) => [styles.matchCard, pressed && styles.buttonPressed]}
+          >
+            <View style={styles.matchHeader}>
+              <View>
+                <Text style={styles.candidateLabel}>Favorite roommate</Text>
+                <Text style={styles.candidateId}>
+                  {favorite.roommate?.fullName || favorite.roommate?.id || 'Unknown'}
+                </Text>
+              </View>
+              <Text style={styles.score}>{formatScore(favorite.compatibility?.score)}</Text>
+            </View>
+            <DetailRow label="Location" value={formatValue(favorite.roommate?.profile?.preferredArea)} />
+            <Text style={styles.viewDetailsText}>View profile details</Text>
+          </Pressable>
+        ))}
+    </>
   );
 }
 
@@ -945,6 +1111,10 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   matchHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+  favoriteTitleRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+  matchActions: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+  favoriteButton: { paddingVertical: 4, paddingHorizontal: 8 },
+  favoriteText: { color: '#2563eb', fontSize: 14, fontWeight: '700' },
   candidateLabel: { color: '#64748b', fontSize: 12, textTransform: 'uppercase' },
   candidateId: { color: '#0f172a', fontSize: 18, fontWeight: '700', marginTop: 2 },
   score: { color: '#16a34a', fontSize: 24, fontWeight: '800' },
