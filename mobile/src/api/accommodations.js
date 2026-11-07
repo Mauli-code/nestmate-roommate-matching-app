@@ -36,6 +36,10 @@ export function fetchAccommodation(id, token) {
   return request(`/api/accommodations/${encodeURIComponent(id)}`, 'GET', token);
 }
 
+export function fetchAccommodationRecommendations(token) {
+  return request('/api/accommodations/recommendations', 'GET', token);
+}
+
 export function updateAccommodation(id, listing, token) {
   return request(`/api/accommodations/${encodeURIComponent(id)}`, 'PUT', token, listing);
 }

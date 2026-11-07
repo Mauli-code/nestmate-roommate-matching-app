@@ -6,10 +6,12 @@ const {
   NotFoundException,
 } = require('@nestjs/common');
 const repository = require('./accommodations.repository');
+const profileRepository = require('../matching/profile-repository');
 
 class AccommodationsService {
-  constructor(listings = repository) {
+  constructor(listings = repository, profiles = profileRepository) {
     this.listings = listings;
+    this.profiles = profiles;
   }
 
   async create(ownerId, body) {
@@ -33,6 +35,28 @@ class AccommodationsService {
   async findOne(id) {
     const listing = await this.requireListing(id);
     return listing;
+  }
+
+  async recommendations(userId) {
+    const profile = await this.profiles.findProfile(userId);
+    if (!profile || typeof profile !== 'object') {
+      throw new BadRequestException('Your roommate preferences must be saved before searching');
+    }
+
+    const listings = await this.listings.findAvailable({});
+    const recommendations = listings
+      .filter((listing) => this.validListing(listing))
+      .map((listing) => {
+        const score = this.scoreListing(profile, listing);
+        return {
+          listing,
+          score: score.total,
+          breakdown: score.breakdown,
+        };
+      })
+      .sort((first, second) => second.score - first.score);
+
+    return { recommendations };
   }
 
   async update(ownerId, id, body) {
@@ -148,6 +172,63 @@ class AccommodationsService {
       type,
       preferredArea: query.preferredArea ? String(query.preferredArea).trim() : null,
     };
+  }
+
+  validListing(listing) {
+    return listing &&
+      listing.status === 'available' &&
+      Number.isFinite(listing.monthlyRent) &&
+      listing.monthlyRent > 0 &&
+      typeof listing.preferredArea === 'string' &&
+      listing.preferredArea.trim() &&
+      Number.isInteger(listing.availableRooms) &&
+      listing.availableRooms > 0 &&
+      typeof listing.availableFrom === 'string' &&
+      !Number.isNaN(Date.parse(listing.availableFrom));
+  }
+
+  scoreListing(profile, listing) {
+    const budget = this.budgetScore(profile.budget, listing.monthlyRent);
+    const location = this.textScore(profile.preferredArea, listing.preferredArea);
+    const preferredType =
+      profile.preferredAccommodationType || profile.accommodationType;
+    const type = preferredType
+      ? this.textScore(preferredType, listing.type)
+      : 0.5;
+    const rooms = listing.availableRooms > 0 ? 1 : 0;
+    const moveInDate = this.dateScore(profile.moveInDate, listing.availableFrom);
+    const breakdown = { budget, location, type, rooms, moveInDate };
+    return {
+      total: Math.round(
+        (budget * 35) +
+        (location * 30) +
+        (type * 15) +
+        (rooms * 10) +
+        (moveInDate * 10),
+      ),
+      breakdown,
+    };
+  }
+
+  budgetScore(budget, rent) {
+    if (!Number.isFinite(budget) || budget <= 0 || !Number.isFinite(rent) || rent <= 0) {
+      return 0;
+    }
+    return Math.max(0, 1 - Math.abs(budget - rent) / Math.max(budget, rent));
+  }
+
+  textScore(first, second) {
+    if (typeof first !== 'string' || typeof second !== 'string' || !first.trim() || !second.trim()) {
+      return 0;
+    }
+    return first.trim().toLowerCase() === second.trim().toLowerCase() ? 1 : 0;
+  }
+
+  dateScore(moveInDate, availableFrom) {
+    if (!moveInDate) return 0.5;
+    const moveIn = Date.parse(moveInDate);
+    const available = Date.parse(availableFrom);
+    return Number.isNaN(moveIn) || Number.isNaN(available) || available <= moveIn ? 1 : 0;
   }
 }
 
