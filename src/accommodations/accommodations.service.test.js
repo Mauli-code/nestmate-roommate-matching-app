@@ -7,11 +7,11 @@ function service() {
   const items = new Map();
   const repository = {
     create: async (item) => { items.set(item.id, item); return item; },
-    findAvailable: async (filters) => [...items.values()].filter((item) =>
+    findAvailable: async (filters = {}) => [...items.values()].filter((item) =>
       item.status === 'available' &&
       (!filters.type || item.type === filters.type) &&
-      (filters.minRent === null || item.monthlyRent >= filters.minRent) &&
-      (filters.maxRent === null || item.monthlyRent <= filters.maxRent)),
+      (filters.minRent == null || item.monthlyRent >= filters.minRent) &&
+      (filters.maxRent == null || item.monthlyRent <= filters.maxRent)),
     findById: async (id) => items.get(id) || null,
     save: async (item) => { items.set(item.id, item); return item; },
     remove: async (id) => items.delete(id),
@@ -73,4 +73,55 @@ test('filters listings by rent and type', async () => {
   const result = await accommodationService.findAvailable({ minRent: '10000', type: 'flat' });
   assert.equal(result.listings.length, 1);
   assert.equal(result.listings[0].type, 'flat');
+});
+
+test('ranks valid accommodation recommendations by suitability', async () => {
+  const accommodationService = service();
+  await accommodationService.create('owner-1', listing({
+    preferredArea: 'Central',
+    monthlyRent: 1000,
+    availableFrom: '2026-11-01',
+  }));
+  await accommodationService.listings.create({
+    id: 'invalid-listing',
+    status: 'available',
+    monthlyRent: 5000,
+    preferredArea: 'North',
+    availableRooms: 1,
+    availableFrom: 'not-a-date',
+  });
+  const profiles = {
+    findProfile: async () => ({
+      budget: 1000,
+      preferredArea: 'Central',
+      moveInDate: '2026-12-01',
+    }),
+  };
+  const recommendationsService = new (require('./accommodations.service').AccommodationsService)(
+    accommodationService.listings,
+    profiles,
+  );
+  const result = await recommendationsService.recommendations('user-1');
+  assert.equal(result.recommendations.length, 1);
+  assert.equal(result.recommendations[0].listing.preferredArea, 'Central');
+  assert.equal(result.recommendations[0].score, 93);
+});
+
+test('returns no recommendations when listings are unavailable or invalid', async () => {
+  const accommodationService = service();
+  await accommodationService.create('owner-1', listing());
+  const profileRepository = {
+    findProfile: async () => ({ budget: 1000, preferredArea: 'Central' }),
+  };
+  const recommendationService = new (require('./accommodations.service').AccommodationsService)(
+    accommodationService.listings,
+    profileRepository,
+  );
+  const savedListings = await accommodationService.listings.findAvailable();
+  await accommodationService.listings.save({
+    ...savedListings[0],
+    status: 'unavailable',
+  });
+  const result = await recommendationService.recommendations('user-1');
+  assert.deepEqual(result.recommendations, []);
 });

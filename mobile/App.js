@@ -33,6 +33,7 @@ import { searchRoommates } from './src/api/search';
 import {
   createAccommodation,
   fetchAccommodations,
+  fetchAccommodationRecommendations,
 } from './src/api/accommodations';
 import * as ImagePicker from 'expo-image-picker';
 import { validatePreferences } from './src/preferences';
@@ -1153,6 +1154,10 @@ function AccommodationScreen({ onBack, token }) {
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [message, setMessage] = useState('');
+  const [recommendations, setRecommendations] = useState([]);
+  const [selectedListing, setSelectedListing] = useState(null);
+  const [recommendationsError, setRecommendationsError] = useState('');
+  const [contactMessage, setContactMessage] = useState('');
 
   const loadListings = useCallback(async () => {
     setLoading(true);
@@ -1169,8 +1174,30 @@ function AccommodationScreen({ onBack, token }) {
 
   useEffect(() => { loadListings(); }, [loadListings]);
 
+  const loadRecommendations = useCallback(async () => {
+    setRecommendationsError('');
+    try {
+      const result = await fetchAccommodationRecommendations(token);
+      setRecommendations(result?.recommendations || []);
+    } catch (error) {
+      setRecommendationsError(error.message);
+    }
+  }, [token]);
+
+  useEffect(() => { loadRecommendations(); }, [loadRecommendations]);
+
   function update(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  async function contactOwner() {
+    if (!selectedListing?.listing?.ownerId) return;
+    try {
+      await sendConnectionRequest(selectedListing.listing.ownerId, token);
+      setContactMessage('Connection request sent to the listing owner.');
+    } catch (error) {
+      setContactMessage(error.message);
+    }
   }
 
   async function publish() {
@@ -1209,6 +1236,62 @@ function AccommodationScreen({ onBack, token }) {
           <Text style={styles.refreshText}>＋</Text>
         </Pressable>
       </View>
+      {selectedListing ? (
+        <View style={styles.detailsCard}>
+          <Pressable onPress={() => setSelectedListing(null)} style={styles.backButton}>
+            <Text style={styles.backText}>‹ Listings</Text>
+          </Pressable>
+          <Text style={styles.detailsName}>{selectedListing.title}</Text>
+          <DetailRow label="Suitability score" value={`${selectedListing.score}%`} />
+          <DetailRow label="Rent" value={`₹${selectedListing.listing.monthlyRent}/month`} />
+          <DetailRow label="Location" value={`${selectedListing.listing.city}, ${selectedListing.listing.preferredArea}`} />
+          <DetailRow label="Type" value={selectedListing.listing.type} />
+          <Text style={styles.notificationMessage}>{selectedListing.listing.description}</Text>
+          <Text style={styles.breakdownTitle}>Why this listing matches</Text>
+          {Object.entries(selectedListing.breakdown || {}).map(([category, value]) => (
+            <DetailRow key={category} label={category} value={`${Math.round(value * 100)}%`} />
+          ))}
+          <Pressable onPress={contactOwner} style={styles.primaryButton}>
+            <Text style={styles.primaryButtonText}>Contact listing owner</Text>
+          </Pressable>
+          {contactMessage !== '' && <Text style={styles.successText}>{contactMessage}</Text>}
+        </View>
+      ) : (
+      <>
+      <View style={styles.favoriteTitleRow}>
+        <View>
+          <Text style={styles.detailsSectionTitle}>Recommended for you</Text>
+          <Text style={styles.subtitle}>Ranked using your saved budget, location, and move-in preferences.</Text>
+        </View>
+        <Pressable onPress={loadRecommendations} style={styles.refreshButton}>
+          <Text style={styles.refreshText}>↻</Text>
+        </Pressable>
+      </View>
+      {recommendationsError !== '' && <Text style={styles.errorText}>{recommendationsError}</Text>}
+      {recommendations.length === 0 && recommendationsError === '' && (
+        <Text style={styles.stateText}>No personalized recommendations are available yet.</Text>
+      )}
+      {recommendations.map((recommendation) => (
+        <Pressable
+          key={recommendation.listing.id}
+          onPress={() => setSelectedListing(recommendation)}
+          style={({ pressed }) => [styles.matchCard, pressed && styles.buttonPressed]}
+        >
+          <View style={styles.matchHeader}>
+            <View>
+              <Text style={styles.candidateLabel}>Recommended accommodation</Text>
+              <Text style={styles.candidateId}>{recommendation.listing.title}</Text>
+            </View>
+            <Text style={styles.score}>{recommendation.score}%</Text>
+          </View>
+          <Text style={styles.stateText}>
+            {recommendation.listing.city} · {recommendation.listing.preferredArea} · ₹{recommendation.listing.monthlyRent}/month
+          </Text>
+          <Text style={styles.viewDetailsText}>View listing details</Text>
+        </Pressable>
+      ))}
+      </>
+      )}
       <View style={styles.budgetRow}>
         <TextInput placeholder="Location" onChangeText={(value) => setFilters({ ...filters, preferredArea: value })} style={styles.input} value={filters.preferredArea} />
         <TextInput keyboardType="numeric" placeholder="Min rent" onChangeText={(value) => setFilters({ ...filters, minRent: value })} style={styles.input} value={filters.minRent} />

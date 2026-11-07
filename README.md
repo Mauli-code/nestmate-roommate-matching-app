@@ -161,6 +161,17 @@ The current mobile form accepts listing details and displays available listings 
 location filters. Listing photo URLs are supported as data fields; binary listing uploads are not
 added because the existing photo endpoint is specifically for user profile photos.
 
+Accommodation recommendations are available to authenticated users at:
+
+```text
+GET /api/accommodations/recommendations
+```
+
+Each listing receives a score from 0 to 100. Budget contributes 35 points, location 30 points,
+accommodation type 15 points, available rooms 10 points, and move-in date 10 points. If a user
+has not selected an accommodation type, that category receives a neutral score. Invalid or
+unavailable listings are excluded, and results are returned highest score first.
+
 Run the backend first:
 
 ```bash

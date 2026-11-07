@@ -27,6 +27,10 @@ class AccommodationsController {
     return this.service.findAvailable(query);
   }
 
+  async recommendations(request) {
+    return this.service.recommendations(request.user.sub);
+  }
+
   async findOne(id) {
     return this.service.findOne(id);
   }
@@ -52,6 +56,17 @@ Req()(AccommodationsController.prototype, 'create', 1);
 const listDescriptor = Object.getOwnPropertyDescriptor(AccommodationsController.prototype, 'findAvailable');
 Get()(AccommodationsController.prototype, 'findAvailable', listDescriptor);
 Query()(AccommodationsController.prototype, 'findAvailable', 0);
+
+const recommendationsDescriptor = Object.getOwnPropertyDescriptor(
+  AccommodationsController.prototype,
+  'recommendations',
+);
+Get('recommendations')(
+  AccommodationsController.prototype,
+  'recommendations',
+  recommendationsDescriptor,
+);
+Req()(AccommodationsController.prototype, 'recommendations', 0);
 
 const oneDescriptor = Object.getOwnPropertyDescriptor(AccommodationsController.prototype, 'findOne');
 Get(':id')(AccommodationsController.prototype, 'findOne', oneDescriptor);
