@@ -130,6 +130,19 @@ Each item contains a recipient, title, message, type, read status, timestamp, an
 or user ID. Repeated processing of the same request event does not create duplicates. The mobile
 app displays unread items with a badge and can open the related roommate profile when available.
 
+## Roommate search
+
+Authenticated users can search profiles with multiple filters:
+
+```text
+GET /api/search?minBudget=500&maxBudget=1500&preferredArea=Central&foodHabits=vegetarian&sleepSchedule=flexible&smoking=no&drinking=no&sort=compatibility
+```
+
+Supported sorting values are `compatibility`, `budget`, and `location`. Search excludes the
+current user and returns only public profile fields, compatibility scores, and score breakdowns.
+The mobile app provides filter controls, clear filters, empty/error states, and reuses the existing
+favorite and connection-request actions.
+
 Run the backend first:
 
 ```bash

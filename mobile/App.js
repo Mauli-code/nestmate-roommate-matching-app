@@ -29,6 +29,7 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
 } from './src/api/notifications';
+import { searchRoommates } from './src/api/search';
 import * as ImagePicker from 'expo-image-picker';
 import { validatePreferences } from './src/preferences';
 
@@ -236,6 +237,7 @@ export default function App() {
             onFavorites={() => setScreen('favorites')}
             onRequests={() => setScreen('requests')}
             onNotifications={() => setScreen('notifications')}
+            onSearch={() => setScreen('search')}
             unreadCount={unreadCount}
             onProfile={() => setScreen('profile')}
             onSetPreferences={() => setScreen('preferences')}
@@ -320,6 +322,19 @@ export default function App() {
             }}
             onOpen={openNotification}
             onRefresh={loadNotifications}
+          />
+        ) : screen === 'search' ? (
+          <SearchScreen
+            favoriteIds={favorites.map((favorite) => favorite.roommate?.id)}
+            onBack={() => setScreen('home')}
+            onConnect={sendRequest}
+            onSelect={(match) => {
+              setSelectedMatch(match);
+              setDetailsBackScreen('search');
+              setScreen('details');
+            }}
+            onToggleFavorite={toggleFavorite}
+            token={session.token}
           />
         ) : (
           <RecommendationsScreen
@@ -428,6 +443,7 @@ function HomeScreen({
   onNotifications,
   onProfile,
   onRequests,
+  onSearch,
   onSetPreferences,
   unreadCount,
   userName,
@@ -446,6 +462,9 @@ function HomeScreen({
         style={({ pressed }) => [styles.primaryButton, pressed && styles.buttonPressed]}
       >
         <Text style={styles.primaryButtonText}>Find roommates</Text>
+      </Pressable>
+      <Pressable accessibilityRole="button" onPress={onSearch} style={styles.secondaryButton}>
+        <Text style={styles.secondaryButtonText}>Search roommates</Text>
       </Pressable>
       <Pressable
         accessibilityRole="button"
@@ -943,6 +962,166 @@ function RecommendationsScreen({
           </Text>
         </View>
       )}
+    </>
+  );
+}
+
+function SearchScreen({
+  favoriteIds,
+  onBack,
+  onConnect,
+  onSelect,
+  onToggleFavorite,
+  token,
+}) {
+  const [filters, setFilters] = useState({
+    minBudget: '',
+    maxBudget: '',
+    preferredArea: '',
+    lifestyle: '',
+    foodHabits: '',
+    sleepSchedule: '',
+    smoking: '',
+    drinking: '',
+    sort: 'compatibility',
+  });
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  function updateFilter(field, value) {
+    setFilters((current) => ({ ...current, [field]: value }));
+  }
+
+  async function search() {
+    setLoading(true);
+    setErrorMessage('');
+    try {
+      const result = await searchRoommates(filters, token);
+      setResults(result.results.map((item) => ({
+        candidateId: item.profile.id,
+        score: item.score,
+        breakdown: item.breakdown,
+        profile: item.profile,
+      })));
+      setHasSearched(true);
+    } catch (error) {
+      setErrorMessage(error.message);
+      setResults([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function clearFilters() {
+    setFilters({
+      minBudget: '',
+      maxBudget: '',
+      preferredArea: '',
+      lifestyle: '',
+      foodHabits: '',
+      sleepSchedule: '',
+      smoking: '',
+      drinking: '',
+      sort: 'compatibility',
+    });
+    setResults([]);
+    setHasSearched(false);
+    setErrorMessage('');
+  }
+
+  return (
+    <>
+      <Pressable accessibilityRole="button" onPress={onBack} style={styles.backButton}>
+        <Text style={styles.backText}>‹ Home</Text>
+      </Pressable>
+      <Text style={styles.title}>Search roommates</Text>
+      <Text style={styles.subtitle}>Combine filters to find suitable profiles.</Text>
+      <View style={styles.budgetRow}>
+        <TextInput
+          keyboardType="numeric"
+          onChangeText={(value) => updateFilter('minBudget', value)}
+          placeholder="Min budget"
+          style={styles.input}
+          value={filters.minBudget}
+        />
+        <Text style={styles.rangeSeparator}>to</Text>
+        <TextInput
+          keyboardType="numeric"
+          onChangeText={(value) => updateFilter('maxBudget', value)}
+          placeholder="Max budget"
+          style={styles.input}
+          value={filters.maxBudget}
+        />
+      </View>
+      <TextInput
+        onChangeText={(value) => updateFilter('preferredArea', value)}
+        placeholder="Preferred city or location"
+        style={styles.input}
+        value={filters.preferredArea}
+      />
+      <PreferenceGroup
+        label="Lifestyle"
+        options={[['low', 'Relaxed'], ['medium', 'Balanced'], ['high', 'Very tidy']]}
+        selected={filters.lifestyle}
+        onSelect={(value) => updateFilter('lifestyle', value)}
+      />
+      <PreferenceGroup
+        label="Food habits"
+        options={[['vegetarian', 'Vegetarian'], ['nonVegetarian', 'Non-vegetarian']]}
+        selected={filters.foodHabits}
+        onSelect={(value) => updateFilter('foodHabits', value)}
+      />
+      <PreferenceGroup
+        label="Sleeping habits"
+        options={[['early', 'Early'], ['late', 'Late'], ['flexible', 'Flexible']]}
+        selected={filters.sleepSchedule}
+        onSelect={(value) => updateFilter('sleepSchedule', value)}
+      />
+      <PreferenceGroup
+        label="Smoking"
+        options={[['yes', 'Smoker'], ['no', 'Non-smoker']]}
+        selected={filters.smoking}
+        onSelect={(value) => updateFilter('smoking', value)}
+      />
+      <PreferenceGroup
+        label="Drinking"
+        options={[['yes', 'Yes'], ['occasionally', 'Occasionally'], ['no', 'Never']]}
+        selected={filters.drinking}
+        onSelect={(value) => updateFilter('drinking', value)}
+      />
+      <PreferenceGroup
+        label="Sort by"
+        options={[['compatibility', 'Compatibility'], ['budget', 'Budget'], ['location', 'Location']]}
+        selected={filters.sort}
+        onSelect={(value) => updateFilter('sort', value)}
+      />
+      <View style={styles.searchActions}>
+        <Pressable disabled={loading} onPress={search} style={styles.primaryButton}>
+          <Text style={styles.primaryButtonText}>{loading ? 'Searching...' : 'Search'}</Text>
+        </Pressable>
+        <Pressable onPress={clearFilters} style={styles.secondaryButton}>
+          <Text style={styles.secondaryButtonText}>Clear filters</Text>
+        </Pressable>
+      </View>
+      {errorMessage !== '' && <Text style={styles.errorText}>{errorMessage}</Text>}
+      {!loading && hasSearched && results.length === 0 && (
+        <View style={styles.state}>
+          <Text style={styles.emptyTitle}>No roommates found</Text>
+          <Text style={styles.stateText}>Try clearing a filter or widening your budget.</Text>
+        </View>
+      )}
+      {!loading && results.map((match, index) => (
+        <MatchCard
+          key={match.candidateId}
+          isFavorite={favoriteIds.includes(match.candidateId)}
+          match={match}
+          onPress={() => onSelect(match)}
+          onToggleFavorite={() => onToggleFavorite(match.candidateId)}
+          rank={index + 1}
+        />
+      ))}
     </>
   );
 }
@@ -1485,6 +1664,7 @@ const styles = StyleSheet.create({
   favoriteButton: { paddingVertical: 4, paddingHorizontal: 8 },
   favoriteText: { color: '#2563eb', fontSize: 14, fontWeight: '700' },
   requestActions: { alignItems: 'center', flexDirection: 'row', gap: 12 },
+  searchActions: { alignItems: 'center', flexDirection: 'row', gap: 12 },
   notificationCard: {
     backgroundColor: '#fff',
     borderColor: '#e2e8f0',

@@ -4,11 +4,12 @@ const { MatchingModule } = require('./matching/matching.module');
 const { FavoritesModule } = require('./favorites/favorites.module');
 const { ConnectionRequestsModule } = require('./connection-requests/connection-requests.module');
 const { NotificationsModule } = require('./notifications/notifications.module');
+const { SearchModule } = require('./search/search.module');
 
 class AppModule {}
 
 Module({
-  imports: [AuthModule, MatchingModule, FavoritesModule, ConnectionRequestsModule, NotificationsModule],
+  imports: [AuthModule, MatchingModule, FavoritesModule, ConnectionRequestsModule, NotificationsModule, SearchModule],
 })(AppModule);
 
 module.exports = { AppModule };
