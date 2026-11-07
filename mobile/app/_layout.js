@@ -14,6 +14,7 @@ export default function RootLayout() {
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="roommate/[id]" options={{ headerShown: false, presentation: 'card' }} />
+        <Stack.Screen name="property/[id]" options={{ headerShown: false, presentation: 'card' }} />
       </Stack>
     </SafeAreaProvider>
   );
