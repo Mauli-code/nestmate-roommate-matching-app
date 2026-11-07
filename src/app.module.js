@@ -5,11 +5,12 @@ const { FavoritesModule } = require('./favorites/favorites.module');
 const { ConnectionRequestsModule } = require('./connection-requests/connection-requests.module');
 const { NotificationsModule } = require('./notifications/notifications.module');
 const { SearchModule } = require('./search/search.module');
+const { AccommodationsModule } = require('./accommodations/accommodations.module');
 
 class AppModule {}
 
 Module({
-  imports: [AuthModule, MatchingModule, FavoritesModule, ConnectionRequestsModule, NotificationsModule, SearchModule],
+  imports: [AuthModule, MatchingModule, FavoritesModule, ConnectionRequestsModule, NotificationsModule, SearchModule, AccommodationsModule],
 })(AppModule);
 
 module.exports = { AppModule };
