@@ -24,6 +24,11 @@ import {
   rejectConnectionRequest,
   sendConnectionRequest,
 } from './src/api/connectionRequests';
+import {
+  fetchNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from './src/api/notifications';
 import * as ImagePicker from 'expo-image-picker';
 import { validatePreferences } from './src/preferences';
 
@@ -48,6 +53,10 @@ export default function App() {
   const [requestsLoading, setRequestsLoading] = useState(false);
   const [requestsError, setRequestsError] = useState('');
   const [connectionMessage, setConnectionMessage] = useState('');
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsError, setNotificationsError] = useState('');
   const [preferences, setPreferences] = useState({
     minBudget: '',
     maxBudget: '',
@@ -119,41 +128,76 @@ export default function App() {
         await addFavorite(roommateId, session.token);
         await loadFavorites();
       }
-
-      const loadRequests = useCallback(async () => {
-        if (!session?.token) return;
-        setRequestsLoading(true);
-        setRequestsError('');
-        try {
-          const [received, sent] = await Promise.all([
-            fetchReceivedRequests(session.token),
-            fetchSentRequests(session.token),
-          ]);
-          setReceivedRequests(received?.requests || []);
-          setSentRequests(sent?.requests || []);
-        } catch (error) {
-          setRequestsError(error.message);
-        } finally {
-          setRequestsLoading(false);
-        }
-      }, [session]);
-
-      useEffect(() => {
-        loadRequests();
-      }, [loadRequests]);
-
-      async function sendRequest(receiverId) {
-        setConnectionMessage('');
-        try {
-          await sendConnectionRequest(receiverId, session.token);
-          setConnectionMessage('Connection request sent successfully.');
-          await loadRequests();
-        } catch (error) {
-          setConnectionMessage(error.message);
-        }
-      }
     } catch (error) {
       setFavoritesError(error.message);
+    }
+  }
+
+  const loadRequests = useCallback(async () => {
+    if (!session?.token) return;
+    setRequestsLoading(true);
+    setRequestsError('');
+    try {
+      const [received, sent] = await Promise.all([
+        fetchReceivedRequests(session.token),
+        fetchSentRequests(session.token),
+      ]);
+      setReceivedRequests(received?.requests || []);
+      setSentRequests(sent?.requests || []);
+    } catch (error) {
+      setRequestsError(error.message);
+    } finally {
+      setRequestsLoading(false);
+    }
+  }, [session]);
+
+  useEffect(() => {
+    loadRequests();
+  }, [loadRequests]);
+
+  async function sendRequest(receiverId) {
+    setConnectionMessage('');
+    try {
+      await sendConnectionRequest(receiverId, session.token);
+      setConnectionMessage('Connection request sent successfully.');
+      await loadRequests();
+    } catch (error) {
+      setConnectionMessage(error.message);
+    }
+
+    const loadNotifications = useCallback(async () => {
+      if (!session?.token) return;
+      setNotificationsLoading(true);
+      setNotificationsError('');
+      try {
+        const result = await fetchNotifications(session.token);
+        setNotifications(result?.notifications || []);
+        setUnreadCount(Number(result?.unreadCount) || 0);
+      } catch (error) {
+        setNotificationsError(error.message);
+      } finally {
+        setNotificationsLoading(false);
+      }
+    }, [session]);
+
+    useEffect(() => {
+      loadNotifications();
+    }, [loadNotifications]);
+
+    async function openNotification(notification) {
+      try {
+        if (!notification.read) {
+          await markNotificationRead(notification.id, session.token);
+          await loadNotifications();
+        }
+        if (notification.relatedUserId) {
+          setSelectedMatch({ candidateId: notification.relatedUserId });
+          setDetailsBackScreen('notifications');
+          setScreen('details');
+        }
+      } catch (error) {
+        setNotificationsError(error.message);
+      }
     }
   }
 
@@ -191,6 +235,8 @@ export default function App() {
             onFindRoommates={() => setScreen('matches')}
             onFavorites={() => setScreen('favorites')}
             onRequests={() => setScreen('requests')}
+            onNotifications={() => setScreen('notifications')}
+            unreadCount={unreadCount}
             onProfile={() => setScreen('profile')}
             onSetPreferences={() => setScreen('preferences')}
             onLogout={async () => {
@@ -261,6 +307,19 @@ export default function App() {
             }}
             received={receivedRequests}
             sent={sentRequests}
+          />
+        ) : screen === 'notifications' ? (
+          <NotificationsScreen
+            errorMessage={notificationsError}
+            loading={notificationsLoading}
+            notifications={notifications}
+            onBack={() => setScreen('home')}
+            onMarkAllRead={async () => {
+              await markAllNotificationsRead(session.token);
+              await loadNotifications();
+            }}
+            onOpen={openNotification}
+            onRefresh={loadNotifications}
           />
         ) : (
           <RecommendationsScreen
@@ -366,9 +425,11 @@ function HomeScreen({
   onFavorites,
   onFindRoommates,
   onLogout,
+  onNotifications,
   onProfile,
   onRequests,
   onSetPreferences,
+  unreadCount,
   userName,
 }) {
   return (
@@ -401,6 +462,11 @@ function HomeScreen({
       </Pressable>
       <Pressable accessibilityRole="button" onPress={onRequests} style={styles.secondaryButton}>
         <Text style={styles.secondaryButtonText}>Connection requests</Text>
+      </Pressable>
+      <Pressable accessibilityRole="button" onPress={onNotifications} style={styles.secondaryButton}>
+        <Text style={styles.secondaryButtonText}>
+          Notifications {unreadCount > 0 ? `(${unreadCount} unread)` : ''}
+        </Text>
       </Pressable>
       <Pressable accessibilityRole="button" onPress={onLogout} style={styles.secondaryButton}>
         <Text style={styles.secondaryButtonText}>Log out</Text>
@@ -1019,6 +1085,85 @@ function ConnectionRequestsScreen({
     } catch (error) {
       setActionError(error.message);
     }
+
+    function NotificationsScreen({
+      errorMessage,
+      loading,
+      notifications,
+      onBack,
+      onMarkAllRead,
+      onOpen,
+      onRefresh,
+    }) {
+      const [actionError, setActionError] = useState('');
+      const [message, setMessage] = useState('');
+
+      async function markAll() {
+        setActionError('');
+        try {
+          await onMarkAllRead();
+          setMessage('All notifications marked as read.');
+        } catch (error) {
+          setActionError(error.message);
+        }
+      }
+
+      return (
+        <>
+          <Pressable accessibilityRole="button" onPress={onBack} style={styles.backButton}>
+            <Text style={styles.backText}>‹ Home</Text>
+          </Pressable>
+          <View style={styles.favoriteTitleRow}>
+            <View>
+              <Text style={styles.title}>Notifications</Text>
+              <Text style={styles.subtitle}>Updates about your roommate activity.</Text>
+            </View>
+            <Pressable accessibilityRole="button" onPress={onRefresh} style={styles.refreshButton}>
+              <Text style={styles.refreshText}>↻</Text>
+            </Pressable>
+          </View>
+          <Pressable onPress={markAll} style={styles.secondaryButton}>
+            <Text style={styles.secondaryButtonText}>Mark all as read</Text>
+          </Pressable>
+          {message !== '' && <Text style={styles.successText}>{message}</Text>}
+          {(errorMessage || actionError) !== '' && (
+            <View style={styles.errorCard}>
+              <Text style={styles.errorText}>{actionError || errorMessage}</Text>
+              <Pressable onPress={onRefresh} style={styles.retryButton}>
+                <Text style={styles.retryText}>Try again</Text>
+              </Pressable>
+            </View>
+          )}
+          {loading && (
+            <View style={styles.state}>
+              <ActivityIndicator color="#2563eb" size="large" />
+              <Text style={styles.stateText}>Loading notifications...</Text>
+            </View>
+          )}
+          {!loading && !errorMessage && notifications.length === 0 && (
+            <View style={styles.state}>
+              <Text style={styles.emptyTitle}>No notifications</Text>
+              <Text style={styles.stateText}>Important roommate updates will appear here.</Text>
+            </View>
+          )}
+          {!loading &&
+            notifications.map((notification) => (
+              <Pressable
+                accessibilityRole="button"
+                key={notification.id}
+                onPress={() => onOpen(notification)}
+                style={[styles.notificationCard, !notification.read && styles.unreadNotification]}
+              >
+                <Text style={styles.notificationTitle}>{notification.title}</Text>
+                <Text style={styles.notificationMessage}>{notification.message}</Text>
+                <Text style={styles.notificationDate}>
+                  {notification.read ? 'Read' : 'Unread'} · {formatDate(notification.createdAt)}
+                </Text>
+              </Pressable>
+            ))}
+        </>
+      );
+    }
   }
 
   return (
@@ -1211,6 +1356,12 @@ function formatScore(score) {
   return typeof score === 'number' ? `${score}%` : 'Not provided';
 }
 
+function formatDate(value) {
+  if (!value) return 'Recently';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'Recently' : date.toLocaleString();
+}
+
 function formatCategory(category) {
   return category
     .replace(/([A-Z])/g, ' $1')
@@ -1334,6 +1485,18 @@ const styles = StyleSheet.create({
   favoriteButton: { paddingVertical: 4, paddingHorizontal: 8 },
   favoriteText: { color: '#2563eb', fontSize: 14, fontWeight: '700' },
   requestActions: { alignItems: 'center', flexDirection: 'row', gap: 12 },
+  notificationCard: {
+    backgroundColor: '#fff',
+    borderColor: '#e2e8f0',
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 7,
+    padding: 18,
+  },
+  unreadNotification: { backgroundColor: '#eff6ff', borderColor: '#93c5fd' },
+  notificationTitle: { color: '#0f172a', fontSize: 17, fontWeight: '700' },
+  notificationMessage: { color: '#475569', lineHeight: 21 },
+  notificationDate: { color: '#64748b', fontSize: 12 },
   candidateLabel: { color: '#64748b', fontSize: 12, textTransform: 'uppercase' },
   candidateId: { color: '#0f172a', fontSize: 18, fontWeight: '700', marginTop: 2 },
   score: { color: '#16a34a', fontSize: 24, fontWeight: '800' },
