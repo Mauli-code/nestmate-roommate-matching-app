@@ -30,11 +30,7 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'home' : 'home-outline'}
-              size={22}
-              color={color}
-            />
+            <Ionicons name={focused ? 'home' : 'home-outline'} size={22} color={color} />
           ),
         }}
       />
@@ -43,11 +39,16 @@ export default function TabLayout() {
         options={{
           title: 'Discover',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'compass' : 'compass-outline'}
-              size={23}
-              color={color}
-            />
+            <Ionicons name={focused ? 'compass' : 'compass-outline'} size={23} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="accommodations"
+        options={{
+          title: 'Places',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'business' : 'business-outline'} size={22} color={color} />
           ),
         }}
       />
@@ -56,11 +57,7 @@ export default function TabLayout() {
         options={{
           title: 'Saved',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'bookmark' : 'bookmark-outline'}
-              size={22}
-              color={color}
-            />
+            <Ionicons name={focused ? 'bookmark' : 'bookmark-outline'} size={22} color={color} />
           ),
         }}
       />
@@ -69,11 +66,7 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'person' : 'person-outline'}
-              size={22}
-              color={color}
-            />
+            <Ionicons name={focused ? 'person' : 'person-outline'} size={22} color={color} />
           ),
         }}
       />
