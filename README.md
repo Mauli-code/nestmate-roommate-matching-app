@@ -115,6 +115,21 @@ Requests contain sender, receiver, status, and timestamps. Pending duplicates an
 are rejected. Only the receiver can accept or reject a request, and only the sender can cancel it.
 The mobile app provides separate received and sent sections.
 
+## In-app notifications
+
+Authenticated users can retrieve and update their own notifications:
+
+```text
+GET   /api/notifications
+PATCH /api/notifications/<notificationId>/read
+PATCH /api/notifications/read-all
+```
+
+Notifications are created for new connection requests and for accepted or rejected requests.
+Each item contains a recipient, title, message, type, read status, timestamp, and related request
+or user ID. Repeated processing of the same request event does not create duplicates. The mobile
+app displays unread items with a badge and can open the related roommate profile when available.
+
 Run the backend first:
 
 ```bash

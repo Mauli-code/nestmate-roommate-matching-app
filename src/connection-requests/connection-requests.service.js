@@ -16,10 +16,12 @@ class ConnectionRequestsService {
     requests = requestRepository,
     profiles = profileRepository,
     users = userRepository,
+    notifications,
   ) {
     this.requests = requests;
     this.profiles = profiles;
     this.users = users;
+    this.notifications = notifications;
   }
 
   async send(senderId, receiverId) {
@@ -43,6 +45,13 @@ class ConnectionRequestsService {
       status: 'pending',
       createdAt: now,
       updatedAt: now,
+    });
+    await this.notifications?.create(receiverId, {
+      title: 'New connection request',
+      message: 'Someone is interested in connecting with you.',
+      type: 'connection-request-received',
+      relatedRequestId: request.id,
+      relatedUserId: senderId,
     });
     return { message: 'Connection request sent', request: await this.present(request) };
   }
@@ -79,6 +88,15 @@ class ConnectionRequestsService {
       status,
       updatedAt: new Date().toISOString(),
     });
+    if (status === 'accepted' || status === 'rejected') {
+      await this.notifications?.create(request.senderId, {
+        title: `Connection request ${status}`,
+        message: `Your roommate connection request was ${status}.`,
+        type: `connection-request-${status}`,
+        relatedRequestId: request.id,
+        relatedUserId: request.receiverId,
+      });
+    }
     return { message, request: await this.present(updated) };
   }
 
