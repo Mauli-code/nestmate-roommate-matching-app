@@ -16,6 +16,14 @@ import { login, logout, readSession, register } from './src/api/auth';
 import { fetchProfile, updateProfile } from './src/api/profile';
 import { resolvePhotoUrl, uploadProfilePhoto } from './src/api/photo';
 import { addFavorite, fetchFavorites, removeFavorite } from './src/api/favorites';
+import {
+  acceptConnectionRequest,
+  cancelConnectionRequest,
+  fetchReceivedRequests,
+  fetchSentRequests,
+  rejectConnectionRequest,
+  sendConnectionRequest,
+} from './src/api/connectionRequests';
 import * as ImagePicker from 'expo-image-picker';
 import { validatePreferences } from './src/preferences';
 
@@ -35,6 +43,11 @@ export default function App() {
   const [favorites, setFavorites] = useState([]);
   const [favoritesLoading, setFavoritesLoading] = useState(false);
   const [favoritesError, setFavoritesError] = useState('');
+  const [receivedRequests, setReceivedRequests] = useState([]);
+  const [sentRequests, setSentRequests] = useState([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
+  const [requestsError, setRequestsError] = useState('');
+  const [connectionMessage, setConnectionMessage] = useState('');
   const [preferences, setPreferences] = useState({
     minBudget: '',
     maxBudget: '',
@@ -106,6 +119,39 @@ export default function App() {
         await addFavorite(roommateId, session.token);
         await loadFavorites();
       }
+
+      const loadRequests = useCallback(async () => {
+        if (!session?.token) return;
+        setRequestsLoading(true);
+        setRequestsError('');
+        try {
+          const [received, sent] = await Promise.all([
+            fetchReceivedRequests(session.token),
+            fetchSentRequests(session.token),
+          ]);
+          setReceivedRequests(received?.requests || []);
+          setSentRequests(sent?.requests || []);
+        } catch (error) {
+          setRequestsError(error.message);
+        } finally {
+          setRequestsLoading(false);
+        }
+      }, [session]);
+
+      useEffect(() => {
+        loadRequests();
+      }, [loadRequests]);
+
+      async function sendRequest(receiverId) {
+        setConnectionMessage('');
+        try {
+          await sendConnectionRequest(receiverId, session.token);
+          setConnectionMessage('Connection request sent successfully.');
+          await loadRequests();
+        } catch (error) {
+          setConnectionMessage(error.message);
+        }
+      }
     } catch (error) {
       setFavoritesError(error.message);
     }
@@ -144,6 +190,7 @@ export default function App() {
           <HomeScreen
             onFindRoommates={() => setScreen('matches')}
             onFavorites={() => setScreen('favorites')}
+            onRequests={() => setScreen('requests')}
             onProfile={() => setScreen('profile')}
             onSetPreferences={() => setScreen('preferences')}
             onLogout={async () => {
@@ -174,6 +221,7 @@ export default function App() {
           <ProfileDetailsScreen
             match={selectedMatch}
             onBack={() => setScreen(detailsBackScreen)}
+            onConnect={sendRequest}
           />
         ) : screen === 'favorites' ? (
           <FavoritesScreen
@@ -192,6 +240,27 @@ export default function App() {
               setDetailsBackScreen('favorites');
               setScreen('details');
             }}
+          />
+        ) : screen === 'requests' ? (
+          <ConnectionRequestsScreen
+            errorMessage={requestsError}
+            loading={requestsLoading}
+            onBack={() => setScreen('home')}
+            onRefresh={loadRequests}
+            onAccept={async (requestId) => {
+              await acceptConnectionRequest(requestId, session.token);
+              await loadRequests();
+            }}
+            onReject={async (requestId) => {
+              await rejectConnectionRequest(requestId, session.token);
+              await loadRequests();
+            }}
+            onCancel={async (requestId) => {
+              await cancelConnectionRequest(requestId, session.token);
+              await loadRequests();
+            }}
+            received={receivedRequests}
+            sent={sentRequests}
           />
         ) : (
           <RecommendationsScreen
@@ -298,6 +367,7 @@ function HomeScreen({
   onFindRoommates,
   onLogout,
   onProfile,
+  onRequests,
   onSetPreferences,
   userName,
 }) {
@@ -328,6 +398,9 @@ function HomeScreen({
       </Pressable>
       <Pressable accessibilityRole="button" onPress={onFavorites} style={styles.secondaryButton}>
         <Text style={styles.secondaryButtonText}>My favorite roommates</Text>
+      </Pressable>
+      <Pressable accessibilityRole="button" onPress={onRequests} style={styles.secondaryButton}>
+        <Text style={styles.secondaryButtonText}>Connection requests</Text>
       </Pressable>
       <Pressable accessibilityRole="button" onPress={onLogout} style={styles.secondaryButton}>
         <Text style={styles.secondaryButtonText}>Log out</Text>
@@ -923,7 +996,143 @@ function FavoritesScreen({
   );
 }
 
-function ProfileDetailsScreen({ match, onBack }) {
+function ConnectionRequestsScreen({
+  errorMessage,
+  loading,
+  onAccept,
+  onBack,
+  onCancel,
+  onRefresh,
+  onReject,
+  received,
+  sent,
+}) {
+  const [actionError, setActionError] = useState('');
+  const [message, setMessage] = useState('');
+
+  async function perform(action, successMessage) {
+    setActionError('');
+    setMessage('');
+    try {
+      await action();
+      setMessage(successMessage);
+    } catch (error) {
+      setActionError(error.message);
+    }
+  }
+
+  return (
+    <>
+      <Pressable accessibilityRole="button" onPress={onBack} style={styles.backButton}>
+        <Text style={styles.backText}>‹ Home</Text>
+      </Pressable>
+      <View style={styles.favoriteTitleRow}>
+        <View>
+          <Text style={styles.title}>Connection requests</Text>
+          <Text style={styles.subtitle}>Manage roommate connections.</Text>
+        </View>
+        <Pressable accessibilityRole="button" onPress={onRefresh} style={styles.refreshButton}>
+          <Text style={styles.refreshText}>↻</Text>
+        </Pressable>
+      </View>
+      {message !== '' && <Text style={styles.successText}>{message}</Text>}
+      {(errorMessage || actionError) !== '' && (
+        <View style={styles.errorCard}>
+          <Text style={styles.errorText}>{actionError || errorMessage}</Text>
+          <Pressable onPress={onRefresh} style={styles.retryButton}>
+            <Text style={styles.retryText}>Try again</Text>
+          </Pressable>
+        </View>
+      )}
+      {loading && (
+        <View style={styles.state}>
+          <ActivityIndicator color="#2563eb" size="large" />
+          <Text style={styles.stateText}>Loading connection requests...</Text>
+        </View>
+      )}
+      {!loading && (
+        <>
+          <Text style={styles.detailsSectionTitle}>Received</Text>
+          {received.length === 0 ? (
+            <Text style={styles.stateText}>No received requests.</Text>
+          ) : (
+            received.map((request) => (
+              <RequestCard
+                key={request.id}
+                person={request.sender}
+                request={request}
+                actionLabel="Accept"
+                secondaryLabel="Reject"
+                onAction={() => perform(
+                  () => onAccept(request.id),
+                  'Connection request accepted.',
+                )}
+                onSecondary={() => perform(
+                  () => onReject(request.id),
+                  'Connection request rejected.',
+                )}
+              />
+            ))
+          )}
+          <Text style={styles.detailsSectionTitle}>Sent</Text>
+          {sent.length === 0 ? (
+            <Text style={styles.stateText}>No sent requests.</Text>
+          ) : (
+            sent.map((request) => (
+              <RequestCard
+                key={request.id}
+                person={request.receiver}
+                request={request}
+                actionLabel="Cancel"
+                onAction={() => perform(
+                  () => onCancel(request.id),
+                  'Connection request cancelled.',
+                )}
+              />
+            ))
+          )}
+        </>
+      )}
+    </>
+  );
+}
+
+function RequestCard({
+  actionLabel,
+  onAction,
+  onSecondary,
+  person,
+  request,
+}) {
+  return (
+    <View style={styles.matchCard}>
+      <View style={styles.matchHeader}>
+        <View>
+          <Text style={styles.candidateLabel}>{request.status} request</Text>
+          <Text style={styles.candidateId}>{person?.fullName || 'Roommate'}</Text>
+        </View>
+        <Text style={styles.score}>{formatScore(request.compatibility?.score)}</Text>
+      </View>
+      <Text style={styles.stateText}>
+        Compatibility score is based on the latest saved preferences.
+      </Text>
+      {request.status === 'pending' && (
+        <View style={styles.requestActions}>
+          <Pressable onPress={onAction} style={styles.primaryButton}>
+            <Text style={styles.primaryButtonText}>{actionLabel}</Text>
+          </Pressable>
+          {onSecondary && (
+            <Pressable onPress={onSecondary} style={styles.secondaryButton}>
+              <Text style={styles.secondaryButtonText}>Reject</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
+
+function ProfileDetailsScreen({ match, onBack, onConnect }) {
   const profile = match?.profile || match?.profileDetails || {};
   const lifestyle = profile.lifestyle || {};
 
@@ -963,6 +1172,15 @@ function ProfileDetailsScreen({ match, onBack }) {
             value={`${Math.round(value * 100)}%`}
           />
         ))}
+        {onConnect && match?.candidateId && (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => onConnect(match.candidateId)}
+            style={styles.primaryButton}
+          >
+            <Text style={styles.primaryButtonText}>Send connection request</Text>
+          </Pressable>
+        )}
       </View>
     </>
   );
@@ -1115,6 +1333,7 @@ const styles = StyleSheet.create({
   matchActions: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   favoriteButton: { paddingVertical: 4, paddingHorizontal: 8 },
   favoriteText: { color: '#2563eb', fontSize: 14, fontWeight: '700' },
+  requestActions: { alignItems: 'center', flexDirection: 'row', gap: 12 },
   candidateLabel: { color: '#64748b', fontSize: 12, textTransform: 'uppercase' },
   candidateId: { color: '#0f172a', fontSize: 18, fontWeight: '700', marginTop: 2 },
   score: { color: '#16a34a', fontSize: 24, fontWeight: '800' },

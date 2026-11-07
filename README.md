@@ -98,6 +98,23 @@ Favorites are stored as user-to-roommate relationships in the in-memory favorite
 Duplicate saves are rejected, and the list includes the roommate profile plus the latest
 compatibility score and breakdown. All three endpoints require a bearer token.
 
+## Connection requests
+
+Authenticated users can send and manage roommate connection requests:
+
+```text
+POST   /api/connection-requests/<receiverId>
+GET    /api/connection-requests/received
+GET    /api/connection-requests/sent
+PATCH  /api/connection-requests/<requestId>/accept
+PATCH  /api/connection-requests/<requestId>/reject
+DELETE /api/connection-requests/<requestId>/cancel
+```
+
+Requests contain sender, receiver, status, and timestamps. Pending duplicates and self-requests
+are rejected. Only the receiver can accept or reject a request, and only the sender can cancel it.
+The mobile app provides separate received and sent sections.
+
 Run the backend first:
 
 ```bash
