@@ -30,6 +30,10 @@ import {
   markNotificationRead,
 } from './src/api/notifications';
 import { searchRoommates } from './src/api/search';
+import {
+  createAccommodation,
+  fetchAccommodations,
+} from './src/api/accommodations';
 import * as ImagePicker from 'expo-image-picker';
 import { validatePreferences } from './src/preferences';
 
@@ -58,6 +62,7 @@ export default function App() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationsError, setNotificationsError] = useState('');
+  const [accommodationScreen, setAccommodationScreen] = useState('list');
   const [preferences, setPreferences] = useState({
     minBudget: '',
     maxBudget: '',
@@ -238,6 +243,7 @@ export default function App() {
             onRequests={() => setScreen('requests')}
             onNotifications={() => setScreen('notifications')}
             onSearch={() => setScreen('search')}
+            onAccommodations={() => setScreen('accommodations')}
             unreadCount={unreadCount}
             onProfile={() => setScreen('profile')}
             onSetPreferences={() => setScreen('preferences')}
@@ -334,6 +340,11 @@ export default function App() {
               setScreen('details');
             }}
             onToggleFavorite={toggleFavorite}
+            token={session.token}
+          />
+        ) : screen === 'accommodations' ? (
+          <AccommodationScreen
+            onBack={() => setScreen('home')}
             token={session.token}
           />
         ) : (
@@ -444,6 +455,7 @@ function HomeScreen({
   onProfile,
   onRequests,
   onSearch,
+  onAccommodations,
   onSetPreferences,
   unreadCount,
   userName,
@@ -465,6 +477,9 @@ function HomeScreen({
       </Pressable>
       <Pressable accessibilityRole="button" onPress={onSearch} style={styles.secondaryButton}>
         <Text style={styles.secondaryButtonText}>Search roommates</Text>
+      </Pressable>
+      <Pressable accessibilityRole="button" onPress={onAccommodations} style={styles.secondaryButton}>
+        <Text style={styles.secondaryButtonText}>Accommodation listings</Text>
       </Pressable>
       <Pressable
         accessibilityRole="button"
@@ -1121,6 +1136,140 @@ function SearchScreen({
           onToggleFavorite={() => onToggleFavorite(match.candidateId)}
           rank={index + 1}
         />
+      ))}
+    </>
+  );
+}
+
+function AccommodationScreen({ onBack, token }) {
+  const [listings, setListings] = useState([]);
+  const [filters, setFilters] = useState({ preferredArea: '', minRent: '', maxRent: '', type: '' });
+  const [form, setForm] = useState({
+    title: '', description: '', city: '', preferredArea: '', monthlyRent: '',
+    securityDeposit: '', availableRooms: '1', availableFrom: '', type: 'flat',
+  });
+  const [showForm, setShowForm] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [message, setMessage] = useState('');
+
+  const loadListings = useCallback(async () => {
+    setLoading(true);
+    setErrorMessage('');
+    try {
+      const result = await fetchAccommodations(filters, token);
+      setListings(result?.listings || []);
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [filters, token]);
+
+  useEffect(() => { loadListings(); }, [loadListings]);
+
+  function update(field, value) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  async function publish() {
+    setSaving(true);
+    setMessage('');
+    setErrorMessage('');
+    try {
+      await createAccommodation({
+        ...form,
+        monthlyRent: Number(form.monthlyRent),
+        securityDeposit: Number(form.securityDeposit || 0),
+        availableRooms: Number(form.availableRooms),
+        photoUrls: [],
+      }, token);
+      setMessage('Accommodation listing published successfully.');
+      setShowForm(false);
+      await loadListings();
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <Pressable accessibilityRole="button" onPress={onBack} style={styles.backButton}>
+        <Text style={styles.backText}>‹ Home</Text>
+      </Pressable>
+      <View style={styles.favoriteTitleRow}>
+        <View>
+          <Text style={styles.title}>Accommodation</Text>
+          <Text style={styles.subtitle}>Find rooms and share available spaces.</Text>
+        </View>
+        <Pressable onPress={() => setShowForm((value) => !value)} style={styles.refreshButton}>
+          <Text style={styles.refreshText}>＋</Text>
+        </Pressable>
+      </View>
+      <View style={styles.budgetRow}>
+        <TextInput placeholder="Location" onChangeText={(value) => setFilters({ ...filters, preferredArea: value })} style={styles.input} value={filters.preferredArea} />
+        <TextInput keyboardType="numeric" placeholder="Min rent" onChangeText={(value) => setFilters({ ...filters, minRent: value })} style={styles.input} value={filters.minRent} />
+      </View>
+      <View style={styles.budgetRow}>
+        <TextInput keyboardType="numeric" placeholder="Max rent" onChangeText={(value) => setFilters({ ...filters, maxRent: value })} style={styles.input} value={filters.maxRent} />
+        <Pressable onPress={loadListings} style={styles.button}><Text style={styles.buttonText}>Filter</Text></Pressable>
+      </View>
+      <PreferenceGroup
+        label="Accommodation type"
+        options={[['', 'Any'], ['flat', 'Flat'], ['apartment', 'Apartment'], ['pg', 'PG'], ['shared-room', 'Shared room']]}
+        selected={filters.type}
+        onSelect={(value) => setFilters({ ...filters, type: value })}
+      />
+      {showForm && (
+        <View style={styles.formCard}>
+          <Text style={styles.formSectionTitle}>Publish a listing</Text>
+          {[
+            ['title', 'Listing title'],
+            ['description', 'Description'],
+            ['city', 'City'],
+            ['preferredArea', 'Preferred location'],
+            ['monthlyRent', 'Monthly rent'],
+            ['securityDeposit', 'Security deposit'],
+            ['availableRooms', 'Available rooms/beds'],
+            ['availableFrom', 'Available from (YYYY-MM-DD)'],
+          ].map(([field, placeholder]) => (
+            <TextInput
+              key={field}
+              keyboardType={['monthlyRent', 'securityDeposit', 'availableRooms'].includes(field) ? 'numeric' : 'default'}
+              multiline={field === 'description'}
+              onChangeText={(value) => update(field, value)}
+              placeholder={placeholder}
+              style={styles.input}
+              value={form[field]}
+            />
+          ))}
+          <PreferenceGroup
+            label="Type"
+            options={[['flat', 'Flat'], ['apartment', 'Apartment'], ['pg', 'PG'], ['shared-room', 'Shared room']]}
+            selected={form.type}
+            onSelect={(value) => update('type', value)}
+          />
+          <Pressable disabled={saving} onPress={publish} style={styles.primaryButton}>
+            <Text style={styles.primaryButtonText}>{saving ? 'Publishing...' : 'Publish listing'}</Text>
+          </Pressable>
+        </View>
+      )}
+      {message !== '' && <Text style={styles.successText}>{message}</Text>}
+      {errorMessage !== '' && <Text style={styles.errorText}>{errorMessage}</Text>}
+      {loading && <Text style={styles.stateText}>Loading listings...</Text>}
+      {!loading && !errorMessage && listings.length === 0 && <Text style={styles.stateText}>No accommodation listings found.</Text>}
+      {!loading && listings.map((listing) => (
+        <View key={listing.id} style={styles.matchCard}>
+          <Text style={styles.candidateId}>{listing.title}</Text>
+          <Text style={styles.stateText}>{listing.city} · {listing.preferredArea}</Text>
+          <DetailRow label="Rent" value={`₹${listing.monthlyRent}/month`} />
+          <DetailRow label="Type" value={listing.type} />
+          <DetailRow label="Available rooms" value={String(listing.availableRooms)} />
+          <Text style={styles.notificationMessage}>{listing.description}</Text>
+        </View>
       ))}
     </>
   );

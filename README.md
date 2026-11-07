@@ -143,6 +143,24 @@ current user and returns only public profile fields, compatibility scores, and s
 The mobile app provides filter controls, clear filters, empty/error states, and reuses the existing
 favorite and connection-request actions.
 
+## Accommodation listings
+
+Authenticated users can browse and publish accommodation listings:
+
+```text
+POST   /api/accommodations
+GET    /api/accommodations?preferredArea=Central&minRent=5000&maxRent=15000&type=flat
+GET    /api/accommodations/<listingId>
+PUT    /api/accommodations/<listingId>
+DELETE /api/accommodations/<listingId>
+```
+
+Listings validate title, description, city, location, rent, rooms, date, and type. Supported types
+are `flat`, `apartment`, `pg`, and `shared-room`. Only the owner can update or delete a listing.
+The current mobile form accepts listing details and displays available listings with rent and
+location filters. Listing photo URLs are supported as data fields; binary listing uploads are not
+added because the existing photo endpoint is specifically for user profile photos.
+
 Run the backend first:
 
 ```bash
