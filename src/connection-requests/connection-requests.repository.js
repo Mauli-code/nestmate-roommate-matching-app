@@ -14,6 +14,15 @@ async function findPending(senderId, receiverId) {
   ) || null;
 }
 
+async function findBetween(firstUserId, secondUserId) {
+  return [...requests.values()].find(
+    (request) =>
+      request.status === 'accepted' &&
+      ((request.senderId === firstUserId && request.receiverId === secondUserId) ||
+       (request.senderId === secondUserId && request.receiverId === firstUserId)),
+  ) || null;
+}
+
 async function findById(id) {
   return requests.get(id) || null;
 }
@@ -34,6 +43,7 @@ async function findSent(userId) {
 module.exports = {
   create,
   findPending,
+  findBetween,
   findById,
   save,
   findReceived,
