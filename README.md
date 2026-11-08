@@ -172,6 +172,23 @@ accommodation type 15 points, available rooms 10 points, and move-in date 10 poi
 has not selected an accommodation type, that category receives a neutral score. Invalid or
 unavailable listings are excluded, and results are returned highest score first.
 
+## Accommodation booking requests
+
+Authenticated users can request an accommodation:
+
+```text
+POST   /api/booking-requests/<listingId>
+GET    /api/booking-requests/received
+GET    /api/booking-requests/sent
+PATCH  /api/booking-requests/<requestId>/accept
+PATCH  /api/booking-requests/<requestId>/reject
+DELETE /api/booking-requests/<requestId>/cancel
+```
+
+Booking requests include a requested move-in date, occupant count, optional message, listing ID,
+sender, owner, status, and timestamps. Owners manage received requests; requesters manage sent
+requests. New requests and status changes create in-app notifications.
+
 Run the backend first:
 
 ```bash

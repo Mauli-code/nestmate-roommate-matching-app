@@ -35,6 +35,14 @@ import {
   fetchAccommodations,
   fetchAccommodationRecommendations,
 } from './src/api/accommodations';
+import {
+  acceptBookingRequest,
+  cancelBookingRequest,
+  fetchReceivedBookingRequests,
+  fetchSentBookingRequests,
+  rejectBookingRequest,
+  sendBookingRequest,
+} from './src/api/bookingRequests';
 import * as ImagePicker from 'expo-image-picker';
 import { validatePreferences } from './src/preferences';
 
@@ -64,6 +72,9 @@ export default function App() {
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationsError, setNotificationsError] = useState('');
   const [accommodationScreen, setAccommodationScreen] = useState('list');
+  const [bookingRequests, setBookingRequests] = useState({ received: [], sent: [] });
+  const [bookingLoading, setBookingLoading] = useState(false);
+  const [bookingError, setBookingError] = useState('');
   const [preferences, setPreferences] = useState({
     minBudget: '',
     maxBudget: '',
@@ -172,6 +183,30 @@ export default function App() {
       setConnectionMessage(error.message);
     }
 
+    const loadBookingRequests = useCallback(async () => {
+      if (!session?.token) return;
+      setBookingLoading(true);
+      setBookingError('');
+      try {
+        const [received, sent] = await Promise.all([
+          fetchReceivedBookingRequests(session.token),
+          fetchSentBookingRequests(session.token),
+        ]);
+        setBookingRequests({
+          received: received?.requests || [],
+          sent: sent?.requests || [],
+        });
+      } catch (error) {
+        setBookingError(error.message);
+      } finally {
+        setBookingLoading(false);
+      }
+    }, [session]);
+
+    useEffect(() => {
+      loadBookingRequests();
+    }, [loadBookingRequests]);
+
     const loadNotifications = useCallback(async () => {
       if (!session?.token) return;
       setNotificationsLoading(true);
@@ -215,6 +250,9 @@ export default function App() {
           <ActivityIndicator color="#2563eb" size="large" />
           <Text style={styles.stateText}>Loading your account...</Text>
         </View>
+        <Pressable onPress={onBookings} style={styles.secondaryButton}>
+          <Text style={styles.secondaryButtonText}>Booking requests</Text>
+        </Pressable>
       </SafeAreaView>
     );
   }
@@ -346,7 +384,29 @@ export default function App() {
         ) : screen === 'accommodations' ? (
           <AccommodationScreen
             onBack={() => setScreen('home')}
+            onBookings={() => setScreen('bookings')}
             token={session.token}
+          />
+        ) : screen === 'bookings' ? (
+          <BookingRequestsScreen
+            errorMessage={bookingError}
+            loading={bookingLoading}
+            onBack={() => setScreen('home')}
+            onRefresh={loadBookingRequests}
+            onAccept={async (id) => {
+              await acceptBookingRequest(id, session.token);
+              await loadBookingRequests();
+            }}
+            onReject={async (id) => {
+              await rejectBookingRequest(id, session.token);
+              await loadBookingRequests();
+            }}
+            onCancel={async (id) => {
+              await cancelBookingRequest(id, session.token);
+              await loadBookingRequests();
+            }}
+            received={bookingRequests.received}
+            sent={bookingRequests.sent}
           />
         ) : (
           <RecommendationsScreen
@@ -1142,7 +1202,7 @@ function SearchScreen({
   );
 }
 
-function AccommodationScreen({ onBack, token }) {
+function AccommodationScreen({ onBack, onBookings, token }) {
   const [listings, setListings] = useState([]);
   const [filters, setFilters] = useState({ preferredArea: '', minRent: '', maxRent: '', type: '' });
   const [form, setForm] = useState({
@@ -1251,8 +1311,13 @@ function AccommodationScreen({ onBack, token }) {
           {Object.entries(selectedListing.breakdown || {}).map(([category, value]) => (
             <DetailRow key={category} label={category} value={`${Math.round(value * 100)}%`} />
           ))}
-          <Pressable onPress={contactOwner} style={styles.primaryButton}>
-            <Text style={styles.primaryButtonText}>Contact listing owner</Text>
+          <BookingForm
+            listingId={selectedListing.listing.id}
+            onSent={(text) => setContactMessage(text)}
+            token={token}
+          />
+          <Pressable onPress={contactOwner} style={styles.secondaryButton}>
+            <Text style={styles.secondaryButtonText}>Contact listing owner</Text>
           </Pressable>
           {contactMessage !== '' && <Text style={styles.successText}>{contactMessage}</Text>}
         </View>
@@ -1355,6 +1420,161 @@ function AccommodationScreen({ onBack, token }) {
         </View>
       ))}
     </>
+  );
+}
+
+function BookingForm({ listingId, onSent, token }) {
+  const [moveInDate, setMoveInDate] = useState('');
+  const [occupants, setOccupants] = useState('1');
+  const [message, setMessage] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  async function submit() {
+    setSaving(true);
+    setErrorMessage('');
+    try {
+      await sendBookingRequest(
+        listingId,
+        { requestedMoveInDate: moveInDate, occupants: Number(occupants), message },
+        token,
+      );
+      onSent('Booking request sent successfully.');
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <View style={styles.formCard}>
+      <Text style={styles.formSectionTitle}>Request this accommodation</Text>
+      <TextInput
+        onChangeText={setMoveInDate}
+        placeholder="Requested move-in date (YYYY-MM-DD)"
+        style={styles.input}
+        value={moveInDate}
+      />
+      <TextInput
+        keyboardType="numeric"
+        onChangeText={setOccupants}
+        placeholder="Number of occupants"
+        style={styles.input}
+        value={occupants}
+      />
+      <TextInput
+        multiline
+        onChangeText={setMessage}
+        placeholder="Optional message"
+        style={styles.input}
+        value={message}
+      />
+      {errorMessage !== '' && <Text style={styles.errorText}>{errorMessage}</Text>}
+      <Pressable disabled={saving} onPress={submit} style={styles.primaryButton}>
+        <Text style={styles.primaryButtonText}>{saving ? 'Sending...' : 'Send booking request'}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function BookingRequestsScreen({
+  errorMessage,
+  loading,
+  onAccept,
+  onBack,
+  onCancel,
+  onRefresh,
+  onReject,
+  received,
+  sent,
+}) {
+  const [actionError, setActionError] = useState('');
+
+  async function action(callback) {
+    setActionError('');
+    try {
+      await callback();
+    } catch (error) {
+      setActionError(error.message);
+    }
+  }
+
+  return (
+    <>
+      <Pressable accessibilityRole="button" onPress={onBack} style={styles.backButton}>
+        <Text style={styles.backText}>‹ Home</Text>
+      </Pressable>
+      <View style={styles.favoriteTitleRow}>
+        <View>
+          <Text style={styles.title}>Booking requests</Text>
+          <Text style={styles.subtitle}>Manage accommodation interest.</Text>
+        </View>
+        <Pressable onPress={onRefresh} style={styles.refreshButton}>
+          <Text style={styles.refreshText}>↻</Text>
+        </Pressable>
+      </View>
+      {(errorMessage || actionError) !== '' && (
+        <Text style={styles.errorText}>{actionError || errorMessage}</Text>
+      )}
+      {loading && <Text style={styles.stateText}>Loading booking requests...</Text>}
+      {!loading && (
+        <>
+          <Text style={styles.detailsSectionTitle}>Received</Text>
+          {received.length === 0 && <Text style={styles.stateText}>No received booking requests.</Text>}
+          {received.map((request) => (
+            <BookingRequestCard
+              key={request.id}
+              request={request}
+              primaryLabel="Accept"
+              secondaryLabel="Reject"
+              onPrimary={() => action(() => onAccept(request.id))}
+              onSecondary={() => action(() => onReject(request.id))}
+            />
+          ))}
+          <Text style={styles.detailsSectionTitle}>Sent</Text>
+          {sent.length === 0 && <Text style={styles.stateText}>No sent booking requests.</Text>}
+          {sent.map((request) => (
+            <BookingRequestCard
+              key={request.id}
+              request={request}
+              primaryLabel="Cancel"
+              onPrimary={() => action(() => onCancel(request.id))}
+            />
+          ))}
+        </>
+      )}
+    </>
+  );
+}
+
+function BookingRequestCard({
+  onPrimary,
+  onSecondary,
+  primaryLabel,
+  request,
+}) {
+  return (
+    <View style={styles.matchCard}>
+      <Text style={styles.candidateId}>Listing: {request.listingId}</Text>
+      <Text style={styles.stateText}>
+        Status: {request.status} · Move-in: {request.requestedMoveInDate}
+      </Text>
+      <Text style={styles.stateText}>Occupants: {request.occupants}</Text>
+      {request.message && <Text style={styles.notificationMessage}>{request.message}</Text>}
+      {request.status === 'pending' && (
+        <View style={styles.requestActions}>
+          <Pressable onPress={onPrimary} style={styles.primaryButton}>
+            <Text style={styles.primaryButtonText}>{primaryLabel}</Text>
+          </Pressable>
+          {onSecondary && (
+            <Pressable onPress={onSecondary} style={styles.secondaryButton}>
+              <Text style={styles.secondaryButtonText}>Reject</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
+    </View>
   );
 }
 
