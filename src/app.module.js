@@ -9,11 +9,12 @@ const { AccommodationsModule } = require('./accommodations/accommodations.module
 const { BookingRequestsModule } = require('./booking-requests/booking-requests.module');
 const { ChatModule } = require('./chat/chat.module');
 const { ReviewsModule } = require('./reviews/reviews.module');
+const { DashboardModule } = require('./dashboard/dashboard.module');
 
 class AppModule {}
 
 Module({
-  imports: [AuthModule, MatchingModule, FavoritesModule, ConnectionRequestsModule, NotificationsModule, SearchModule, AccommodationsModule, BookingRequestsModule, ChatModule, ReviewsModule],
+  imports: [AuthModule, MatchingModule, FavoritesModule, ConnectionRequestsModule, NotificationsModule, SearchModule, AccommodationsModule, BookingRequestsModule, ChatModule, ReviewsModule, DashboardModule],
 })(AppModule);
 
 module.exports = { AppModule };

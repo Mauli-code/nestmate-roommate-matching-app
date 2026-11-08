@@ -207,6 +207,19 @@ completed booking. Reviews contain a 1-to-5 rating and an optional comment; dupl
 the same interaction are rejected. Responses include the average rating and total review count.
 Review data uses the existing in-memory storage approach and resets when the backend restarts.
 
+## User dashboard
+
+The authenticated dashboard endpoint combines the current user's existing profile, matching,
+favorites, connection requests, booking requests, notifications, and conversations:
+
+```text
+GET /api/dashboard
+```
+
+The response contains profile completion, private activity counts, recent messages, and recent
+notification activity. The mobile home screen refreshes this summary whenever the user returns to
+it, and users can also refresh it manually. No data from another user's account is included.
+
 ## Private roommate chat
 
 Users can chat after an accepted roommate connection or while they have a pending or accepted

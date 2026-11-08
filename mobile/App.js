@@ -58,6 +58,7 @@ import {
   submitAccommodationReview,
   submitRoommateReview,
 } from './src/api/reviews';
+import { fetchDashboard } from './src/api/dashboard';
 
 const DEFAULT_PROFILE_ID = 'user-1';
 
@@ -102,6 +103,9 @@ export default function App() {
     smoking: '',
     drinking: '',
   });
+  const [dashboard, setDashboard] = useState(null);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
+  const [dashboardError, setDashboardError] = useState('');
 
   useEffect(() => {
     readSession()
@@ -275,6 +279,23 @@ export default function App() {
     loadNotifications();
   }, [loadNotifications]);
 
+  const loadDashboard = useCallback(async () => {
+    if (!session?.token) return;
+    setDashboardLoading(true);
+    setDashboardError('');
+    try {
+      setDashboard(await fetchDashboard(session.token));
+    } catch (error) {
+      setDashboardError(error.message);
+    } finally {
+      setDashboardLoading(false);
+    }
+  }, [session]);
+
+  useEffect(() => {
+    if (screen === 'home') loadDashboard();
+  }, [screen, loadDashboard]);
+
   async function openNotification(notification) {
     try {
       if (!notification.read) {
@@ -341,6 +362,10 @@ export default function App() {
               setScreen('home');
             }}
             userName={session.user.fullName}
+            dashboard={dashboard}
+            dashboardError={dashboardError}
+            dashboardLoading={dashboardLoading}
+            onRefreshDashboard={loadDashboard}
           />
         ) : screen === 'profile' ? (
           <ProfileScreen
@@ -579,6 +604,9 @@ function AuthScreen({ onAuthenticated }) {
 }
 
 function HomeScreen({
+  dashboard,
+  dashboardError,
+  dashboardLoading,
   onFavorites,
   onFindRoommates,
   onLogout,
@@ -595,11 +623,52 @@ function HomeScreen({
   return (
     <View style={styles.home}>
       <Text style={styles.logo}>NestMate</Text>
+      {dashboard?.user?.photoUrl && (
+        <Image
+          source={{ uri: resolvePhotoUrl(dashboard.user.photoUrl) }}
+          style={styles.dashboardPhoto}
+        />
+      )}
       <Text style={styles.welcomeText}>Welcome, {userName}</Text>
       <Text style={styles.homeTitle}>Find a roommate who fits your lifestyle.</Text>
       <Text style={styles.homeSubtitle}>
         Compare compatibility across budget, location, lifestyle, and habits.
       </Text>
+      {dashboardLoading && <Text style={styles.stateText}>Loading your activity summary...</Text>}
+      {dashboardError !== '' && (
+        <View style={styles.errorCard}>
+          <Text style={styles.errorText}>{dashboardError}</Text>
+        </View>
+      )}
+      {dashboard && (
+        <>
+          <View style={styles.dashboardHeader}>
+            <View>
+              <Text style={styles.detailsSectionTitle}>Your dashboard</Text>
+              <Text style={styles.stateText}>
+                Profile {dashboard.profile.completion}% complete
+              </Text>
+            </View>
+            <Pressable onPress={onRefreshDashboard} style={styles.refreshButton}>
+              <Text style={styles.refreshText}>↻</Text>
+            </Pressable>
+          </View>
+          <View style={styles.dashboardGrid}>
+            <DashboardStat label="Matches" value={dashboard.counts.matches} />
+            <DashboardStat label="Favorites" value={dashboard.counts.favorites} />
+            <DashboardStat label="Requests" value={dashboard.counts.pendingConnectionRequests} />
+            <DashboardStat label="Bookings" value={dashboard.counts.pendingBookingRequests} />
+            <DashboardStat label="Alerts" value={dashboard.counts.unreadNotifications} />
+            <DashboardStat label="Chats" value={dashboard.counts.conversations} />
+          </View>
+          {dashboard.recentMessages.length > 0 && (
+            <View style={styles.dashboardActivity}>
+              <Text style={styles.detailsSectionTitle}>Recent message</Text>
+              <Text style={styles.notificationMessage}>{dashboard.recentMessages[0].content}</Text>
+            </View>
+          )}
+        </>
+      )}
       <Pressable
         accessibilityRole="button"
         onPress={onFindRoommates}
@@ -640,6 +709,15 @@ function HomeScreen({
       <Pressable accessibilityRole="button" onPress={onLogout} style={styles.secondaryButton}>
         <Text style={styles.secondaryButtonText}>Log out</Text>
       </Pressable>
+    </View>
+  );
+}
+
+function DashboardStat({ label, value }) {
+  return (
+    <View style={styles.dashboardStat}>
+      <Text style={styles.dashboardValue}>{value}</Text>
+      <Text style={styles.dashboardLabel}>{label}</Text>
     </View>
   );
 }
@@ -2345,6 +2423,27 @@ const styles = StyleSheet.create({
   welcomeText: { color: '#334155', fontSize: 16, fontWeight: '600' },
   homeTitle: { color: '#0f172a', fontSize: 34, fontWeight: '800', lineHeight: 42 },
   homeSubtitle: { color: '#64748b', fontSize: 16, lineHeight: 24 },
+  dashboardHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+  dashboardGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  dashboardStat: {
+    backgroundColor: '#fff',
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    borderWidth: 1,
+    minWidth: '30%',
+    padding: 12,
+  },
+  dashboardValue: { color: '#2563eb', fontSize: 22, fontWeight: '800' },
+  dashboardLabel: { color: '#64748b', fontSize: 12, marginTop: 2 },
+  dashboardActivity: {
+    backgroundColor: '#eff6ff',
+    borderColor: '#bfdbfe',
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 6,
+    padding: 14,
+  },
+  dashboardPhoto: { borderRadius: 32, height: 64, width: 64 },
   primaryButton: {
     alignItems: 'center',
     alignSelf: 'flex-start',
