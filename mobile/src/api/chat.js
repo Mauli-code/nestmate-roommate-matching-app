@@ -31,7 +31,11 @@ export function fetchConversations(token) {
 }
 
 export function fetchMessages(conversationId, token) {
-  return request(`/api/chat/conversations/${encodeURIComponent(conversationId)}/messages`, 'GET', token);
+  return request(
+    `/api/chat/conversations/${encodeURIComponent(conversationId)}/messages`,
+    'GET',
+    token,
+  );
 }
 
 export function sendMessage(conversationId, content, token) {
