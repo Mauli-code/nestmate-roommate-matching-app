@@ -63,6 +63,7 @@ import {
   fetchNotificationPreferences,
   saveNotificationPreferences,
 } from './src/api/notificationPreferences';
+import { fetchPrivacySettings, savePrivacySettings } from './src/api/privacy';
 
 const DEFAULT_PROFILE_ID = 'user-1';
 
@@ -355,6 +356,7 @@ export default function App() {
             onRequests={() => setScreen('requests')}
             onNotifications={() => setScreen('notifications')}
             onNotificationSettings={() => setScreen('notification-settings')}
+            onPrivacySettings={() => setScreen('privacy-settings')}
             onSearch={() => setScreen('search')}
             onAccommodations={() => setScreen('accommodations')}
             onChats={() => setScreen('chats')}
@@ -454,6 +456,8 @@ export default function App() {
             onBack={() => setScreen('home')}
             token={session.token}
           />
+        ) : screen === 'privacy-settings' ? (
+          <PrivacySettingsScreen onBack={() => setScreen('home')} token={session.token} />
         ) : screen === 'search' ? (
           <SearchScreen
             favoriteIds={favorites.map((favorite) => favorite.roommate?.id)}
@@ -623,6 +627,7 @@ function HomeScreen({
   onLogout,
   onNotifications,
   onNotificationSettings,
+  onPrivacySettings,
   onProfile,
   onRequests,
   onSearch,
@@ -736,6 +741,9 @@ function HomeScreen({
       </Pressable>
       <Pressable accessibilityRole="button" onPress={onNotificationSettings} style={styles.secondaryButton}>
         <Text style={styles.secondaryButtonText}>Notification preferences</Text>
+      </Pressable>
+      <Pressable accessibilityRole="button" onPress={onPrivacySettings} style={styles.secondaryButton}>
+        <Text style={styles.secondaryButtonText}>Privacy settings</Text>
       </Pressable>
       <Pressable accessibilityRole="button" onPress={onLogout} style={styles.secondaryButton}>
         <Text style={styles.secondaryButtonText}>Log out</Text>
@@ -2160,6 +2168,79 @@ function ConnectionRequestsScreen({
       );
     }
 
+    function PrivacySettingsScreen({ onBack, token }) {
+      const [privacy, setPrivacy] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [saving, setSaving] = useState(false);
+      const [message, setMessage] = useState('');
+      const [errorMessage, setErrorMessage] = useState('');
+      const load = useCallback(async () => {
+        setLoading(true);
+        setErrorMessage('');
+        try {
+          setPrivacy((await fetchPrivacySettings(token)).privacy);
+        } catch (error) {
+          setErrorMessage(error.message);
+        } finally {
+          setLoading(false);
+        }
+      }, [token]);
+      useEffect(() => { load(); }, [load]);
+      function toggle(field) {
+        setPrivacy((current) => ({ ...current, [field]: !current[field] }));
+        setMessage('');
+      }
+      async function save() {
+        setSaving(true);
+        setErrorMessage('');
+        try {
+          setPrivacy((await savePrivacySettings(privacy, token)).privacy);
+          setMessage('Privacy settings saved.');
+        } catch (error) {
+          setErrorMessage(error.message);
+        } finally {
+          setSaving(false);
+        }
+      }
+      const options = [
+        ['showProfile', 'Show my profile', 'Allow your profile to appear in roommate discovery.'],
+        ['showBudget', 'Show my budget', 'Allow other users to see your budget range.'],
+        ['showLifestyle', 'Show my lifestyle preferences', 'Allow other users to see your roommate preferences.'],
+        ['allowConnectionRequests', 'Allow connection requests', 'Allow other users to send you connection requests.'],
+      ];
+      return (
+        <>
+          <Pressable onPress={onBack} style={styles.backButton}><Text style={styles.backText}>‹ Home</Text></Pressable>
+          <Text style={styles.title}>Privacy settings</Text>
+          <Text style={styles.subtitle}>Control how other NestMate users can discover and contact you.</Text>
+          {loading && <Text style={styles.stateText}>Loading privacy settings...</Text>}
+          {!loading && errorMessage !== '' && (
+            <View style={styles.errorCard}>
+              <Text style={styles.errorText}>{errorMessage}</Text>
+              <Pressable onPress={load} style={styles.retryButton}><Text style={styles.retryText}>Try again</Text></Pressable>
+            </View>
+          )}
+          {!loading && privacy && (
+            <View style={styles.formCard}>
+              {options.map(([field, label, description]) => (
+                <Pressable key={field} onPress={() => toggle(field)} style={styles.preferenceRow}>
+                  <View style={styles.preferenceCopy}>
+                    <Text style={styles.preferenceLabel}>{label}</Text>
+                    <Text style={styles.subtitle}>{description}</Text>
+                  </View>
+                  <Text style={privacy[field] ? styles.preferenceOn : styles.preferenceOff}>{privacy[field] ? 'ON' : 'OFF'}</Text>
+                </Pressable>
+              ))}
+              {message !== '' && <Text style={styles.successText}>{message}</Text>}
+              <Pressable disabled={saving} onPress={save} style={styles.primaryButton}>
+                <Text style={styles.primaryButtonText}>{saving ? 'Saving...' : 'Save changes'}</Text>
+              </Pressable>
+            </View>
+          )}
+        </>
+      );
+    }
+
     function NotificationsScreen({
       errorMessage,
       loading,
@@ -2180,6 +2261,7 @@ function ConnectionRequestsScreen({
         } catch (error) {
           setActionError(error.message);
         }
+
       }
 
       return (

@@ -15,10 +15,12 @@ class FavoritesService {
     favorites = favoriteRepository,
     profiles = profileRepository,
     users = userRepository,
+    privacy,
   ) {
     this.favorites = favorites;
     this.profiles = profiles;
     this.users = users;
+    this.privacy = privacy;
   }
 
   async addFavorite(userId, roommateId) {
@@ -66,8 +68,12 @@ class FavoritesService {
       }
 
       const user = await this.users.findById(favorite.roommateId);
+      const visibility = this.privacy
+        ? await this.privacy.forUser(favorite.roommateId)
+        : {};
+      if (visibility.showProfile === false) continue;
       roommates.push({
-        roommate: this.publicRoommate(user, profile),
+        roommate: this.publicRoommate(user, profile, visibility),
         compatibility: calculateCompatibility(userProfile, profile),
         createdAt: favorite.createdAt,
       });
@@ -96,7 +102,18 @@ class FavoritesService {
     }
   }
 
-  publicRoommate(user, profile) {
+  publicRoommate(user, profile, visibility = {}) {
+    const publicProfile = { ...profile };
+    if (visibility.showBudget === false) {
+      delete publicProfile.budget;
+      delete publicProfile.minBudget;
+      delete publicProfile.maxBudget;
+    }
+    if (visibility.showLifestyle === false) {
+      delete publicProfile.lifestyle;
+      delete publicProfile.foodHabits;
+      delete publicProfile.drinking;
+    }
     return {
       id: profile.id,
       fullName: user?.fullName || 'Roommate',
@@ -104,7 +121,7 @@ class FavoritesService {
       photoUrl: user?.photoPath
         ? `/uploads/profile-photos/${path.basename(user.photoPath)}`
         : null,
-      profile,
+      profile: publicProfile,
     };
   }
 }
