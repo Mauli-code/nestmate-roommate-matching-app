@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -52,6 +52,12 @@ import {
 } from './src/api/chat';
 import * as ImagePicker from 'expo-image-picker';
 import { validatePreferences } from './src/preferences';
+import {
+  fetchAccommodationReviews,
+  fetchRoommateReviews,
+  submitAccommodationReview,
+  submitRoommateReview,
+} from './src/api/reviews';
 
 const DEFAULT_PROFILE_ID = 'user-1';
 
@@ -219,9 +225,9 @@ export default function App() {
     loadBookingRequests();
   }, [loadBookingRequests]);
 
-  const loadConversations = useCallback(async () => {
+  const loadConversations = useCallback(async (silent = false) => {
     if (!session?.token) return;
-    setChatLoading(true);
+    if (!silent) setChatLoading(true);
     setChatError('');
     try {
       const result = await fetchConversations(session.token);
@@ -229,12 +235,14 @@ export default function App() {
     } catch (error) {
       setChatError(error.message);
     } finally {
-      setChatLoading(false);
+      if (!silent) setChatLoading(false);
     }
   }, [session]);
 
   useEffect(() => {
     loadConversations();
+    const interval = setInterval(() => loadConversations(true), 5000);
+    return () => clearInterval(interval);
   }, [loadConversations]);
 
   async function openConversation(otherUserId) {
@@ -357,6 +365,7 @@ export default function App() {
             onBack={() => setScreen(detailsBackScreen)}
             onConnect={sendRequest}
             onChat={openConversation}
+            token={session.token}
           />
         ) : screen === 'favorites' ? (
           <FavoritesScreen
@@ -1372,6 +1381,13 @@ function AccommodationScreen({ onBack, onBookings, token }) {
           <DetailRow label="Location" value={`${selectedListing.listing.city}, ${selectedListing.listing.preferredArea}`} />
           <DetailRow label="Type" value={selectedListing.listing.type} />
           <Text style={styles.notificationMessage}>{selectedListing.listing.description}</Text>
+          <ReviewSection
+            targetId={selectedListing.listing.id}
+            targetType="accommodation"
+            token={token}
+            fetchReviews={fetchAccommodationReviews}
+            submitReview={submitAccommodationReview}
+          />
           <Text style={styles.breakdownTitle}>Why this listing matches</Text>
           {Object.entries(selectedListing.breakdown || {}).map(([category, value]) => (
             <DetailRow key={category} label={category} value={`${Math.round(value * 100)}%`} />
@@ -1702,25 +1718,39 @@ function ChatDetailsScreen({ conversation, onBack, onChanged, token }) {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const pollingRef = useRef(false);
 
-  const loadMessages = useCallback(async () => {
+  const loadMessages = useCallback(async (silent = false) => {
     if (!conversation?.id) return;
-    setLoading(true);
+    if (pollingRef.current) return;
+    pollingRef.current = true;
+    if (!silent) setLoading(true);
     setErrorMessage('');
     try {
       const result = await fetchMessages(conversation.id, token);
-      setMessages(result?.messages || []);
+      setMessages((current) => {
+        const merged = new Map(current.map((message) => [message.id, message]));
+        for (const message of result?.messages || []) {
+          merged.set(message.id, message);
+        }
+        return [...merged.values()].sort((first, second) =>
+          first.createdAt.localeCompare(second.createdAt),
+        );
+      });
       await markMessagesRead(conversation.id, token);
-      await onChanged();
+      if (!silent) await onChanged();
     } catch (error) {
       setErrorMessage(error.message);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
+      pollingRef.current = false;
     }
   }, [conversation, onChanged, token]);
 
   useEffect(() => {
     loadMessages();
+    const interval = setInterval(() => loadMessages(true), 3000);
+    return () => clearInterval(interval);
   }, [loadMessages]);
 
   async function submit() {
@@ -2123,7 +2153,7 @@ function RequestCard({
   );
 }
 
-function ProfileDetailsScreen({ match, onBack, onConnect, onChat }) {
+function ProfileDetailsScreen({ match, onBack, onConnect, onChat, token }) {
   const profile = match?.profile || match?.profileDetails || {};
   const lifestyle = profile.lifestyle || {};
 
@@ -2182,7 +2212,90 @@ function ProfileDetailsScreen({ match, onBack, onConnect, onChat }) {
           </Pressable>
         )}
       </View>
+      {match?.candidateId && (
+        <ReviewSection
+          targetId={match.candidateId}
+          targetType="roommate"
+          token={token}
+          fetchReviews={fetchRoommateReviews}
+          submitReview={submitRoommateReview}
+        />
+      )}
     </>
+  );
+}
+
+function ReviewSection({ fetchReviews, submitReview, targetId, targetType, token }) {
+  const [data, setData] = useState({ reviews: [], averageRating: 0, totalReviews: 0 });
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
+  const [message, setMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const loadReviews = useCallback(async () => {
+    try {
+      setData(await fetchReviews(targetId, token));
+    } catch (error) {
+      setErrorMessage(error.message);
+    }
+  }, [fetchReviews, targetId, token]);
+
+  useEffect(() => {
+    loadReviews();
+  }, [loadReviews]);
+
+  async function submit() {
+    setSaving(true);
+    setErrorMessage('');
+    setMessage('');
+    try {
+      await submitReview(targetId, { rating, comment }, token);
+      setMessage('Review submitted successfully.');
+      setComment('');
+      await loadReviews();
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <View style={styles.detailsCard}>
+      <Text style={styles.detailsSectionTitle}>Reviews</Text>
+      <Text style={styles.reviewAverage}>
+        {data.averageRating || 'No ratings yet'} {data.totalReviews > 0 ? `(${data.totalReviews})` : ''}
+      </Text>
+      {data.reviews.map((review) => (
+        <View key={review.id} style={styles.reviewRow}>
+          <Text style={styles.notificationTitle}>{'★'.repeat(review.rating)}</Text>
+          <Text style={styles.notificationMessage}>
+            {review.reviewer?.fullName || 'User'}: {review.comment || 'No written comment'}
+          </Text>
+        </View>
+      ))}
+      <Text style={styles.fieldLabel}>Your rating</Text>
+      <View style={styles.optionRow}>
+        {[1, 2, 3, 4, 5].map((value) => (
+          <Pressable key={value} onPress={() => setRating(value)} style={styles.optionButton}>
+            <Text style={value <= rating ? styles.selectedStar : styles.optionText}>★</Text>
+          </Pressable>
+        ))}
+      </View>
+      <TextInput
+        multiline
+        onChangeText={setComment}
+        placeholder="Optional comment"
+        style={styles.input}
+        value={comment}
+      />
+      {errorMessage !== '' && <Text style={styles.errorText}>{errorMessage}</Text>}
+      {message !== '' && <Text style={styles.successText}>{message}</Text>}
+      <Pressable disabled={saving} onPress={submit} style={styles.primaryButton}>
+        <Text style={styles.primaryButtonText}>{saving ? 'Submitting...' : 'Submit review'}</Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -2353,6 +2466,9 @@ const styles = StyleSheet.create({
   notificationTitle: { color: '#0f172a', fontSize: 17, fontWeight: '700' },
   notificationMessage: { color: '#475569', lineHeight: 21 },
   notificationDate: { color: '#64748b', fontSize: 12 },
+  reviewAverage: { color: '#ca8a04', fontSize: 20, fontWeight: '800' },
+  reviewRow: { borderTopColor: '#e2e8f0', borderTopWidth: 1, gap: 4, paddingTop: 10 },
+  selectedStar: { color: '#eab308', fontSize: 22 },
   unreadBadge: {
     backgroundColor: '#dbeafe',
     borderRadius: 12,

@@ -189,6 +189,24 @@ Booking requests include a requested move-in date, occupant count, optional mess
 sender, owner, status, and timestamps. Owners manage received requests; requesters manage sent
 requests. New requests and status changes create in-app notifications.
 
+## Reviews and ratings
+
+Authenticated review endpoints are available for eligible interactions:
+
+```text
+POST   /api/reviews/roommates/<roommateId>
+GET    /api/reviews/roommates/<roommateId>
+POST   /api/reviews/accommodations/<listingId>
+GET    /api/reviews/accommodations/<listingId>
+PATCH  /api/reviews/<reviewId>
+DELETE /api/reviews/<reviewId>
+```
+
+Roommate reviews require an accepted connection. Accommodation reviews require an accepted or
+completed booking. Reviews contain a 1-to-5 rating and an optional comment; duplicate reviews for
+the same interaction are rejected. Responses include the average rating and total review count.
+Review data uses the existing in-memory storage approach and resets when the backend restarts.
+
 ## Private roommate chat
 
 Users can chat after an accepted roommate connection or while they have a pending or accepted
@@ -203,8 +221,12 @@ PATCH /api/chat/conversations/<conversationId>/read
 ```
 
 Messages are stored in memory with sender, receiver, conversation, content, read status, and
-timestamps. The mobile app uses explicit refresh actions rather than WebSockets. Only conversation
-participants can list, read, send, or mark messages as read, and new messages create notifications.
+timestamps. The mobile app polls the conversation list every five seconds and an open conversation
+every three seconds. Poll requests use the same bearer token as normal API requests, and only
+conversation participants can list, read, send, or mark messages as read. Responses are merged by
+message ID so repeated polls do not duplicate history. Temporary network failures are shown in the
+chat screen while polling continues and can be retried with the refresh button. New messages also
+create notifications.
 
 Run the backend first:
 
