@@ -68,3 +68,32 @@ test('rejects an unauthenticated or unknown user search', async () => {
     (error) => error instanceof BadRequestException,
   );
 });
+
+test('excludes hidden profiles and omits hidden fields', async () => {
+  const profiles = new Map([
+    ['user-1', profile('user-1')],
+    ['hidden', profile('hidden')],
+    ['private-fields', profile('private-fields')],
+  ]);
+  const privacy = {
+    findByUser: async (id) => ({
+      showProfile: id !== 'hidden',
+      showBudget: id !== 'private-fields',
+      showLifestyle: id !== 'private-fields',
+      allowConnectionRequests: true,
+    }),
+  };
+  const result = await new SearchService(
+    {
+      findProfile: async (id) => profiles.get(id) || null,
+      findCandidates: async () => [...profiles.values()].filter((item) => item.id !== 'user-1'),
+    },
+    { findById: async (id) => ({ id, fullName: id }) },
+    { forUser: async (id) => privacy.findByUser(id) },
+  ).search('user-1');
+
+  assert.deepEqual(result.results.map((item) => item.profile.id), ['private-fields']);
+  assert.equal(result.results[0].profile.budget, null);
+  assert.deepEqual(result.results[0].profile.lifestyle, {});
+  assert.equal(result.results[0].profile.foodHabits, null);
+});

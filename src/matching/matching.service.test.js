@@ -187,3 +187,17 @@ test('rejects a missing profile and an invalid candidate list', async () => {
       /invalid candidate list/.test(error.message),
   );
 });
+
+test('excludes hidden profiles from recommendations', async () => {
+  const repository = {
+    findProfile: async () => profile('user'),
+    findCandidates: async () => [profile('visible'), profile('hidden')],
+  };
+  const privacy = {
+    forUser: async (id) => ({ showProfile: id !== 'hidden' }),
+  };
+
+  const result = await new MatchingService(repository, privacy).getMatches('user');
+
+  assert.deepEqual(result.matches.map((match) => match.candidateId), ['visible']);
+});

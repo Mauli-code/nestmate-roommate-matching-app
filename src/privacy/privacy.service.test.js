@@ -23,3 +23,22 @@ test('returns defaults and stores separate user settings', async () => {
 test('rejects invalid privacy values', async () => {
   await assert.rejects(() => setup().update('alice', { showProfile: 'no' }), BadRequestException);
 });
+
+test('preserves omitted settings during a partial update', async () => {
+  const service = setup();
+  await service.update('alice', {
+    showProfile: false,
+    showBudget: false,
+    showLifestyle: true,
+    allowConnectionRequests: false,
+  });
+
+  const result = await service.update('alice', { showBudget: true });
+
+  assert.deepEqual(result.privacy, {
+    showProfile: false,
+    showBudget: true,
+    showLifestyle: true,
+    allowConnectionRequests: false,
+  });
+});

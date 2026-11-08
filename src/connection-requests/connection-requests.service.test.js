@@ -99,3 +99,21 @@ test('cancels a sent request and prevents another user from managing it', async 
   const cancelled = await service.cancel('user-1', result.request.id);
   assert.equal(cancelled.request.status, 'cancelled');
 });
+
+test('rejects requests when the recipient disables them', async () => {
+  const service = setup();
+  service.privacy = {
+    forUser: async (id) => ({
+      showProfile: true,
+      showBudget: true,
+      showLifestyle: true,
+      allowConnectionRequests: id !== 'user-2',
+    }),
+  };
+
+  await assert.rejects(
+    () => service.send('user-1', 'user-2'),
+    (error) => error instanceof ConflictException &&
+      /not accepting connection requests/.test(error.message),
+  );
+});

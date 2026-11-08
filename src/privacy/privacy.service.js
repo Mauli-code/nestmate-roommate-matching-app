@@ -23,12 +23,13 @@ class PrivacyService {
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
       throw new BadRequestException('Privacy settings are required');
     }
+    const current = await this.forUser(userId);
     const values = {};
     for (const field of Object.keys(DEFAULT_PRIVACY)) {
       if (body[field] !== undefined && typeof body[field] !== 'boolean') {
         throw new BadRequestException(`${field} must be true or false`);
       }
-      values[field] = body[field] === undefined ? DEFAULT_PRIVACY[field] : body[field];
+      values[field] = body[field] === undefined ? current[field] : body[field];
     }
     await this.settings.save(userId, values);
     return {
