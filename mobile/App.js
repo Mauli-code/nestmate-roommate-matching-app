@@ -43,6 +43,13 @@ import {
   rejectBookingRequest,
   sendBookingRequest,
 } from './src/api/bookingRequests';
+import {
+  fetchConversations,
+  fetchMessages,
+  getOrCreateConversation,
+  markMessagesRead,
+  sendMessage,
+} from './src/api/chat';
 import * as ImagePicker from 'expo-image-picker';
 import { validatePreferences } from './src/preferences';
 
@@ -75,6 +82,10 @@ export default function App() {
   const [bookingRequests, setBookingRequests] = useState({ received: [], sent: [] });
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingError, setBookingError] = useState('');
+  const [conversations, setConversations] = useState([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatError, setChatError] = useState('');
+  const [selectedConversation, setSelectedConversation] = useState(null);
   const [preferences, setPreferences] = useState({
     minBudget: '',
     maxBudget: '',
@@ -182,64 +193,93 @@ export default function App() {
     } catch (error) {
       setConnectionMessage(error.message);
     }
+  }
 
-    const loadBookingRequests = useCallback(async () => {
-      if (!session?.token) return;
-      setBookingLoading(true);
-      setBookingError('');
-      try {
-        const [received, sent] = await Promise.all([
-          fetchReceivedBookingRequests(session.token),
-          fetchSentBookingRequests(session.token),
-        ]);
-        setBookingRequests({
-          received: received?.requests || [],
-          sent: sent?.requests || [],
-        });
-      } catch (error) {
-        setBookingError(error.message);
-      } finally {
-        setBookingLoading(false);
+  const loadBookingRequests = useCallback(async () => {
+    if (!session?.token) return;
+    setBookingLoading(true);
+    setBookingError('');
+    try {
+      const [received, sent] = await Promise.all([
+        fetchReceivedBookingRequests(session.token),
+        fetchSentBookingRequests(session.token),
+      ]);
+      setBookingRequests({
+        received: received?.requests || [],
+        sent: sent?.requests || [],
+      });
+    } catch (error) {
+      setBookingError(error.message);
+    } finally {
+      setBookingLoading(false);
+    }
+  }, [session]);
+
+  useEffect(() => {
+    loadBookingRequests();
+  }, [loadBookingRequests]);
+
+  const loadConversations = useCallback(async () => {
+    if (!session?.token) return;
+    setChatLoading(true);
+    setChatError('');
+    try {
+      const result = await fetchConversations(session.token);
+      setConversations(result?.conversations || []);
+    } catch (error) {
+      setChatError(error.message);
+    } finally {
+      setChatLoading(false);
+    }
+  }, [session]);
+
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
+
+  async function openConversation(otherUserId) {
+    setChatError('');
+    try {
+      const result = await getOrCreateConversation(otherUserId, session.token);
+      setSelectedConversation(result.conversation);
+      setScreen('chat-details');
+    } catch (error) {
+      setChatError(error.message);
+    }
+  }
+
+  const loadNotifications = useCallback(async () => {
+    if (!session?.token) return;
+    setNotificationsLoading(true);
+    setNotificationsError('');
+    try {
+      const result = await fetchNotifications(session.token);
+      setNotifications(result?.notifications || []);
+      setUnreadCount(Number(result?.unreadCount) || 0);
+    } catch (error) {
+      setNotificationsError(error.message);
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }, [session]);
+
+  useEffect(() => {
+    loadNotifications();
+  }, [loadNotifications]);
+
+  async function openNotification(notification) {
+    try {
+      if (!notification.read) {
+        await markNotificationRead(notification.id, session.token);
+        await loadNotifications();
       }
-    }, [session]);
-
-    useEffect(() => {
-      loadBookingRequests();
-    }, [loadBookingRequests]);
-
-    const loadNotifications = useCallback(async () => {
-      if (!session?.token) return;
-      setNotificationsLoading(true);
-      setNotificationsError('');
-      try {
-        const result = await fetchNotifications(session.token);
-        setNotifications(result?.notifications || []);
-        setUnreadCount(Number(result?.unreadCount) || 0);
-      } catch (error) {
-        setNotificationsError(error.message);
-      } finally {
-        setNotificationsLoading(false);
+      if (notification.relatedUserId) {
+        setSelectedMatch({ candidateId: notification.relatedUserId });
+        setDetailsBackScreen('notifications');
+        setScreen('details');
       }
-    }, [session]);
-
-    useEffect(() => {
-      loadNotifications();
-    }, [loadNotifications]);
-
-    async function openNotification(notification) {
-      try {
-        if (!notification.read) {
-          await markNotificationRead(notification.id, session.token);
-          await loadNotifications();
-        }
-        if (notification.relatedUserId) {
-          setSelectedMatch({ candidateId: notification.relatedUserId });
-          setDetailsBackScreen('notifications');
-          setScreen('details');
-        }
-      } catch (error) {
-        setNotificationsError(error.message);
-      }
+    } catch (error) {
+      setNotificationsError(error.message);
     }
   }
 
@@ -283,6 +323,7 @@ export default function App() {
             onNotifications={() => setScreen('notifications')}
             onSearch={() => setScreen('search')}
             onAccommodations={() => setScreen('accommodations')}
+            onChats={() => setScreen('chats')}
             unreadCount={unreadCount}
             onProfile={() => setScreen('profile')}
             onSetPreferences={() => setScreen('preferences')}
@@ -315,6 +356,7 @@ export default function App() {
             match={selectedMatch}
             onBack={() => setScreen(detailsBackScreen)}
             onConnect={sendRequest}
+            onChat={openConversation}
           />
         ) : screen === 'favorites' ? (
           <FavoritesScreen
@@ -407,6 +449,25 @@ export default function App() {
             }}
             received={bookingRequests.received}
             sent={bookingRequests.sent}
+          />
+        ) : screen === 'chats' ? (
+          <ChatListScreen
+            conversations={conversations}
+            errorMessage={chatError}
+            loading={chatLoading}
+            onBack={() => setScreen('home')}
+            onRefresh={loadConversations}
+            onSelect={(conversation) => {
+              setSelectedConversation(conversation);
+              setScreen('chat-details');
+            }}
+          />
+        ) : screen === 'chat-details' ? (
+          <ChatDetailsScreen
+            conversation={selectedConversation}
+            onBack={() => setScreen('chats')}
+            token={session.token}
+            onChanged={loadConversations}
           />
         ) : (
           <RecommendationsScreen
@@ -517,6 +578,7 @@ function HomeScreen({
   onRequests,
   onSearch,
   onAccommodations,
+  onChats,
   onSetPreferences,
   unreadCount,
   userName,
@@ -541,6 +603,9 @@ function HomeScreen({
       </Pressable>
       <Pressable accessibilityRole="button" onPress={onAccommodations} style={styles.secondaryButton}>
         <Text style={styles.secondaryButtonText}>Accommodation listings</Text>
+      </Pressable>
+      <Pressable accessibilityRole="button" onPress={onChats} style={styles.secondaryButton}>
+        <Text style={styles.secondaryButtonText}>My chats</Text>
       </Pressable>
       <Pressable
         accessibilityRole="button"
@@ -1578,6 +1643,156 @@ function BookingRequestCard({
   );
 }
 
+function ChatListScreen({
+  conversations,
+  errorMessage,
+  loading,
+  onBack,
+  onRefresh,
+  onSelect,
+}) {
+  return (
+    <>
+      <Pressable accessibilityRole="button" onPress={onBack} style={styles.backButton}>
+        <Text style={styles.backText}>‹ Home</Text>
+      </Pressable>
+      <View style={styles.favoriteTitleRow}>
+        <View>
+          <Text style={styles.title}>My chats</Text>
+          <Text style={styles.subtitle}>Private conversations with your connections.</Text>
+        </View>
+        <Pressable onPress={onRefresh} style={styles.refreshButton}>
+          <Text style={styles.refreshText}>↻</Text>
+        </Pressable>
+      </View>
+      {errorMessage !== '' && <Text style={styles.errorText}>{errorMessage}</Text>}
+      {loading && <Text style={styles.stateText}>Loading conversations...</Text>}
+      {!loading && conversations.length === 0 && (
+        <Text style={styles.stateText}>
+          No conversations yet. Open a roommate profile and start a chat after your connection is accepted.
+        </Text>
+      )}
+      {!loading && conversations.map((conversation) => (
+        <Pressable
+          key={conversation.id}
+          onPress={() => onSelect(conversation)}
+          style={styles.notificationCard}
+        >
+          <View style={styles.matchHeader}>
+            <Text style={styles.notificationTitle}>{conversation.otherUser.fullName}</Text>
+            {conversation.unreadCount > 0 && (
+              <Text style={styles.unreadBadge}>{conversation.unreadCount} new</Text>
+            )}
+          </View>
+          <Text style={styles.notificationMessage}>
+            {conversation.lastMessage?.content || 'Start a conversation'}
+          </Text>
+          <Text style={styles.notificationDate}>
+            {formatDate(conversation.lastMessage?.createdAt || conversation.updatedAt)}
+          </Text>
+        </Pressable>
+      ))}
+    </>
+  );
+}
+
+function ChatDetailsScreen({ conversation, onBack, onChanged, token }) {
+  const [messages, setMessages] = useState([]);
+  const [content, setContent] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const loadMessages = useCallback(async () => {
+    if (!conversation?.id) return;
+    setLoading(true);
+    setErrorMessage('');
+    try {
+      const result = await fetchMessages(conversation.id, token);
+      setMessages(result?.messages || []);
+      await markMessagesRead(conversation.id, token);
+      await onChanged();
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [conversation, onChanged, token]);
+
+  useEffect(() => {
+    loadMessages();
+  }, [loadMessages]);
+
+  async function submit() {
+    if (!content.trim()) {
+      setErrorMessage('Enter a message before sending.');
+      return;
+    }
+    setSending(true);
+    setErrorMessage('');
+    try {
+      await sendMessage(conversation.id, content, token);
+      setContent('');
+      await loadMessages();
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  if (!conversation) {
+    return <Text style={styles.stateText}>Choose a conversation to continue.</Text>;
+  }
+
+  return (
+    <>
+      <Pressable accessibilityRole="button" onPress={onBack} style={styles.backButton}>
+        <Text style={styles.backText}>‹ Chats</Text>
+      </Pressable>
+      <View style={styles.favoriteTitleRow}>
+        <View>
+          <Text style={styles.title}>{conversation.otherUser.fullName}</Text>
+          <Text style={styles.subtitle}>Messages are private to both participants.</Text>
+        </View>
+        <Pressable onPress={loadMessages} style={styles.refreshButton}>
+          <Text style={styles.refreshText}>↻</Text>
+        </Pressable>
+      </View>
+      {errorMessage !== '' && <Text style={styles.errorText}>{errorMessage}</Text>}
+      {loading && <Text style={styles.stateText}>Loading messages...</Text>}
+      {!loading && messages.length === 0 && (
+        <Text style={styles.stateText}>No messages yet. Say hello.</Text>
+      )}
+      {!loading && messages.map((message) => (
+        <View
+          key={message.id}
+          style={[styles.chatBubble, message.isMine ? styles.myChatBubble : styles.theirChatBubble]}
+        >
+          <Text style={message.isMine ? styles.myChatText : styles.theirChatText}>
+            {message.content}
+          </Text>
+          <Text style={message.isMine ? styles.myChatMeta : styles.theirChatMeta}>
+            {formatDate(message.createdAt)} {message.isMine ? `· ${message.read ? 'Read' : 'Sent'}` : ''}
+          </Text>
+        </View>
+      ))}
+      <View style={styles.chatComposer}>
+        <TextInput
+          multiline
+          onChangeText={setContent}
+          placeholder="Write a message..."
+          style={styles.chatInput}
+          value={content}
+        />
+        <Pressable disabled={sending} onPress={submit} style={styles.primaryButton}>
+          <Text style={styles.primaryButtonText}>{sending ? 'Sending...' : 'Send'}</Text>
+        </Pressable>
+      </View>
+    </>
+  );
+}
+
 function MatchCard({ isFavorite, match, onPress, onToggleFavorite, rank }) {
   return (
     <Pressable
@@ -1908,7 +2123,7 @@ function RequestCard({
   );
 }
 
-function ProfileDetailsScreen({ match, onBack, onConnect }) {
+function ProfileDetailsScreen({ match, onBack, onConnect, onChat }) {
   const profile = match?.profile || match?.profileDetails || {};
   const lifestyle = profile.lifestyle || {};
 
@@ -1955,6 +2170,15 @@ function ProfileDetailsScreen({ match, onBack, onConnect }) {
             style={styles.primaryButton}
           >
             <Text style={styles.primaryButtonText}>Send connection request</Text>
+          </Pressable>
+        )}
+        {onChat && match?.candidateId && (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => onChat(match.candidateId)}
+            style={styles.secondaryButton}
+          >
+            <Text style={styles.secondaryButtonText}>Open chat</Text>
           </Pressable>
         )}
       </View>
@@ -2129,6 +2353,38 @@ const styles = StyleSheet.create({
   notificationTitle: { color: '#0f172a', fontSize: 17, fontWeight: '700' },
   notificationMessage: { color: '#475569', lineHeight: 21 },
   notificationDate: { color: '#64748b', fontSize: 12 },
+  unreadBadge: {
+    backgroundColor: '#dbeafe',
+    borderRadius: 12,
+    color: '#1d4ed8',
+    fontSize: 12,
+    fontWeight: '700',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  chatBubble: {
+    borderRadius: 14,
+    gap: 5,
+    maxWidth: '84%',
+    padding: 12,
+  },
+  myChatBubble: { alignSelf: 'flex-end', backgroundColor: '#2563eb' },
+  theirChatBubble: { alignSelf: 'flex-start', backgroundColor: '#e2e8f0' },
+  myChatText: { color: '#fff', fontSize: 16 },
+  theirChatText: { color: '#0f172a', fontSize: 16 },
+  myChatMeta: { color: '#dbeafe', fontSize: 11 },
+  theirChatMeta: { color: '#64748b', fontSize: 11 },
+  chatComposer: { gap: 10 },
+  chatInput: {
+    backgroundColor: '#fff',
+    borderColor: '#cbd5e1',
+    borderRadius: 10,
+    borderWidth: 1,
+    fontSize: 16,
+    minHeight: 48,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+  },
   candidateLabel: { color: '#64748b', fontSize: 12, textTransform: 'uppercase' },
   candidateId: { color: '#0f172a', fontSize: 18, fontWeight: '700', marginTop: 2 },
   score: { color: '#16a34a', fontSize: 24, fontWeight: '800' },

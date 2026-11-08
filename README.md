@@ -189,6 +189,23 @@ Booking requests include a requested move-in date, occupant count, optional mess
 sender, owner, status, and timestamps. Owners manage received requests; requesters manage sent
 requests. New requests and status changes create in-app notifications.
 
+## Private roommate chat
+
+Users can chat after an accepted roommate connection or while they have a pending or accepted
+booking request involving the other user:
+
+```text
+POST  /api/chat/conversations/<otherUserId>
+GET   /api/chat/conversations
+GET   /api/chat/conversations/<conversationId>/messages
+POST  /api/chat/conversations/<conversationId>/messages
+PATCH /api/chat/conversations/<conversationId>/read
+```
+
+Messages are stored in memory with sender, receiver, conversation, content, read status, and
+timestamps. The mobile app uses explicit refresh actions rather than WebSockets. Only conversation
+participants can list, read, send, or mark messages as read, and new messages create notifications.
+
 Run the backend first:
 
 ```bash
