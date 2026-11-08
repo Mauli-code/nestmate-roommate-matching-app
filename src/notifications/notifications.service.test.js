@@ -3,7 +3,7 @@ const test = require('node:test');
 const { NotFoundException } = require('@nestjs/common');
 const { NotificationsService } = require('./notifications.service');
 
-function createService() {
+function createService(preferenceValues = {}) {
   const items = new Map();
   return new NotificationsService({
     create: async (notification) => {
@@ -35,6 +35,8 @@ function createService() {
       }
       return count;
     },
+  }, {
+    findByUser: async () => preferenceValues,
   });
 }
 
@@ -85,6 +87,17 @@ test('does not allow another user to mark a notification as read', async () => {
     message: 'Private notification',
     type: 'connection-request-received',
     relatedRequestId: 'request-4',
+  });
+
+  test('skips notification categories disabled by the recipient', async () => {
+    const service = createService({ messages: false });
+    const result = await service.create('user-1', {
+      title: 'New message',
+      message: 'A new message arrived.',
+      type: 'chat-message-received',
+    });
+    assert.equal(result, null);
+    assert.equal((await service.list('user-1')).notifications.length, 0);
   });
   await assert.rejects(
     () => service.markRead('user-2', notification.id),

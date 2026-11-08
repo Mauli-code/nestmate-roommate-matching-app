@@ -225,6 +225,20 @@ location, sleeping habits, food habits, cleanliness, smoking preference, and dri
 The response includes both a percentage and a list of missing field labels. Unsupported optional
 fields such as age or occupation are not counted.
 
+## Notification preferences
+
+Authenticated users can manage their notification choices:
+
+```text
+GET   /api/notifications/preferences
+PATCH /api/notifications/preferences
+```
+
+Preferences are stored per user in the backend. Defaults are enabled for connection requests,
+connection updates, messages, match recommendations, booking updates, and review updates. The
+notification service checks these settings before creating a notification, while the existing
+notification list and read APIs remain unchanged.
+
 ## Private roommate chat
 
 Users can chat after an accepted roommate connection or while they have a pending or accepted
