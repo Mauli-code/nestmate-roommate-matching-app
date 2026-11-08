@@ -59,6 +59,10 @@ import {
   submitRoommateReview,
 } from './src/api/reviews';
 import { fetchDashboard } from './src/api/dashboard';
+import {
+  fetchNotificationPreferences,
+  saveNotificationPreferences,
+} from './src/api/notificationPreferences';
 
 const DEFAULT_PROFILE_ID = 'user-1';
 
@@ -350,6 +354,7 @@ export default function App() {
             onFavorites={() => setScreen('favorites')}
             onRequests={() => setScreen('requests')}
             onNotifications={() => setScreen('notifications')}
+            onNotificationSettings={() => setScreen('notification-settings')}
             onSearch={() => setScreen('search')}
             onAccommodations={() => setScreen('accommodations')}
             onChats={() => setScreen('chats')}
@@ -443,6 +448,11 @@ export default function App() {
             }}
             onOpen={openNotification}
             onRefresh={loadNotifications}
+          />
+        ) : screen === 'notification-settings' ? (
+          <NotificationPreferencesScreen
+            onBack={() => setScreen('home')}
+            token={session.token}
           />
         ) : screen === 'search' ? (
           <SearchScreen
@@ -612,6 +622,7 @@ function HomeScreen({
   onFindRoommates,
   onLogout,
   onNotifications,
+  onNotificationSettings,
   onProfile,
   onRequests,
   onSearch,
@@ -722,6 +733,9 @@ function HomeScreen({
         <Text style={styles.secondaryButtonText}>
           Notifications {unreadCount > 0 ? `(${unreadCount} unread)` : ''}
         </Text>
+      </Pressable>
+      <Pressable accessibilityRole="button" onPress={onNotificationSettings} style={styles.secondaryButton}>
+        <Text style={styles.secondaryButtonText}>Notification preferences</Text>
       </Pressable>
       <Pressable accessibilityRole="button" onPress={onLogout} style={styles.secondaryButton}>
         <Text style={styles.secondaryButtonText}>Log out</Text>
@@ -2057,6 +2071,95 @@ function ConnectionRequestsScreen({
       setActionError(error.message);
     }
 
+    function NotificationPreferencesScreen({ onBack, token }) {
+      const [preferences, setPreferences] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [saving, setSaving] = useState(false);
+      const [message, setMessage] = useState('');
+      const [errorMessage, setErrorMessage] = useState('');
+
+      const loadPreferences = useCallback(async () => {
+        setLoading(true);
+        setErrorMessage('');
+        try {
+          const result = await fetchNotificationPreferences(token);
+          setPreferences(result.preferences);
+        } catch (error) {
+          setErrorMessage(error.message);
+        } finally {
+          setLoading(false);
+        }
+      }, [token]);
+
+      useEffect(() => {
+        loadPreferences();
+      }, [loadPreferences]);
+
+      function toggle(field) {
+        setPreferences((current) => ({ ...current, [field]: !current[field] }));
+        setMessage('');
+      }
+
+      async function save() {
+        setSaving(true);
+        setErrorMessage('');
+        setMessage('');
+        try {
+          const result = await saveNotificationPreferences(preferences, token);
+          setPreferences(result.preferences);
+          setMessage('Notification preferences saved.');
+        } catch (error) {
+          setErrorMessage(error.message);
+        } finally {
+          setSaving(false);
+        }
+      }
+
+      const labels = [
+        ['connectionRequests', 'New roommate connection requests'],
+        ['connectionUpdates', 'Connection request acceptances or rejections'],
+        ['messages', 'New messages'],
+        ['matchRecommendations', 'Roommate match recommendations'],
+        ['bookingUpdates', 'Accommodation booking request updates'],
+        ['reviewUpdates', 'Review-related notifications'],
+      ];
+
+      return (
+        <>
+          <Pressable onPress={onBack} style={styles.backButton}>
+            <Text style={styles.backText}>‹ Home</Text>
+          </Pressable>
+          <Text style={styles.title}>Notification preferences</Text>
+          <Text style={styles.subtitle}>Choose which activity updates appear in your notifications.</Text>
+          {loading && <Text style={styles.stateText}>Loading preferences...</Text>}
+          {!loading && errorMessage !== '' && (
+            <View style={styles.errorCard}>
+              <Text style={styles.errorText}>{errorMessage}</Text>
+              <Pressable onPress={loadPreferences} style={styles.retryButton}>
+                <Text style={styles.retryText}>Try again</Text>
+              </Pressable>
+            </View>
+          )}
+          {!loading && preferences && (
+            <View style={styles.formCard}>
+              {labels.map(([field, label]) => (
+                <Pressable key={field} onPress={() => toggle(field)} style={styles.preferenceRow}>
+                  <Text style={styles.preferenceLabel}>{label}</Text>
+                  <Text style={preferences[field] ? styles.preferenceOn : styles.preferenceOff}>
+                    {preferences[field] ? 'ON' : 'OFF'}
+                  </Text>
+                </Pressable>
+              ))}
+              {message !== '' && <Text style={styles.successText}>{message}</Text>}
+              <Pressable disabled={saving} onPress={save} style={styles.primaryButton}>
+                <Text style={styles.primaryButtonText}>{saving ? 'Saving...' : 'Save preferences'}</Text>
+              </Pressable>
+            </View>
+          )}
+        </>
+      );
+    }
+
     function NotificationsScreen({
       errorMessage,
       loading,
@@ -2582,6 +2685,17 @@ const styles = StyleSheet.create({
   notificationTitle: { color: '#0f172a', fontSize: 17, fontWeight: '700' },
   notificationMessage: { color: '#475569', lineHeight: 21 },
   notificationDate: { color: '#64748b', fontSize: 12 },
+  preferenceRow: {
+    alignItems: 'center',
+    borderBottomColor: '#e2e8f0',
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+  },
+  preferenceLabel: { color: '#334155', flex: 1, fontSize: 15, paddingRight: 12 },
+  preferenceOn: { color: '#16a34a', fontWeight: '800' },
+  preferenceOff: { color: '#94a3b8', fontWeight: '800' },
   reviewAverage: { color: '#ca8a04', fontSize: 20, fontWeight: '800' },
   reviewRow: { borderTopColor: '#e2e8f0', borderTopWidth: 1, gap: 4, paddingTop: 10 },
   selectedStar: { color: '#eab308', fontSize: 22 },
