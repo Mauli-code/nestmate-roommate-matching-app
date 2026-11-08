@@ -7,7 +7,9 @@ function setup() {
   const service = new DashboardService(
     { findById: async (id) => id === 'alice' ? { id, fullName: 'Alice' } : null },
     {
-      findProfile: async (id) => id === 'alice' ? { id, budget: 1000, preferredArea: 'Central' } : null,
+      findProfile: async (id) => id === 'alice'
+        ? { id, budget: 1000, minBudget: 500, maxBudget: 1500, preferredArea: 'Central' }
+        : null,
       findCandidates: async () => [{ id: 'bob' }, { id: 'carol' }],
     },
     { findByUser: async () => [{ roommateId: 'bob' }] },
@@ -52,4 +54,39 @@ test('returns user-scoped dashboard counts and recent activity', async () => {
 
 test('does not expose dashboard data for an unknown user', async () => {
   await assert.rejects(() => setup().get('mallory'), UnauthorizedException);
+});
+
+test('reports missing fields for an incomplete profile', async () => {
+  const service = setup();
+  const result = await service.get('alice');
+  assert.equal(result.profile.completion, 33);
+  assert.deepEqual(result.profile.missingFields, [
+    'Profile photo',
+    'Sleeping habits',
+    'Food habits',
+    'Cleanliness preference',
+    'Smoking preference',
+    'Drinking preference',
+  ]);
+});
+
+test('reports full completion when all supported fields are present', () => {
+  const service = setup();
+  const result = service.profileCompletion(
+    { fullName: 'Alice', photoPath: '/tmp/photo.jpg' },
+    {
+      minBudget: 500,
+      maxBudget: 1000,
+      preferredArea: 'Central',
+      foodHabits: 'vegetarian',
+      drinking: 'no',
+      lifestyle: {
+        sleepSchedule: 'flexible',
+        cleanliness: 'medium',
+        smoking: false,
+      },
+    },
+  );
+  assert.equal(result.percentage, 100);
+  assert.deepEqual(result.missingFields, []);
 });

@@ -220,6 +220,11 @@ The response contains profile completion, private activity counts, recent messag
 notification activity. The mobile home screen refreshes this summary whenever the user returns to
 it, and users can also refresh it manually. No data from another user's account is included.
 
+Profile completion uses supported fields only: full name, profile photo, budget range, preferred
+location, sleeping habits, food habits, cleanliness, smoking preference, and drinking preference.
+The response includes both a percentage and a list of missing field labels. Unsupported optional
+fields such as age or occupation are not counted.
+
 ## Private roommate chat
 
 Users can chat after an accepted roommate connection or while they have a pending or accepted

@@ -61,6 +61,7 @@ class DashboardService {
     const pendingBookings = [...receivedBookings, ...sentBookings]
       .filter((request) => request.status === 'pending').length;
 
+    const completion = this.profileCompletion(user, profile);
     return {
       user: {
         id: user.id,
@@ -71,7 +72,8 @@ class DashboardService {
       },
       profile: {
         exists: Boolean(profile),
-        completion: this.profileCompletion(user, profile),
+        completion: completion.percentage,
+        missingFields: completion.missingFields,
       },
       counts: {
         matches: profile ? (await this.profiles.findCandidates(userId)).length : 0,
@@ -95,14 +97,24 @@ class DashboardService {
   }
 
   profileCompletion(user, profile) {
-    const checks = [
-      Boolean(user.fullName),
-      Boolean(user.photoPath),
-      Boolean(profile),
-      Boolean(profile?.preferredArea),
-      Boolean(profile?.budget),
+    const fields = [
+      ['Full name', Boolean(user.fullName)],
+      ['Profile photo', Boolean(user.photoPath)],
+      ['Budget range', Number.isFinite(profile?.minBudget) && Number.isFinite(profile?.maxBudget)],
+      ['Preferred location', Boolean(profile?.preferredArea)],
+      ['Sleeping habits', Boolean(profile?.lifestyle?.sleepSchedule)],
+      ['Food habits', Boolean(profile?.foodHabits)],
+      ['Cleanliness preference', Boolean(profile?.lifestyle?.cleanliness)],
+      ['Smoking preference', typeof profile?.lifestyle?.smoking === 'boolean'],
+      ['Drinking preference', Boolean(profile?.drinking)],
     ];
-    return Math.round((checks.filter(Boolean).length / checks.length) * 100);
+    const completed = fields.filter(([, isComplete]) => isComplete).length;
+    return {
+      percentage: Math.round((completed / fields.length) * 100),
+      missingFields: fields
+        .filter(([, isComplete]) => !isComplete)
+        .map(([label]) => label),
+    };
   }
 }
 
