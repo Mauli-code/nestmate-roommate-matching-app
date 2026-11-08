@@ -6,8 +6,9 @@ const {
 const { rankMatches } = require('./rank-matches');
 
 class MatchingService {
-  constructor(profileRepository) {
+  constructor(profileRepository, privacy) {
     this.profileRepository = profileRepository;
+    this.privacy = privacy;
   }
 
   async getCandidates(profileId) {
@@ -24,7 +25,13 @@ class MatchingService {
       throw new NotFoundException(`Profile "${profileId}" was not found`);
     }
 
-    const candidateProfiles = await this.getCandidates(profileId);
+    const candidates = await this.getCandidates(profileId);
+    const candidateProfiles = this.privacy
+      ? (await Promise.all(candidates.map(async (profile) => ({
+        profile,
+        visible: (await this.privacy.forUser(profile.id)).showProfile,
+      })))).filter((item) => item.visible).map((item) => item.profile)
+      : candidates;
     if (!Array.isArray(candidateProfiles)) {
       throw new BadRequestException(
         'The profile repository returned an invalid candidate list',

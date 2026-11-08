@@ -239,6 +239,21 @@ connection updates, messages, match recommendations, booking updates, and review
 notification service checks these settings before creating a notification, while the existing
 notification list and read APIs remain unchanged.
 
+## Account privacy
+
+Authenticated users can manage their visibility settings:
+
+```text
+GET   /api/privacy/preferences
+PATCH /api/privacy/preferences
+```
+
+Settings default to enabled for existing users and are stored separately in the
+privacy repository. Hidden profiles are excluded from search and matching
+recommendations, while budget and lifestyle fields are removed from public
+profile responses when those options are disabled. Connection requests are
+rejected when the recipient has disabled them.
+
 ## Private roommate chat
 
 Users can chat after an accepted roommate connection or while they have a pending or accepted

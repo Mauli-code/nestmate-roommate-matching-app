@@ -7,9 +7,10 @@ const { calculateCompatibility } = require('../matching/compatibility-score');
 const userRepository = require('../auth/user-repository');
 
 class SearchService {
-  constructor(profileRepository, users = userRepository) {
+  constructor(profileRepository, users = userRepository, privacy) {
     this.profileRepository = profileRepository;
     this.users = users;
+    this.privacy = privacy;
   }
 
   async search(userId, filters = {}) {
@@ -29,11 +30,12 @@ class SearchService {
       if (!profile || profile.id === userId || !this.matchesFilters(profile, normalizedFilters)) {
         continue;
       }
+      if (this.privacy && !(await this.privacy.forUser(profile.id)).showProfile) continue;
 
       const compatibility = calculateCompatibility(userProfile, profile);
       const user = await this.users.findById(profile.id);
       results.push({
-        profile: this.publicProfile(user, profile),
+        profile: this.publicProfile(user, profile, await this.privacy?.forUser(profile.id)),
         score: compatibility.score,
         breakdown: compatibility.breakdown,
       });
@@ -124,18 +126,18 @@ class SearchService {
     return second.score - first.score;
   }
 
-  publicProfile(user, profile) {
+  publicProfile(user, profile, privacy = {}) {
     return {
       id: profile.id,
       fullName: user?.fullName || 'Roommate',
       photoUrl: user?.photoPath
         ? `/uploads/profile-photos/${path.basename(user.photoPath)}`
         : null,
-      budget: profile.budget,
+      budget: privacy.showBudget === false ? null : profile.budget,
       preferredArea: profile.preferredArea,
-      lifestyle: profile.lifestyle || {},
-      foodHabits: profile.foodHabits || null,
-      drinking: profile.drinking || null,
+      lifestyle: privacy.showLifestyle === false ? {} : profile.lifestyle || {},
+      foodHabits: privacy.showLifestyle === false ? null : profile.foodHabits || null,
+      drinking: privacy.showLifestyle === false ? null : profile.drinking || null,
     };
   }
 }

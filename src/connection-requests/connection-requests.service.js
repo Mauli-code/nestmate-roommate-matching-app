@@ -17,11 +17,13 @@ class ConnectionRequestsService {
     profiles = profileRepository,
     users = userRepository,
     notifications,
+    privacy,
   ) {
     this.requests = requests;
     this.profiles = profiles;
     this.users = users;
     this.notifications = notifications;
+    this.privacy = privacy;
   }
 
   async send(senderId, receiverId) {
@@ -33,6 +35,9 @@ class ConnectionRequestsService {
 
     await this.requireProfile(senderId);
     await this.requireProfile(receiverId);
+    if (this.privacy && !(await this.privacy.forUser(receiverId)).allowConnectionRequests) {
+      throw new ConflictException('This user is not accepting connection requests');
+    }
     if (await this.requests.findPending(senderId, receiverId)) {
       throw new ConflictException('A pending connection request already exists');
     }
