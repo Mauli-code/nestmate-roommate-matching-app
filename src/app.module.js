@@ -6,11 +6,12 @@ const { ConnectionRequestsModule } = require('./connection-requests/connection-r
 const { NotificationsModule } = require('./notifications/notifications.module');
 const { SearchModule } = require('./search/search.module');
 const { AccommodationsModule } = require('./accommodations/accommodations.module');
+const { BookingRequestsModule } = require('./booking-requests/booking-requests.module');
 
 class AppModule {}
 
 Module({
-  imports: [AuthModule, MatchingModule, FavoritesModule, ConnectionRequestsModule, NotificationsModule, SearchModule, AccommodationsModule],
+  imports: [AuthModule, MatchingModule, FavoritesModule, ConnectionRequestsModule, NotificationsModule, SearchModule, AccommodationsModule, BookingRequestsModule],
 })(AppModule);
 
 module.exports = { AppModule };
