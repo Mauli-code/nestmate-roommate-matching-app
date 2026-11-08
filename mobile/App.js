@@ -607,6 +607,7 @@ function HomeScreen({
   dashboard,
   dashboardError,
   dashboardLoading,
+  onRefreshDashboard,
   onFavorites,
   onFindRoommates,
   onLogout,
@@ -649,6 +650,22 @@ function HomeScreen({
                 Profile {dashboard.profile.completion}% complete
               </Text>
             </View>
+            {dashboard.profile.missingFields.length > 0 && (
+              <View style={styles.dashboardActivity}>
+                <Text style={styles.detailsSectionTitle}>Complete your profile</Text>
+                <Text style={styles.notificationMessage}>
+                  Missing: {dashboard.profile.missingFields.join(', ')}
+                </Text>
+                <View style={styles.requestActions}>
+                  <Pressable onPress={onProfile} style={styles.secondaryButton}>
+                    <Text style={styles.secondaryButtonText}>Edit profile</Text>
+                  </Pressable>
+                  <Pressable onPress={onSetPreferences} style={styles.secondaryButton}>
+                    <Text style={styles.secondaryButtonText}>Edit preferences</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
             <Pressable onPress={onRefreshDashboard} style={styles.refreshButton}>
               <Text style={styles.refreshText}>↻</Text>
             </Pressable>
