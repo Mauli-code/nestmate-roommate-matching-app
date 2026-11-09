@@ -9,6 +9,9 @@ test('builds the matching API response contract', () => {
         candidateId: 'candidate-1',
         score: 100,
         breakdown: { budget: 1, location: 1 },
+        explanations: {
+          overall: { status: 'strong match', text: '100% overall compatibility.' },
+        },
       },
     ],
   };

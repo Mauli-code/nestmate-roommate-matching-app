@@ -39,7 +39,11 @@ export async function fetchMatches(profileId, token) {
         typeof match.candidateId !== 'string' ||
         typeof match.score !== 'number' ||
         !match.breakdown ||
-        typeof match.breakdown !== 'object',
+        typeof match.breakdown !== 'object' ||
+        !match.explanations ||
+        typeof match.explanations !== 'object' ||
+        !match.explanations.overall ||
+        typeof match.explanations.overall.text !== 'string',
     )
   ) {
     throw new Error('The backend returned an invalid matches response.');

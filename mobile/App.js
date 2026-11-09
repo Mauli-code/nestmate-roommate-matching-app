@@ -61,6 +61,7 @@ import {
 } from './src/api/chat';
 import * as ImagePicker from 'expo-image-picker';
 import { validatePreferences } from './src/preferences';
+import { getCompatibilityDetails } from './src/matching-details';
 import {
   fetchAccommodationReviews,
   fetchRoommateReviews,
@@ -1394,6 +1395,7 @@ function SearchScreen({
         candidateId: item.profile.id,
         score: item.score,
         breakdown: item.breakdown,
+        explanations: item.explanations,
         profile: item.profile,
       })));
       setHasSearched(true);
@@ -2080,6 +2082,8 @@ function ChatDetailsScreen({ conversation, onBack, onChanged, onBlock, onReport,
 }
 
 function MatchCard({ isFavorite, match, onPress, onToggleFavorite, rank }) {
+  const compatibility = getCompatibilityDetails(match);
+
   return (
     <Pressable
       accessibilityHint="Opens the roommate profile details"
@@ -2092,14 +2096,18 @@ function MatchCard({ isFavorite, match, onPress, onToggleFavorite, rank }) {
           <Text style={styles.candidateLabel}>#{rank} candidate profile</Text>
           <Text style={styles.candidateId}>{match.candidateId || 'Unknown'}</Text>
         </View>
-        <Text style={styles.score}>{match.score}%</Text>
+        <Text style={styles.score}>{compatibility.overall.score}%</Text>
       </View>
 
-      <Text style={styles.breakdownTitle}>Score breakdown</Text>
-      {Object.entries(match.breakdown || {}).map(([category, value]) => (
-        <View key={category} style={styles.breakdownRow}>
-          <Text style={styles.breakdownLabel}>{formatCategory(category)}</Text>
-          <Text style={styles.breakdownValue}>{Math.round(value * 100)}%</Text>
+      <Text style={styles.explanationText}>{compatibility.overall.text}</Text>
+      <Text style={styles.breakdownTitle}>Why this match</Text>
+      {compatibility.factors.map((factor) => (
+        <View key={factor.category} style={styles.breakdownRow}>
+          <View style={styles.factorText}>
+            <Text style={styles.breakdownLabel}>{formatCategory(factor.category)}</Text>
+            <Text style={styles.explanationText}>{factor.text}</Text>
+          </View>
+          <Text style={styles.breakdownValue}>{factor.score}%</Text>
         </View>
       ))}
       <View style={styles.matchActions}>
@@ -2678,6 +2686,7 @@ function RequestCard({
 function ProfileDetailsScreen({ match, onBack, onConnect, onChat, onBlock, onReport, token }) {
   const profile = match?.profile || match?.profileDetails || {};
   const lifestyle = profile.lifestyle || {};
+  const compatibility = getCompatibilityDetails(match);
 
   return (
     <>
@@ -2692,7 +2701,7 @@ function ProfileDetailsScreen({ match, onBack, onConnect, onChat, onBlock, onRep
       <View style={styles.detailsCard}>
         <Text style={styles.candidateLabel}>PROFILE</Text>
         <Text style={styles.detailsName}>{match?.candidateId || 'Unknown'}</Text>
-        <DetailRow label="Compatibility score" value={formatScore(match?.score)} />
+        <DetailRow label="Compatibility score" value={formatScore(compatibility.overall.score)} />
         <DetailRow label="Budget" value={formatValue(profile.budget)} />
         <DetailRow label="Preferred location" value={formatValue(profile.preferredArea)} />
         <DetailRow label="Move-in date" value={formatValue(profile.moveInDate)} />
@@ -2708,12 +2717,15 @@ function ProfileDetailsScreen({ match, onBack, onConnect, onChat, onBlock, onRep
 
       <View style={styles.detailsCard}>
         <Text style={styles.detailsSectionTitle}>Score breakdown</Text>
-        {Object.entries(match?.breakdown || {}).map(([category, value]) => (
-          <DetailRow
-            key={category}
-            label={formatCategory(category)}
-            value={`${Math.round(value * 100)}%`}
-          />
+        <Text style={styles.explanationText}>{compatibility.overall.text}</Text>
+        {compatibility.factors.map((factor) => (
+          <View key={factor.category} style={styles.factorText}>
+            <DetailRow
+              label={formatCategory(factor.category)}
+              value={`${factor.score}%`}
+            />
+            <Text style={styles.explanationText}>{factor.text}</Text>
+          </View>
         ))}
         {onConnect && match?.candidateId && (
           <Pressable
@@ -3192,6 +3204,8 @@ const styles = StyleSheet.create({
   score: { color: '#16a34a', fontSize: 24, fontWeight: '800' },
   breakdownTitle: { color: '#334155', fontSize: 14, fontWeight: '700', marginTop: 6 },
   breakdownRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  factorText: { flex: 1, gap: 2 },
+  explanationText: { color: '#64748b', fontSize: 13, lineHeight: 18 },
   breakdownLabel: { color: '#64748b', fontSize: 14 },
   breakdownValue: { color: '#334155', fontSize: 14, fontWeight: '600' },
   viewDetailsText: { color: '#2563eb', fontSize: 14, fontWeight: '700', marginTop: 4 },
