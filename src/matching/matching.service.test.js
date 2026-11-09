@@ -201,3 +201,24 @@ test('excludes hidden profiles from recommendations', async () => {
 
   assert.deepEqual(result.matches.map((match) => match.candidateId), ['visible']);
 });
+
+test('removes self, duplicate, and malformed candidates before ranking', async () => {
+  const repository = {
+    findProfile: async () => profile('user'),
+    findCandidates: async () => [
+      profile('user'),
+      profile('candidate-1'),
+      profile('candidate-1', { preferredArea: 'North' }),
+      null,
+      { budget: 1000 },
+      profile('candidate-2', { preferredArea: 'North' }),
+    ],
+  };
+
+  const result = await new MatchingService(repository).getMatches('user');
+
+  assert.deepEqual(
+    result.matches.map((match) => match.candidateId),
+    ['candidate-1', 'candidate-2'],
+  );
+});

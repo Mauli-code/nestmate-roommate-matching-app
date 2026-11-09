@@ -17,11 +17,8 @@ test('returns zero when a budget is missing', () => {
   assert.equal(budgetCompatibility({ budget: 1000 }, {}), 0);
 });
 
-test('rejects invalid budgets', () => {
-  assert.throws(
-    () => budgetCompatibility({ budget: -100 }, { budget: 1000 }),
-    /finite number greater than zero/,
-  );
+test('returns zero for invalid budgets', () => {
+  assert.equal(budgetCompatibility({ budget: -100 }, { budget: 1000 }), 0);
 });
 
 test('matches locations without considering case or surrounding spaces', () => {
@@ -42,9 +39,6 @@ test('returns zero for different or missing locations', () => {
   assert.equal(locationCompatibility({}, { preferredArea: 'Central' }), 0);
 });
 
-test('rejects a non-string location', () => {
-  assert.throws(
-    () => locationCompatibility({ preferredArea: 42 }, { preferredArea: 'Central' }),
-    /preferredArea must be a string/,
-  );
+test('returns zero for a non-string location', () => {
+  assert.equal(locationCompatibility({ preferredArea: 42 }, { preferredArea: 'Central' }), 0);
 });
