@@ -18,9 +18,14 @@ class MatchingController {
     this.matchingService = matchingService;
   }
 
-  async getMatches(profileId, request) {
+  async getMatches(profileId, page, limit, request) {
+    if (page && typeof page === 'object' && request === undefined) {
+      request = page;
+      page = undefined;
+      limit = undefined;
+    }
     this.assertOwnProfile(profileId, request);
-    return this.matchingService.getMatches(profileId);
+    return this.matchingService.getMatches(profileId, page, limit);
   }
 
   async savePreferences(profileId, preferences, request) {
@@ -47,7 +52,9 @@ const getMatchesDescriptor = Object.getOwnPropertyDescriptor(
 );
 Get()(MatchingController.prototype, 'getMatches', getMatchesDescriptor);
 Query('profileId')(MatchingController.prototype, 'getMatches', 0);
-Req()(MatchingController.prototype, 'getMatches', 1);
+Query('page')(MatchingController.prototype, 'getMatches', 1);
+Query('limit')(MatchingController.prototype, 'getMatches', 2);
+Req()(MatchingController.prototype, 'getMatches', 3);
 const savePreferencesDescriptor = Object.getOwnPropertyDescriptor(
   MatchingController.prototype,
   'savePreferences',

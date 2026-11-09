@@ -140,6 +140,12 @@ test('returns ranked matches with score breakdowns', async () => {
   const result = await new MatchingService(repository).getMatches('user');
 
   assert.equal(result.profileId, 'user');
+  assert.equal(result.page, 1);
+  assert.equal(result.limit, 10);
+  assert.equal(result.total, 2);
+  assert.equal(result.totalPages, 1);
+  assert.equal(result.hasNextPage, false);
+  assert.equal(result.hasPreviousPage, false);
   assert.deepEqual(
     result.matches.map(({ candidateId, score }) => [candidateId, score]),
     [
@@ -157,6 +163,57 @@ test('returns ranked matches with score breakdowns', async () => {
   assert.match(result.matches[0].explanations.location.text, /match/);
 });
 
+test('returns stable paginated results with counts and navigation metadata', async () => {
+  const candidates = ['best', 'second', 'third'].map((id, index) =>
+    profile(id, { budget: 1000 - index * 100 }));
+  const repository = {
+    findProfile: async () => profile('user'),
+    findCandidates: async () => candidates,
+  };
+  const service = new MatchingService(repository);
+
+  const firstPage = await service.getMatches('user', '1', '2');
+  const secondPage = await service.getMatches('user', 2, 2);
+
+  assert.deepEqual(firstPage.matches.map((match) => match.candidateId), ['best', 'second']);
+  assert.deepEqual(secondPage.matches.map((match) => match.candidateId), ['third']);
+  assert.equal(firstPage.total, 3);
+  assert.equal(firstPage.totalPages, 2);
+  assert.equal(firstPage.hasNextPage, true);
+  assert.equal(firstPage.hasPreviousPage, false);
+  assert.equal(secondPage.hasNextPage, false);
+  assert.equal(secondPage.hasPreviousPage, true);
+});
+
+test('returns an empty page when the requested page is beyond the results', async () => {
+  const repository = {
+    findProfile: async () => profile('user'),
+    findCandidates: async () => [profile('candidate')],
+  };
+
+  const result = await new MatchingService(repository).getMatches('user', 2, 1);
+
+  assert.deepEqual(result.matches, []);
+  assert.equal(result.total, 1);
+  assert.equal(result.totalPages, 1);
+  assert.equal(result.hasNextPage, false);
+  assert.equal(result.hasPreviousPage, true);
+});
+
+test('rejects invalid pagination and caps the maximum page size', async () => {
+  const service = new MatchingService({
+    findProfile: async () => profile('user'),
+    findCandidates: async () => [],
+  });
+
+  await assert.rejects(() => service.getMatches('user', 0, 10), BadRequestException);
+  await assert.rejects(() => service.getMatches('user', 1, -1), BadRequestException);
+  await assert.rejects(() => service.getMatches('user', 'not-a-page', 10), BadRequestException);
+
+  const result = await service.getMatches('user', 1, 1000);
+  assert.equal(result.limit, 50);
+});
+
 test('returns an empty match list when there are no candidates', async () => {
   const repository = {
     findProfile: async () => profile('user'),
@@ -166,6 +223,12 @@ test('returns an empty match list when there are no candidates', async () => {
   assert.deepEqual(await new MatchingService(repository).getMatches('user'), {
     profileId: 'user',
     matches: [],
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0,
+    hasNextPage: false,
+    hasPreviousPage: false,
   });
 });
 
