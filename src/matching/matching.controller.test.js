@@ -81,3 +81,12 @@ test('rejects access to another user profile', async () => {
     (error) => error instanceof ForbiddenException,
   );
 });
+
+test('rejects requests without an authenticated user', async () => {
+  const service = { getMatches: async () => ({}) };
+
+  await assert.rejects(
+    () => new MatchingController(service).getMatches('profile-1', {}),
+    (error) => error instanceof ForbiddenException,
+  );
+});

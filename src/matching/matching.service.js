@@ -33,12 +33,13 @@ class MatchingService {
         'The profile repository returned an invalid candidate list',
       );
     }
+    const safeCandidates = this.normalizeCandidates(profileId, candidates);
     const activeCandidates = this.users
-      ? (await Promise.all(candidates.map(async (profile) => ({
+      ? (await Promise.all(safeCandidates.map(async (profile) => ({
         profile,
         active: this.users.isActive(await this.users.findById(profile.id)),
       })))).filter((item) => item.active).map((item) => item.profile)
-      : candidates;
+      : safeCandidates;
     const candidateProfiles = this.privacy || this.moderation
       ? (await Promise.all(activeCandidates.map(async (profile) => ({
         profile,
@@ -50,6 +51,24 @@ class MatchingService {
       profileId,
       matches: rankMatches(userProfile, candidateProfiles),
     };
+  }
+
+  normalizeCandidates(profileId, candidates) {
+    const seenIds = new Set();
+
+    return candidates.filter((profile) => {
+      if (!profile || typeof profile !== 'object' || Array.isArray(profile)) {
+        return false;
+      }
+
+      const candidateId = typeof profile.id === 'string' ? profile.id.trim() : '';
+      if (!candidateId || candidateId === profileId || seenIds.has(candidateId)) {
+        return false;
+      }
+
+      seenIds.add(candidateId);
+      return true;
+    });
   }
 
   validateProfileId(profileId) {

@@ -22,10 +22,11 @@ function calculateCompatibility(firstProfile, secondProfile) {
     habitsAndPreferences,
   };
 
+  const rawScore =
+    (budget + location + lifestyle + habitsAndPreferences) * CATEGORY_WEIGHT;
+
   return {
-    score: Math.round(
-      (budget + location + lifestyle + habitsAndPreferences) * CATEGORY_WEIGHT,
-    ),
+    score: Math.min(100, Math.max(0, Math.round(rawScore))),
     breakdown,
   };
 }

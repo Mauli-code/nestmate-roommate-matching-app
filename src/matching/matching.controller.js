@@ -32,7 +32,7 @@ class MatchingController {
   }
 
   assertOwnProfile(profileId, request) {
-    if (request.user.sub !== profileId) {
+    if (!request?.user || request.user.sub !== profileId) {
       throw new ForbiddenException('You can only access your own profile');
     }
   }

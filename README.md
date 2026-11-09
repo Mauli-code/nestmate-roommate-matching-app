@@ -8,11 +8,26 @@ with a database implementation before production use.
 
 ## Development
 
+Run backend commands from the project root (the directory containing the
+backend `package.json`):
+
 ```bash
 npm install
 npm run build
 npm test
 ```
+
+Run mobile commands from the `mobile/` directory, which has its own
+`package.json`:
+
+```bash
+cd mobile
+npm install
+npm test
+```
+
+Running `npm test` from the parent download directory will fail because that
+directory does not contain a `package.json`.
 
 The `rankMatches` function scores a user's candidates with the existing compatibility algorithm,
 sorts them from highest to lowest, and returns each candidate ID, score, and score breakdown.
