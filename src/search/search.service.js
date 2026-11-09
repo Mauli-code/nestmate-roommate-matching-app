@@ -7,10 +7,11 @@ const { calculateCompatibility } = require('../matching/compatibility-score');
 const userRepository = require('../auth/user-repository');
 
 class SearchService {
-  constructor(profileRepository, users = userRepository, privacy) {
+  constructor(profileRepository, users = userRepository, privacy, moderation) {
     this.profileRepository = profileRepository;
     this.users = users;
     this.privacy = privacy;
+    this.moderation = moderation;
   }
 
   async search(userId, filters = {}) {
@@ -31,9 +32,14 @@ class SearchService {
         continue;
       }
       if (this.privacy && !(await this.privacy.forUser(profile.id)).showProfile) continue;
+      if (this.moderation && await this.moderation.isBlockedBetween(userId, profile.id)) continue;
 
       const compatibility = calculateCompatibility(userProfile, profile);
       const user = await this.users.findById(profile.id);
+      const active = this.users.isActive
+        ? this.users.isActive(user)
+        : user?.accountStatus === undefined || user?.accountStatus === 'active';
+      if (!active) continue;
       results.push({
         profile: this.publicProfile(user, profile, await this.privacy?.forUser(profile.id)),
         score: compatibility.score,

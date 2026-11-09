@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Pressable,
   SafeAreaView,
@@ -12,7 +13,15 @@ import {
 } from 'react-native';
 import { fetchMatches } from './src/api/matches';
 import { savePreferences as savePreferencesRequest } from './src/api/preferences';
-import { login, logout, readSession, register } from './src/api/auth';
+import {
+  deactivateAccount,
+  login,
+  logout,
+  readSession,
+  register,
+  requestAccountDeletion,
+  reactivate,
+} from './src/api/auth';
 import { fetchProfile, updateProfile } from './src/api/profile';
 import { resolvePhotoUrl, uploadProfilePhoto } from './src/api/photo';
 import { addFavorite, fetchFavorites, removeFavorite } from './src/api/favorites';
@@ -64,6 +73,12 @@ import {
   saveNotificationPreferences,
 } from './src/api/notificationPreferences';
 import { fetchPrivacySettings, savePrivacySettings } from './src/api/privacy';
+import {
+  blockUser,
+  fetchBlockedUsers,
+  reportUser,
+  unblockUser,
+} from './src/api/moderation';
 
 const DEFAULT_PROFILE_ID = 'user-1';
 
@@ -111,6 +126,9 @@ export default function App() {
   const [dashboard, setDashboard] = useState(null);
   const [dashboardLoading, setDashboardLoading] = useState(false);
   const [dashboardError, setDashboardError] = useState('');
+  const [blockedUsers, setBlockedUsers] = useState([]);
+  const [moderationError, setModerationError] = useState('');
+  const [reportedUser, setReportedUser] = useState(null);
 
   useEffect(() => {
     readSession()
@@ -156,6 +174,34 @@ export default function App() {
   useEffect(() => {
     loadFavorites();
   }, [loadFavorites]);
+
+  const loadBlockedUsers = useCallback(async () => {
+    if (!session?.token) return;
+    try {
+      const result = await fetchBlockedUsers(session.token);
+      setBlockedUsers(result.blockedUsers || []);
+      setModerationError('');
+    } catch (error) {
+      setModerationError(error.message);
+    }
+  }, [session]);
+
+  useEffect(() => {
+    loadBlockedUsers();
+  }, [loadBlockedUsers]);
+
+  async function handleBlock(userId) {
+    await blockUser(userId, session.token);
+    await loadBlockedUsers();
+    await loadMatches();
+    await loadFavorites();
+    await loadConversations();
+  }
+
+  async function handleUnblock(userId) {
+    await unblockUser(userId, session.token);
+    await loadBlockedUsers();
+  }
 
   async function toggleFavorite(roommateId) {
     const alreadyFavorite = favorites.some(
@@ -357,6 +403,8 @@ export default function App() {
             onNotifications={() => setScreen('notifications')}
             onNotificationSettings={() => setScreen('notification-settings')}
             onPrivacySettings={() => setScreen('privacy-settings')}
+            onAccountManagement={() => setScreen('account-management')}
+            onBlockedUsers={() => setScreen('blocked-users')}
             onSearch={() => setScreen('search')}
             onAccommodations={() => setScreen('accommodations')}
             onChats={() => setScreen('chats')}
@@ -397,6 +445,14 @@ export default function App() {
             onBack={() => setScreen(detailsBackScreen)}
             onConnect={sendRequest}
             onChat={openConversation}
+            onBlock={async (userId) => {
+              await handleBlock(userId);
+              setScreen(detailsBackScreen);
+            }}
+            onReport={(userId) => {
+              setReportedUser({ id: userId, name: selectedMatch?.profile?.fullName || 'User' });
+              setScreen('report-user');
+            }}
             token={session.token}
           />
         ) : screen === 'favorites' ? (
@@ -458,6 +514,37 @@ export default function App() {
           />
         ) : screen === 'privacy-settings' ? (
           <PrivacySettingsScreen onBack={() => setScreen('home')} token={session.token} />
+        ) : screen === 'account-management' ? (
+          <AccountManagementScreen
+            email={session.user.email}
+            onBack={() => setScreen('home')}
+            onDeactivated={async () => {
+              await logout(session.token);
+              setSession(null);
+              setScreen('home');
+            }}
+            onDeleted={async () => {
+              await logout(session.token);
+              setSession(null);
+              setScreen('home');
+            }}
+            token={session.token}
+          />
+        ) : screen === 'blocked-users' ? (
+          <BlockedUsersScreen
+            blockedUsers={blockedUsers}
+            errorMessage={moderationError}
+            onBack={() => setScreen('home')}
+            onRefresh={loadBlockedUsers}
+            onUnblock={handleUnblock}
+          />
+        ) : screen === 'report-user' ? (
+          <ReportUserScreen
+            onBack={() => setScreen(detailsBackScreen)}
+            onSubmitted={() => setScreen(detailsBackScreen)}
+            reportedUser={reportedUser}
+            token={session.token}
+          />
         ) : screen === 'search' ? (
           <SearchScreen
             favoriteIds={favorites.map((favorite) => favorite.roommate?.id)}
@@ -516,6 +603,17 @@ export default function App() {
             onBack={() => setScreen('chats')}
             token={session.token}
             onChanged={loadConversations}
+            onBlock={async (userId) => {
+              await handleBlock(userId);
+              setScreen('chats');
+            }}
+            onReport={(userId) => {
+              setReportedUser({
+                id: userId,
+                name: selectedConversation?.otherUser?.fullName || 'User',
+              });
+              setScreen('report-user');
+            }}
           />
         ) : (
           <RecommendationsScreen
@@ -548,6 +646,7 @@ function AuthScreen({ onAuthenticated }) {
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [reactivationMode, setReactivationMode] = useState(false);
 
   async function submit() {
     setErrorMessage('');
@@ -560,7 +659,9 @@ function AuthScreen({ onAuthenticated }) {
 
     setLoading(true);
     try {
-      const result = mode === 'register'
+      const result = reactivationMode
+        ? await reactivate(email, password)
+        : mode === 'register'
         ? await register(fullName, email, password)
         : await login(email, password);
       onAuthenticated({ token: result.accessToken, user: result.user });
@@ -574,9 +675,11 @@ function AuthScreen({ onAuthenticated }) {
   return (
     <View style={styles.authCard}>
       <Text style={styles.logo}>NestMate</Text>
-      <Text style={styles.title}>{mode === 'register' ? 'Create your account' : 'Welcome back'}</Text>
+      <Text style={styles.title}>
+        {reactivationMode ? 'Reactivate your account' : mode === 'register' ? 'Create your account' : 'Welcome back'}
+      </Text>
       <Text style={styles.subtitle}>Sign in to manage your roommate preferences.</Text>
-      {mode === 'register' && (
+      {mode === 'register' && !reactivationMode && (
         <TextInput
           autoCapitalize="words"
           onChangeText={setFullName}
@@ -608,11 +711,24 @@ function AuthScreen({ onAuthenticated }) {
       >
         <Text style={styles.primaryButtonText}>{loading ? 'Please wait...' : mode === 'register' ? 'Register' : 'Log in'}</Text>
       </Pressable>
-      <Pressable onPress={() => setMode(mode === 'register' ? 'login' : 'register')} style={styles.secondaryButton}>
+      <Pressable
+        onPress={() => {
+          setReactivationMode(false);
+          setMode(mode === 'register' ? 'login' : 'register');
+        }}
+        style={styles.secondaryButton}
+      >
         <Text style={styles.secondaryButtonText}>
           {mode === 'register' ? 'Already have an account? Log in' : 'New to NestMate? Register'}
         </Text>
       </Pressable>
+      {mode === 'login' && (
+        <Pressable onPress={() => setReactivationMode(!reactivationMode)} style={styles.secondaryButton}>
+          <Text style={styles.secondaryButtonText}>
+            {reactivationMode ? 'Back to log in' : 'Reactivate a deactivated account'}
+          </Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -628,6 +744,8 @@ function HomeScreen({
   onNotifications,
   onNotificationSettings,
   onPrivacySettings,
+  onAccountManagement,
+  onBlockedUsers,
   onProfile,
   onRequests,
   onSearch,
@@ -744,6 +862,12 @@ function HomeScreen({
       </Pressable>
       <Pressable accessibilityRole="button" onPress={onPrivacySettings} style={styles.secondaryButton}>
         <Text style={styles.secondaryButtonText}>Privacy settings</Text>
+      </Pressable>
+      <Pressable accessibilityRole="button" onPress={onAccountManagement} style={styles.secondaryButton}>
+        <Text style={styles.secondaryButtonText}>Account management</Text>
+      </Pressable>
+      <Pressable accessibilityRole="button" onPress={onBlockedUsers} style={styles.secondaryButton}>
+        <Text style={styles.secondaryButtonText}>Blocked users</Text>
       </Pressable>
       <Pressable accessibilityRole="button" onPress={onLogout} style={styles.secondaryButton}>
         <Text style={styles.secondaryButtonText}>Log out</Text>
@@ -1829,7 +1953,7 @@ function ChatListScreen({
   );
 }
 
-function ChatDetailsScreen({ conversation, onBack, onChanged, token }) {
+function ChatDetailsScreen({ conversation, onBack, onChanged, onBlock, onReport, token }) {
   const [messages, setMessages] = useState([]);
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(true);
@@ -1904,6 +2028,21 @@ function ChatDetailsScreen({ conversation, onBack, onChanged, token }) {
         </View>
         <Pressable onPress={loadMessages} style={styles.refreshButton}>
           <Text style={styles.refreshText}>↻</Text>
+        </Pressable>
+      </View>
+      <View style={styles.requestActions}>
+        <Pressable
+          onPress={() => Alert.alert(
+            'Block user',
+            `Stop ${conversation.otherUser.fullName} from contacting you?`,
+            [{ text: 'Cancel', style: 'cancel' }, { text: 'Block', style: 'destructive', onPress: () => onBlock(conversation.otherUser.id) }],
+          )}
+          style={styles.secondaryButton}
+        >
+          <Text style={styles.secondaryButtonText}>Block user</Text>
+        </Pressable>
+        <Pressable onPress={() => onReport(conversation.otherUser.id)} style={styles.secondaryButton}>
+          <Text style={styles.secondaryButtonText}>Report user</Text>
         </Pressable>
       </View>
       {errorMessage !== '' && <Text style={styles.errorText}>{errorMessage}</Text>}
@@ -2165,6 +2304,109 @@ function ConnectionRequestsScreen({
             </View>
           )}
         </>
+      );
+    }
+
+    function AccountManagementScreen({ email, onBack, onDeactivated, onDeleted, token }) {
+      const [password, setPassword] = useState('');
+      const [loading, setLoading] = useState(false);
+      const [message, setMessage] = useState('');
+      const [errorMessage, setErrorMessage] = useState('');
+
+      async function deactivate() {
+        setLoading(true);
+        setErrorMessage('');
+        try {
+          await deactivateAccount(token);
+          setMessage('Your account was deactivated. Use the reactivation option on the login screen to return.');
+          onDeactivated();
+        } catch (error) {
+          setErrorMessage(error.message);
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      function confirmDeactivation() {
+        Alert.alert(
+          'Deactivate account?',
+          'Your profile will be hidden and you will not be able to use NestMate until you reactivate.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Deactivate', style: 'destructive', onPress: deactivate },
+          ],
+        );
+      }
+
+      function confirmDeletion() {
+        if (!password) {
+          setErrorMessage('Enter your password before requesting deletion.');
+          return;
+        }
+        Alert.alert(
+          'Request permanent deletion?',
+          'Your profile and account information will be scheduled for deletion. Shared conversations, reviews, and records needed for other users may be retained or anonymized.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Continue',
+              style: 'destructive',
+              onPress: () => Alert.alert(
+                'Final confirmation',
+                'This will sign you out and make the account unavailable. Continue?',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Request deletion', style: 'destructive', onPress: requestDeletion },
+                ],
+              ),
+            },
+          ],
+        );
+      }
+
+      async function requestDeletion() {
+        setLoading(true);
+        setErrorMessage('');
+        try {
+          await requestAccountDeletion(token, password);
+          setMessage('Deletion requested. You have been signed out.');
+          onDeleted();
+        } catch (error) {
+          setErrorMessage(error.message);
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      return (
+        <View style={styles.authCard}>
+          <Pressable onPress={onBack} style={styles.backButton}>
+            <Text style={styles.backText}>‹ Back</Text>
+          </Pressable>
+          <Text style={styles.title}>Account management</Text>
+          <Text style={styles.subtitle}>Manage {email} without exposing your password.</Text>
+          {message !== '' && <Text style={styles.successText}>{message}</Text>}
+          {errorMessage !== '' && <Text style={styles.fieldError}>{errorMessage}</Text>}
+          <Pressable disabled={loading} onPress={confirmDeactivation} style={styles.secondaryButton}>
+            <Text style={styles.secondaryButtonText}>Temporarily deactivate account</Text>
+          </Pressable>
+          <Text style={styles.stateText}>
+            Deactivation hides your profile, blocks protected actions, and can be reversed with your email and password.
+          </Text>
+          <TextInput
+            onChangeText={setPassword}
+            placeholder="Password for deletion request"
+            secureTextEntry
+            style={styles.input}
+            value={password}
+          />
+          <Pressable disabled={loading} onPress={confirmDeletion} style={styles.dangerButton}>
+            <Text style={styles.primaryButtonText}>{loading ? 'Please wait...' : 'Request permanent deletion'}</Text>
+          </Pressable>
+          <Text style={styles.stateText}>
+            Shared messages, reviews, and booking records are not removed blindly because other users may rely on them.
+          </Text>
+        </View>
       );
     }
 
@@ -2433,7 +2675,7 @@ function RequestCard({
   );
 }
 
-function ProfileDetailsScreen({ match, onBack, onConnect, onChat, token }) {
+function ProfileDetailsScreen({ match, onBack, onConnect, onChat, onBlock, onReport, token }) {
   const profile = match?.profile || match?.profileDetails || {};
   const lifestyle = profile.lifestyle || {};
 
@@ -2491,6 +2733,23 @@ function ProfileDetailsScreen({ match, onBack, onConnect, onChat, token }) {
             <Text style={styles.secondaryButtonText}>Open chat</Text>
           </Pressable>
         )}
+        {onBlock && match?.candidateId && (
+          <Pressable
+            onPress={() => Alert.alert(
+              'Block user',
+              'This user will be hidden and unable to contact you.',
+              [{ text: 'Cancel', style: 'cancel' }, { text: 'Block', style: 'destructive', onPress: () => onBlock(match.candidateId) }],
+            )}
+            style={styles.secondaryButton}
+          >
+            <Text style={styles.secondaryButtonText}>Block user</Text>
+          </Pressable>
+        )}
+        {onReport && match?.candidateId && (
+          <Pressable onPress={() => onReport(match.candidateId)} style={styles.secondaryButton}>
+            <Text style={styles.secondaryButtonText}>Report user</Text>
+          </Pressable>
+        )}
       </View>
       {match?.candidateId && (
         <ReviewSection
@@ -2501,6 +2760,104 @@ function ProfileDetailsScreen({ match, onBack, onConnect, onChat, token }) {
           submitReview={submitRoommateReview}
         />
       )}
+    </>
+  );
+}
+
+function BlockedUsersScreen({ blockedUsers, errorMessage, onBack, onRefresh, onUnblock }) {
+  return (
+    <>
+      <Pressable onPress={onBack} style={styles.backButton}>
+        <Text style={styles.backText}>‹ Home</Text>
+      </Pressable>
+      <View style={styles.favoriteTitleRow}>
+        <View>
+          <Text style={styles.title}>Blocked users</Text>
+          <Text style={styles.subtitle}>Blocked users cannot contact you or appear in discovery.</Text>
+        </View>
+        <Pressable onPress={onRefresh} style={styles.refreshButton}>
+          <Text style={styles.refreshText}>↻</Text>
+        </Pressable>
+      </View>
+      {errorMessage !== '' && <Text style={styles.errorText}>{errorMessage}</Text>}
+      {blockedUsers.length === 0 && <Text style={styles.stateText}>You have not blocked anyone.</Text>}
+      {blockedUsers.map((blocked) => (
+        <View key={blocked.id} style={styles.notificationCard}>
+          <Text style={styles.notificationTitle}>{blocked.fullName}</Text>
+          <Text style={styles.notificationDate}>Blocked {formatDate(blocked.createdAt)}</Text>
+          <Pressable
+            onPress={() => Alert.alert(
+              'Unblock user',
+              `Allow ${blocked.fullName} to contact you again?`,
+              [{ text: 'Cancel', style: 'cancel' }, { text: 'Unblock', onPress: () => onUnblock(blocked.userId) }],
+            )}
+            style={styles.secondaryButton}
+          >
+            <Text style={styles.secondaryButtonText}>Unblock</Text>
+          </Pressable>
+        </View>
+      ))}
+    </>
+  );
+}
+
+function ReportUserScreen({ onBack, onSubmitted, reportedUser, token }) {
+  const [category, setCategory] = useState('other');
+  const [description, setDescription] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const categories = [
+    ['fake-profile', 'Fake or misleading profile'],
+    ['spam', 'Spam or unwanted messages'],
+    ['inappropriate-behaviour', 'Inappropriate behaviour'],
+    ['harassment-or-threats', 'Harassment or threatening behaviour'],
+    ['suspicious-activity', 'Suspicious activity'],
+    ['other', 'Other'],
+  ];
+
+  async function submit() {
+    setSaving(true);
+    setErrorMessage('');
+    try {
+      await reportUser(reportedUser.id, { category, description }, token);
+      setMessage('Report submitted. Thank you for helping keep NestMate safe.');
+      setTimeout(onSubmitted, 900);
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <Pressable onPress={onBack} style={styles.backButton}>
+        <Text style={styles.backText}>‹ Back</Text>
+      </Pressable>
+      <Text style={styles.title}>Report user</Text>
+      <Text style={styles.subtitle}>Your identity will not be shared with the reported user.</Text>
+      <Text style={styles.detailsSectionTitle}>Reason</Text>
+      {categories.map(([value, label]) => (
+        <Pressable key={value} onPress={() => setCategory(value)} style={styles.preferenceRow}>
+          <Text style={styles.preferenceLabel}>{label}</Text>
+          <Text style={category === value ? styles.preferenceOn : styles.preferenceOff}>
+            {category === value ? 'SELECTED' : 'SELECT'}
+          </Text>
+        </Pressable>
+      ))}
+      <TextInput
+        multiline
+        onChangeText={setDescription}
+        placeholder="Optional description"
+        style={styles.textArea}
+        value={description}
+      />
+      {errorMessage !== '' && <Text style={styles.errorText}>{errorMessage}</Text>}
+      {message !== '' && <Text style={styles.successText}>{message}</Text>}
+      <Pressable disabled={saving} onPress={submit} style={styles.primaryButton}>
+        <Text style={styles.primaryButtonText}>{saving ? 'Submitting...' : 'Submit report'}</Text>
+      </Pressable>
     </>
   );
 }
@@ -2656,6 +3013,15 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   primaryButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  dangerButton: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#b91c1c',
+    borderRadius: 10,
+    marginTop: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+  },
   secondaryButton: { alignSelf: 'flex-start', paddingVertical: 8 },
   secondaryButtonText: { color: '#2563eb', fontSize: 16, fontWeight: '700' },
   backButton: { alignSelf: 'flex-start', paddingVertical: 4 },
@@ -2776,6 +3142,14 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   preferenceLabel: { color: '#334155', flex: 1, fontSize: 15, paddingRight: 12 },
+  textArea: {
+    borderColor: '#cbd5e1',
+    borderRadius: 10,
+    borderWidth: 1,
+    minHeight: 110,
+    padding: 12,
+    textAlignVertical: 'top',
+  },
   preferenceOn: { color: '#16a34a', fontWeight: '800' },
   preferenceOff: { color: '#94a3b8', fontWeight: '800' },
   reviewAverage: { color: '#ca8a04', fontSize: 20, fontWeight: '800' },

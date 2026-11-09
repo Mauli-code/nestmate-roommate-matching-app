@@ -16,4 +16,8 @@ async function save(user) {
   return usersById.get(user.id);
 }
 
-module.exports = { findByEmail, findById, save };
+function isActive(user) {
+  return user?.accountStatus === undefined || user.accountStatus === 'active';
+}
+
+module.exports = { findByEmail, findById, save, isActive };

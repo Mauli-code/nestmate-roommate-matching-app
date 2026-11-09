@@ -254,6 +254,23 @@ recommendations, while budget and lifestyle fields are removed from public
 profile responses when those options are disabled. Connection requests are
 rejected when the recipient has disabled them.
 
+## Blocking and reporting
+
+Authenticated users can manage their own blocked-user list:
+
+```text
+GET    /api/blocks
+POST   /api/blocks/:userId
+DELETE /api/blocks/:userId
+POST   /api/reports/:userId
+```
+
+Reports accept one of the supported categories (`fake-profile`, `spam`,
+`inappropriate-behaviour`, `harassment-or-threats`, `suspicious-activity`, or
+`other`) and an optional description. A matching report from the same reporter
+for the same user and category is limited to once per 24 hours. Blocking is
+enforced by search, matching, favorites, connection requests, and chat APIs.
+
 ## Private roommate chat
 
 Users can chat after an accepted roommate connection or while they have a pending or accepted

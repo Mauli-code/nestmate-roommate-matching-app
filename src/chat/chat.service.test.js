@@ -66,3 +66,14 @@ test('rejects conversation creation without an accepted relationship', async () 
   service.connections.findBetween = async () => null;
   await assert.rejects(() => service.getOrCreateConversation('alice', 'mallory'), ForbiddenException);
 });
+
+test('blocks messaging in either direction after a user is blocked', async () => {
+  const service = setup();
+  service.moderation = {
+    isBlockedBetween: async () => true,
+  };
+  await assert.rejects(
+    () => service.getOrCreateConversation('alice', 'bob'),
+    ForbiddenException,
+  );
+});
