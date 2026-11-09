@@ -1,6 +1,10 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { ConflictException, UnauthorizedException } = require('@nestjs/common');
+const {
+  BadRequestException,
+  ConflictException,
+  UnauthorizedException,
+} = require('@nestjs/common');
 const { AuthService } = require('./auth.service');
 
 function createService() {
@@ -79,6 +83,50 @@ test('retrieves and updates the authenticated user profile', async () => {
 test('rejects profile access for an unknown user', async () => {
   await assert.rejects(
     () => createService().getProfile('missing-user'),
+    (error) => error instanceof UnauthorizedException,
+  );
+});
+
+test('deactivates an account, invalidates its token, and supports password reactivation', async () => {
+  const service = createService();
+  const registration = await service.register('Lifecycle User', 'lifecycle@example.com', 'password123');
+
+  const result = await service.deactivate(registration.user.id, { confirmation: true });
+  assert.equal(result.message, 'Your account has been deactivated');
+  await assert.rejects(
+    () => service.login('lifecycle@example.com', 'password123'),
+    (error) => error instanceof UnauthorizedException,
+  );
+  await assert.rejects(
+    () => service.verifyAuthenticatedUser(service.verifyToken(registration.accessToken)),
+    (error) => error instanceof UnauthorizedException,
+  );
+
+  const reactivated = await service.reactivate('lifecycle@example.com', 'password123');
+  assert.equal(reactivated.user.email, 'lifecycle@example.com');
+  assert.equal(service.verifyToken(reactivated.accessToken).sub, registration.user.id);
+});
+
+test('requires explicit confirmation and password before requesting deletion', async () => {
+  const service = createService();
+  const registration = await service.register('Delete User', 'delete@example.com', 'password123');
+
+  await assert.rejects(
+    () => service.requestDeletion(registration.user.id, { confirmation: 'DELETE', password: 'wrong-password' }),
+    (error) => error instanceof UnauthorizedException,
+  );
+  await assert.rejects(
+    () => service.requestDeletion(registration.user.id, { password: 'password123' }),
+    (error) => error instanceof BadRequestException,
+  );
+
+  const result = await service.requestDeletion(registration.user.id, {
+    confirmation: 'DELETE',
+    password: 'password123',
+  });
+  assert.match(result.message, /deletion requested/i);
+  await assert.rejects(
+    () => service.login('delete@example.com', 'password123'),
     (error) => error instanceof UnauthorizedException,
   );
 });

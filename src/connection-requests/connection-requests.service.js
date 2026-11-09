@@ -18,12 +18,14 @@ class ConnectionRequestsService {
     users = userRepository,
     notifications,
     privacy,
+    moderation,
   ) {
     this.requests = requests;
     this.profiles = profiles;
     this.users = users;
     this.notifications = notifications;
     this.privacy = privacy;
+    this.moderation = moderation;
   }
 
   async send(senderId, receiverId) {
@@ -35,6 +37,9 @@ class ConnectionRequestsService {
 
     await this.requireProfile(senderId);
     await this.requireProfile(receiverId);
+    if (this.moderation && await this.moderation.isBlockedBetween(senderId, receiverId)) {
+      throw new ConflictException('This user cannot be contacted');
+    }
     if (this.privacy && !(await this.privacy.forUser(receiverId)).allowConnectionRequests) {
       throw new ConflictException('This user is not accepting connection requests');
     }

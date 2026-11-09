@@ -21,8 +21,12 @@ class AuthGuard {
 
     try {
       request.user = this.authService.verifyToken(token);
-      request.authToken = token;
-      return true;
+      return this.authService.verifyAuthenticatedUser(request.user).then(() => {
+        request.authToken = token;
+        return true;
+      }).catch(() => {
+        throw new UnauthorizedException('Authentication token is expired or invalid');
+      });
     } catch {
       throw new UnauthorizedException('Authentication token is expired or invalid');
     }

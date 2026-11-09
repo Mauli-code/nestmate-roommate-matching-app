@@ -9,9 +9,10 @@ const repository = require('./accommodations.repository');
 const profileRepository = require('../matching/profile-repository');
 
 class AccommodationsService {
-  constructor(listings = repository, profiles = profileRepository) {
+  constructor(listings = repository, profiles = profileRepository, users) {
     this.listings = listings;
     this.profiles = profiles;
+    this.users = users;
   }
 
   async create(ownerId, body) {
@@ -29,7 +30,7 @@ class AccommodationsService {
 
   async findAvailable(query = {}) {
     const filters = this.validateFilters(query);
-    return { listings: await this.listings.findAvailable(filters) };
+    return { listings: await this.activeListings(filters) };
   }
 
   async findOne(id) {
@@ -43,7 +44,7 @@ class AccommodationsService {
       throw new BadRequestException('Your roommate preferences must be saved before searching');
     }
 
-    const listings = await this.listings.findAvailable({});
+    const listings = await this.activeListings({});
     const recommendations = listings
       .filter((listing) => this.validListing(listing))
       .map((listing) => {
@@ -81,9 +82,19 @@ class AccommodationsService {
     if (typeof id !== 'string' || !id.trim()) {
       throw new BadRequestException('listingId is required');
     }
+
     const listing = await this.listings.findById(id);
     if (!listing) throw new NotFoundException('Accommodation listing was not found');
     return listing;
+  }
+
+  async activeListings(filters) {
+    const listings = await this.listings.findAvailable(filters);
+    if (!this.users) return listings;
+    return (await Promise.all(listings.map(async (listing) => ({
+      listing,
+      active: this.users.isActive(await this.users.findById(listing.ownerId)),
+    })))).filter((item) => item.active).map((item) => item.listing);
   }
 
   requireOwner(listing, ownerId) {

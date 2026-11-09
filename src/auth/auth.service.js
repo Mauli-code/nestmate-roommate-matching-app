@@ -33,6 +33,8 @@ class AuthService {
       fullName: data.fullName,
       email: data.email,
       passwordHash: await bcrypt.hash(data.password, 12),
+      accountStatus: 'active',
+      authVersion: 0,
     };
     const savedUser = await this.repository.save(user);
 
@@ -51,6 +53,9 @@ class AuthService {
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
       throw new UnauthorizedException('Email or password is incorrect');
     }
+    if (!this.isActive(user)) {
+      throw new UnauthorizedException('Email or password is incorrect');
+    }
 
     return {
       user: this.publicUser(user),
@@ -66,6 +71,67 @@ class AuthService {
 
     return this.profileResponse(user, await profileRepository.findProfile(userId));
   }
+
+    async deactivate(userId, body) {
+      const user = await this.requireUser(userId);
+      if (body?.confirmation !== true) {
+        throw new BadRequestException('Account deactivation must be explicitly confirmed');
+      }
+      if (!this.isActive(user)) {
+        throw new BadRequestException('This account is already unavailable');
+      }
+      await this.repository.save({
+        ...user,
+        accountStatus: 'deactivated',
+        authVersion: (user.authVersion || 0) + 1,
+        deactivatedAt: new Date().toISOString(),
+      });
+      return { message: 'Your account has been deactivated' };
+    }
+
+    async reactivate(email, password) {
+      if (typeof email !== 'string' || typeof password !== 'string') {
+        throw new UnauthorizedException('Email or password is incorrect');
+      }
+      const user = await this.repository.findByEmail(email.trim().toLowerCase());
+      if (!user || !(await bcrypt.compare(password, user.passwordHash)) ||
+          user.accountStatus !== 'deactivated') {
+        throw new UnauthorizedException('Email or password is incorrect');
+      }
+      const updatedUser = await this.repository.save({
+        ...user,
+        accountStatus: 'active',
+        authVersion: (user.authVersion || 0) + 1,
+        deactivatedAt: null,
+      });
+      return {
+        user: this.publicUser(updatedUser),
+        accessToken: this.createToken(updatedUser),
+      };
+    }
+
+    async requestDeletion(userId, body) {
+      const user = await this.requireUser(userId);
+      if (body?.confirmation !== 'DELETE') {
+        throw new BadRequestException('Type DELETE to confirm permanent account deletion');
+      }
+      if (typeof body.password !== 'string' ||
+          !(await bcrypt.compare(body.password, user.passwordHash))) {
+        throw new UnauthorizedException('Password confirmation failed');
+      }
+      if (!this.isActive(user)) {
+        throw new BadRequestException('This account is already unavailable');
+      }
+      await this.repository.save({
+        ...user,
+        accountStatus: 'deletion_requested',
+        authVersion: (user.authVersion || 0) + 1,
+        deletionRequestedAt: new Date().toISOString(),
+      });
+      return {
+        message: 'Account deletion requested. Your account is now unavailable while the request is reviewed.',
+      };
+    }
 
   async updateProfile(userId, body) {
     const user = await this.repository.findById(userId);
@@ -133,6 +199,15 @@ class AuthService {
     }
   }
 
+  async verifyAuthenticatedUser(payload) {
+    const user = await this.repository.findById(payload?.sub);
+    if (!user || !this.isActive(user) ||
+        (payload.authVersion || 0) !== (user.authVersion || 0)) {
+      throw new UnauthorizedException('Authentication token is invalid');
+    }
+    return user;
+  }
+
   revokeToken(token) {
     const payload = this.verifyToken(token);
     revokedTokens.set(token, payload.exp * 1000);
@@ -158,7 +233,11 @@ class AuthService {
   }
 
   createToken(user) {
-    return jwt.sign({ sub: user.id, email: user.email }, JWT_SECRET, {
+    return jwt.sign({
+      sub: user.id,
+      email: user.email,
+      authVersion: user.authVersion || 0,
+    }, JWT_SECRET, {
       expiresIn: TOKEN_LIFETIME,
       jwtid: crypto.randomUUID(),
     });
@@ -186,6 +265,18 @@ class AuthService {
       user: this.publicUser(user),
       preferences: preferences || null,
     };
+  }
+
+  async requireUser(userId) {
+    const user = await this.repository.findById(userId);
+    if (!user) throw new UnauthorizedException('User account was not found');
+    return user;
+  }
+
+  isActive(user) {
+    return this.repository.isActive
+      ? this.repository.isActive(user)
+      : user?.accountStatus === undefined || user.accountStatus === 'active';
   }
 }
 

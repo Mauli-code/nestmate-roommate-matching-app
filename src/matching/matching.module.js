@@ -9,17 +9,21 @@ const { MatchingController } = require('./matching.controller');
 const { MatchingService } = require('./matching.service');
 const { PrivacyService } = require('../privacy/privacy.service');
 const { PrivacyModule } = require('../privacy/privacy.module');
+const { ModerationService } = require('../moderation/moderation.service');
+const { ModerationModule } = require('../moderation/moderation.module');
+const userRepository = require('../auth/user-repository');
 
 const MatchingModule = class {};
 
 Module({
-  imports: [AuthModule, PrivacyModule],
+  imports: [AuthModule, PrivacyModule, ModerationModule],
   controllers: [MatchingController],
   providers: [
     {
       provide: MatchingService,
-      useFactory: (profileRepository, privacy) => new MatchingService(profileRepository, privacy),
-      inject: [MATCHING_PROFILE_REPOSITORY, PrivacyService],
+      useFactory: (profileRepository, privacy, moderation) =>
+        new MatchingService(profileRepository, privacy, moderation, userRepository),
+      inject: [MATCHING_PROFILE_REPOSITORY, PrivacyService, ModerationService],
     },
     {
       provide: MATCHING_PROFILE_REPOSITORY,

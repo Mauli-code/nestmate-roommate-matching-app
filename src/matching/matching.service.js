@@ -6,9 +6,11 @@ const {
 const { rankMatches } = require('./rank-matches');
 
 class MatchingService {
-  constructor(profileRepository, privacy) {
+  constructor(profileRepository, privacy, moderation, users) {
     this.profileRepository = profileRepository;
     this.privacy = privacy;
+    this.moderation = moderation;
+    this.users = users;
   }
 
   async getCandidates(profileId) {
@@ -26,18 +28,24 @@ class MatchingService {
     }
 
     const candidates = await this.getCandidates(profileId);
-    const candidateProfiles = this.privacy
-      ? (await Promise.all(candidates.map(async (profile) => ({
-        profile,
-        visible: (await this.privacy.forUser(profile.id)).showProfile,
-      })))).filter((item) => item.visible).map((item) => item.profile)
-      : candidates;
-    if (!Array.isArray(candidateProfiles)) {
+    if (!Array.isArray(candidates)) {
       throw new BadRequestException(
         'The profile repository returned an invalid candidate list',
       );
     }
-
+    const activeCandidates = this.users
+      ? (await Promise.all(candidates.map(async (profile) => ({
+        profile,
+        active: this.users.isActive(await this.users.findById(profile.id)),
+      })))).filter((item) => item.active).map((item) => item.profile)
+      : candidates;
+    const candidateProfiles = this.privacy || this.moderation
+      ? (await Promise.all(activeCandidates.map(async (profile) => ({
+        profile,
+        visible: (!this.privacy || (await this.privacy.forUser(profile.id)).showProfile) &&
+          (!this.moderation || !(await this.moderation.isBlockedBetween(profileId, profile.id))),
+      })))).filter((item) => item.visible).map((item) => item.profile)
+      : activeCandidates;
     return {
       profileId,
       matches: rankMatches(userProfile, candidateProfiles),

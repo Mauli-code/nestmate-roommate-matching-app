@@ -30,6 +30,10 @@ class AuthController {
     return this.authService.login(body?.email, body?.password);
   }
 
+  async reactivate(body) {
+    return this.authService.reactivate(body?.email, body?.password);
+  }
+
   async logout(request) {
     return this.authService.revokeToken(request.authToken);
   }
@@ -45,6 +49,14 @@ class AuthController {
   async uploadPhoto(request, file) {
     return this.authService.uploadPhoto(request.user.sub, file);
   }
+
+  async deactivate(request, body) {
+    return this.authService.deactivate(request.user.sub, body);
+  }
+
+  async requestDeletion(request, body) {
+    return this.authService.requestDeletion(request.user.sub, body);
+  }
 }
 
 Controller('api/auth')(AuthController);
@@ -54,6 +66,9 @@ Body()(AuthController.prototype, 'register', 0);
 const loginDescriptor = Object.getOwnPropertyDescriptor(AuthController.prototype, 'login');
 Post('login')(AuthController.prototype, 'login', loginDescriptor);
 Body()(AuthController.prototype, 'login', 0);
+const reactivateDescriptor = Object.getOwnPropertyDescriptor(AuthController.prototype, 'reactivate');
+Post('reactivate')(AuthController.prototype, 'reactivate', reactivateDescriptor);
+Body()(AuthController.prototype, 'reactivate', 0);
 const logoutDescriptor = Object.getOwnPropertyDescriptor(AuthController.prototype, 'logout');
 Post('logout')(AuthController.prototype, 'logout', logoutDescriptor);
 Req()(AuthController.prototype, 'logout', 0);
@@ -97,5 +112,15 @@ UseInterceptors(
     },
   }),
 )(AuthController.prototype, 'uploadPhoto', uploadPhotoDescriptor);
+const deactivateDescriptor = Object.getOwnPropertyDescriptor(AuthController.prototype, 'deactivate');
+Post('deactivate')(AuthController.prototype, 'deactivate', deactivateDescriptor);
+Req()(AuthController.prototype, 'deactivate', 0);
+Body()(AuthController.prototype, 'deactivate', 1);
+UseGuards(AuthGuard)(AuthController.prototype, 'deactivate', deactivateDescriptor);
+const deletionDescriptor = Object.getOwnPropertyDescriptor(AuthController.prototype, 'requestDeletion');
+Post('deletion-request')(AuthController.prototype, 'requestDeletion', deletionDescriptor);
+Req()(AuthController.prototype, 'requestDeletion', 0);
+Body()(AuthController.prototype, 'requestDeletion', 1);
+UseGuards(AuthGuard)(AuthController.prototype, 'requestDeletion', deletionDescriptor);
 
 module.exports = { AuthController };

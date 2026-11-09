@@ -16,11 +16,13 @@ class FavoritesService {
     profiles = profileRepository,
     users = userRepository,
     privacy,
+    moderation,
   ) {
     this.favorites = favorites;
     this.profiles = profiles;
     this.users = users;
     this.privacy = privacy;
+    this.moderation = moderation;
   }
 
   async addFavorite(userId, roommateId) {
@@ -64,6 +66,9 @@ class FavoritesService {
     for (const favorite of savedFavorites) {
       const profile = await this.profiles.findProfile(favorite.roommateId);
       if (!profile) {
+        continue;
+      }
+      if (this.moderation && await this.moderation.isBlockedBetween(userId, favorite.roommateId)) {
         continue;
       }
 

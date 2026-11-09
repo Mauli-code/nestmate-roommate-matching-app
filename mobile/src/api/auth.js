@@ -36,6 +36,25 @@ export async function login(email, password) {
   return result;
 }
 
+export async function reactivate(email, password) {
+  const result = await request('/api/auth/reactivate', 'POST', { email, password });
+  await saveSession(result);
+  return result;
+}
+
+export function deactivateAccount(token) {
+  return request('/api/auth/deactivate', 'POST', { confirmation: true }, token);
+}
+
+export function requestAccountDeletion(token, password) {
+  return request(
+    '/api/auth/deletion-request',
+    'POST',
+    { confirmation: 'DELETE', password },
+    token,
+  );
+}
+
 export async function logout(token) {
   if (token) {
     await request('/api/auth/logout', 'POST', undefined, token).catch(() => {});
