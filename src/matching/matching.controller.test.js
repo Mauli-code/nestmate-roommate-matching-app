@@ -23,9 +23,12 @@ test('returns ranked matches for a profile id', async () => {
     }),
   };
 
-  const result = await new MatchingController(service).getMatches('profile-1', {
-    user: { sub: 'profile-1' },
-  });
+  const result = await new MatchingController(service).getMatches(
+    'profile-1',
+    undefined,
+    undefined,
+    { user: { sub: 'profile-1' } },
+  );
 
   assert.deepEqual(result, {
     profileId: 'profile-1',

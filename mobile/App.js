@@ -89,6 +89,14 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [authReady, setAuthReady] = useState(false);
   const [matches, setMatches] = useState([]);
+  const [matchPagination, setMatchPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0,
+    hasNextPage: false,
+    hasPreviousPage: false,
+  });
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -142,16 +150,31 @@ export default function App() {
       .finally(() => setAuthReady(true));
   }, []);
 
-  const loadMatches = useCallback(async () => {
+  const loadMatches = useCallback(async (page = 1, append = false) => {
     setLoading(true);
     setErrorMessage('');
 
     try {
-      const result = await fetchMatches(profileId, session?.token);
-      setMatches(result.matches);
+      const result = await fetchMatches(profileId, session?.token, page, 10);
+      setMatches((current) => {
+        if (!append) return result.matches;
+        const existingIds = new Set(current.map((match) => match.candidateId));
+        return [
+          ...current,
+          ...result.matches.filter((match) => !existingIds.has(match.candidateId)),
+        ];
+      });
+      setMatchPagination({
+        page: result.page,
+        limit: result.limit,
+        total: result.total,
+        totalPages: result.totalPages,
+        hasNextPage: result.hasNextPage,
+        hasPreviousPage: result.hasPreviousPage,
+      });
       setHasLoaded(true);
     } catch (error) {
-      setMatches([]);
+      if (!append) setMatches([]);
       setErrorMessage(error.message);
     } finally {
       setLoading(false);
@@ -622,8 +645,10 @@ export default function App() {
             hasLoaded={hasLoaded}
             loading={loading}
             matches={matches}
+            matchPagination={matchPagination}
             onBack={() => setScreen('home')}
-            onFindMatches={loadMatches}
+            onFindMatches={() => loadMatches()}
+            onLoadMore={() => loadMatches(matchPagination.page + 1, true)}
             onSelectMatch={(match) => {
               setSelectedMatch(match);
               setDetailsBackScreen('matches');
@@ -1247,8 +1272,10 @@ function RecommendationsScreen({
   hasLoaded,
   loading,
   matches,
+  matchPagination,
   onBack,
   onFindMatches,
+  onLoadMore,
   onSelectMatch,
   onToggleFavorite,
   profileId,
@@ -1345,6 +1372,16 @@ function RecommendationsScreen({
             rank={index + 1}
           />
         ))}
+
+      {!loading && errorMessage === '' && hasLoaded && matchPagination.hasNextPage && (
+        <Pressable onPress={onLoadMore} style={styles.secondaryButton}>
+          <Text style={styles.secondaryButtonText}>Load more recommendations</Text>
+        </Pressable>
+      )}
+
+      {!loading && errorMessage === '' && hasLoaded && !matchPagination.hasNextPage && matches.length > 0 && (
+        <Text style={styles.stateText}>You have reached the end of your recommendations.</Text>
+      )}
 
       {!loading && !hasLoaded && errorMessage === '' && (
         <View style={styles.state}>

@@ -5,6 +5,9 @@ const {
 } = require('@nestjs/common');
 const { rankMatches } = require('./rank-matches');
 
+const DEFAULT_PAGE_SIZE = 10;
+const MAX_PAGE_SIZE = 50;
+
 class MatchingService {
   constructor(profileRepository, privacy, moderation, users) {
     this.profileRepository = profileRepository;
@@ -19,8 +22,9 @@ class MatchingService {
     return this.profileRepository.findCandidates(profileId);
   }
 
-  async getMatches(profileId) {
+  async getMatches(profileId, page, limit) {
     this.validateProfileId(profileId);
+    const pagination = this.validatePagination(page, limit);
 
     const userProfile = await this.profileRepository.findProfile(profileId);
     if (!userProfile || typeof userProfile !== 'object') {
@@ -47,9 +51,38 @@ class MatchingService {
           (!this.moderation || !(await this.moderation.isBlockedBetween(profileId, profile.id))),
       })))).filter((item) => item.visible).map((item) => item.profile)
       : activeCandidates;
+    const rankedMatches = rankMatches(userProfile, candidateProfiles);
+    const start = (pagination.page - 1) * pagination.limit;
+    const matches = rankedMatches.slice(start, start + pagination.limit);
+    const total = rankedMatches.length;
+    const totalPages = total === 0 ? 0 : Math.ceil(total / pagination.limit);
+
     return {
       profileId,
-      matches: rankMatches(userProfile, candidateProfiles),
+      matches,
+      page: pagination.page,
+      limit: pagination.limit,
+      total,
+      totalPages,
+      hasNextPage: pagination.page < totalPages,
+      hasPreviousPage: pagination.page > 1 && totalPages > 0,
+    };
+  }
+
+  validatePagination(page, limit) {
+    const parsedPage = page === undefined ? 1 : Number(page);
+    const parsedLimit = limit === undefined ? DEFAULT_PAGE_SIZE : Number(limit);
+
+    if (!Number.isInteger(parsedPage) || parsedPage < 1) {
+      throw new BadRequestException('page must be a positive whole number');
+    }
+    if (!Number.isInteger(parsedLimit) || parsedLimit < 1) {
+      throw new BadRequestException('limit must be a positive whole number');
+    }
+
+    return {
+      page: parsedPage,
+      limit: Math.min(parsedLimit, MAX_PAGE_SIZE),
     };
   }
 

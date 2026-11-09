@@ -50,9 +50,11 @@ Authorization: Bearer <access-token>
 
 The matching routes require that the authenticated user owns the requested profile:
 
-`GET /api/matches?profileId=<id>` loads the user's profile with
+`GET /api/matches?profileId=<id>&page=1&limit=10` loads the user's profile with
 `MatchingProfileRepository.findProfile`, loads candidates with
 `MatchingProfileRepository.findCandidates`, and ranks them with `rankMatches`.
+Results are ranked before pagination. `page` defaults to `1`, `limit` defaults to
+`10`, and limits above `50` are capped at `50`.
 
 `PUT /api/matches/<profileId>/preferences` saves or updates the authenticated user's preferences.
 Passwords are stored as bcrypt hashes and access tokens expire after one hour. Logout revokes the
@@ -63,6 +65,12 @@ The response has this shape:
 ```json
 {
   "profileId": "user-1",
+  "page": 1,
+  "limit": 10,
+  "total": 1,
+  "totalPages": 1,
+  "hasNextPage": false,
+  "hasPreviousPage": false,
   "matches": [
     {
       "candidateId": "candidate-1",

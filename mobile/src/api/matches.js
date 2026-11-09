@@ -1,7 +1,7 @@
 const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_BASE_URL || 'http://10.0.2.2:3001';
 
-export async function fetchMatches(profileId, token) {
+export async function fetchMatches(profileId, token, page = 1, limit = 10) {
   const trimmedProfileId = profileId.trim();
   if (!trimmedProfileId) {
     throw new Error('Enter a profile ID before searching.');
@@ -10,7 +10,7 @@ export async function fetchMatches(profileId, token) {
   let response;
   try {
     response = await fetch(
-      `${API_BASE_URL}/api/matches?profileId=${encodeURIComponent(trimmedProfileId)}`,
+      `${API_BASE_URL}/api/matches?profileId=${encodeURIComponent(trimmedProfileId)}&page=${page}&limit=${limit}`,
       { headers: { Authorization: `Bearer ${token}` } },
     );
   } catch {
@@ -33,6 +33,12 @@ export async function fetchMatches(profileId, token) {
   if (
     !body ||
     !Array.isArray(body.matches) ||
+    !Number.isInteger(body.page) ||
+    !Number.isInteger(body.limit) ||
+    !Number.isInteger(body.total) ||
+    !Number.isInteger(body.totalPages) ||
+    typeof body.hasNextPage !== 'boolean' ||
+    typeof body.hasPreviousPage !== 'boolean' ||
     body.matches.some(
       (match) =>
         !match ||
@@ -51,6 +57,6 @@ export async function fetchMatches(profileId, token) {
 
   return {
     ...body,
-    matches: [...body.matches].sort((first, second) => second.score - first.score),
+    matches: [...body.matches],
   };
 }

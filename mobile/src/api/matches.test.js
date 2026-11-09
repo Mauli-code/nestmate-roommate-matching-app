@@ -4,6 +4,12 @@ const test = require('node:test');
 test('builds the matching API response contract', () => {
   const response = {
     profileId: 'user-1',
+    page: 1,
+    limit: 10,
+    total: 1,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPreviousPage: false,
     matches: [
       {
         candidateId: 'candidate-1',
