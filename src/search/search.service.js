@@ -44,6 +44,7 @@ class SearchService {
         profile: this.publicProfile(user, profile, await this.privacy?.forUser(profile.id)),
         score: compatibility.score,
         breakdown: compatibility.breakdown,
+        explanations: compatibility.explanations,
       });
     }
 

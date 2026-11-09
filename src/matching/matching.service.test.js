@@ -153,6 +153,8 @@ test('returns ranked matches with score breakdowns', async () => {
     'lifestyle',
     'habitsAndPreferences',
   ]);
+  assert.equal(result.matches[0].explanations.overall.status, 'strong match');
+  assert.match(result.matches[0].explanations.location.text, /match/);
 });
 
 test('returns an empty match list when there are no candidates', async () => {

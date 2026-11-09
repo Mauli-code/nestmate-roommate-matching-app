@@ -66,12 +66,34 @@ The response has this shape:
   "matches": [
     {
       "candidateId": "candidate-1",
-      "score": 88,
+      "score": 83,
       "breakdown": {
         "budget": 0.8,
         "location": 1,
         "lifestyle": 0.5,
         "habitsAndPreferences": 1
+      },
+      "explanations": {
+        "budget": {
+          "status": "strong match",
+          "text": "Budgets are closely aligned."
+        },
+        "location": {
+          "status": "match",
+          "text": "Preferred locations match."
+        },
+        "lifestyle": {
+          "status": "partial match",
+          "text": "1 of 2 available lifestyle preferences match. Some preferences differ."
+        },
+        "habitsAndPreferences": {
+          "status": "strong match",
+          "text": "2 of 2 available habits preferences match."
+        },
+        "overall": {
+          "status": "strong match",
+          "text": "83% overall compatibility across the available factors."
+        }
       }
     }
   ]

@@ -19,6 +19,7 @@ function rankMatches(userProfile, candidateProfiles) {
         candidateId: candidateProfile?.id ?? null,
         score: compatibility.score,
         breakdown: compatibility.breakdown,
+        explanations: compatibility.explanations,
         originalIndex,
       };
     })
