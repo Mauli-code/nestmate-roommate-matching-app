@@ -267,6 +267,73 @@ test('excludes hidden profiles from recommendations', async () => {
   assert.deepEqual(result.matches.map((match) => match.candidateId), ['visible']);
 });
 
+test('returns only active, visible, and unblocked candidates before pagination', async () => {
+  const profiles = [
+    profile('visible-active', { budget: 1000 }),
+    profile('deactivated', { budget: 1000 }),
+    profile('private', { budget: 1000 }),
+    profile('blocked-by-user', { budget: 900 }),
+    profile('user-blocked-by-candidate', { budget: 800 }),
+    profile('visible-lower', { budget: 500 }),
+  ];
+  const users = {
+    findById: async (id) => ({
+      id,
+      accountStatus: id === 'deactivated' ? 'deactivated' : 'active',
+    }),
+    isActive: (user) => user.accountStatus === 'active',
+  };
+  const privacy = {
+    forUser: async (id) => ({ showProfile: id !== 'private' }),
+  };
+  const moderation = {
+    isBlockedBetween: async (firstId, secondId) =>
+      (firstId === 'user' && secondId === 'blocked-by-user') ||
+      (firstId === 'user' && secondId === 'user-blocked-by-candidate'),
+  };
+  const repository = {
+    findProfile: async () => profile('user'),
+    findCandidates: async () => profiles,
+  };
+
+  const result = await new MatchingService(repository, privacy, moderation, users)
+    .getMatches('user', 1, 2);
+
+  assert.deepEqual(
+    result.matches.map((match) => match.candidateId),
+    ['visible-active', 'visible-lower'],
+  );
+  assert.equal(result.total, 2);
+  assert.equal(result.totalPages, 1);
+});
+
+test('excludes an unknown candidate account and both block directions', async () => {
+  const users = {
+    findById: async (id) => id === 'unknown' ? null : { id, accountStatus: 'active' },
+    isActive: () => true,
+  };
+  const moderation = {
+    isBlockedBetween: async (firstId, secondId) =>
+      (firstId === 'user' && secondId === 'blocked-outgoing') ||
+      (firstId === 'user' && secondId === 'blocked-incoming'),
+  };
+  const repository = {
+    findProfile: async () => profile('user'),
+    findCandidates: async () => [
+      profile('allowed'),
+      profile('unknown'),
+      profile('blocked-outgoing'),
+      profile('blocked-incoming'),
+      profile('user'),
+    ],
+  };
+
+  const result = await new MatchingService(repository, null, moderation, users)
+    .getMatches('user');
+
+  assert.deepEqual(result.matches.map((match) => match.candidateId), ['allowed']);
+});
+
 test('removes self, duplicate, and malformed candidates before ranking', async () => {
   const repository = {
     findProfile: async () => profile('user'),
