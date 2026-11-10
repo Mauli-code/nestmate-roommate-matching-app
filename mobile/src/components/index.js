@@ -9,3 +9,5 @@ export { default as RoommateFilterModal } from './RoommateFilterModal';
 export { default as MatchRequestModal } from './MatchRequestModal';
 export { default as PropertyCard } from './PropertyCard';
 export { default as PropertyFilterModal } from './PropertyFilterModal';
+export { default as PriceLabel } from './PriceLabel';
+export { default as PropertyBadge } from './PropertyBadge';

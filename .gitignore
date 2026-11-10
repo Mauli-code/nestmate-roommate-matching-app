@@ -1,3 +1,5 @@
 node_modules/
 dist/
-uploads/
+
+# Expo (the mobile app lives in mobile/)
+.expo/
