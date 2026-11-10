@@ -106,6 +106,40 @@ mobile/
    node --test mobile/test/roommateJourney.test.js
    ```
 
+### Expo Go troubleshooting (QR scans but the app only reloads / shows nothing)
+
+The most common cause is starting Expo from the repository root instead of the
+`mobile/` folder. From the root, Metro serves `expo/AppEntry` and fails with
+`Unable to resolve module ../../App`, so Expo Go loops on the splash screen.
+
+- **Always start from `mobile/`.** From the repository root you can also run
+  `npm run mobile` (or `npm run mobile:clear` to reset Metro's cache).
+- Update **Expo Go** to the latest version (SDK 58) from the App Store / Play Store.
+- Keep the phone and computer on the **same Wi-Fi**. Turn off VPNs and
+  iCloud Private Relay while testing.
+- **Android:** scan the QR from *inside* Expo Go (tap **Scan QR code**), not from
+  the camera / Google Lens — the camera may open a browser that cannot handle
+  `exp://` URLs. Check connectivity in Chrome with
+  `http://<computer-ip>:8081/status` (it must show `packager-status:running`).
+  Guest / college Wi-Fi often blocks phone-to-laptop traffic; use a phone
+  hotspot or `npx expo start --tunnel` (tunnel requires `npx expo login`).
+- **iPhone (physical device):** Expo Go and Expo CLI must be signed in to the
+  same Expo account (SDK 58 requirement). Run `npx expo login`, then sign in to
+  Expo Go with the same account.
+- If the LAN connection is blocked, use a tunnel:
+  ```bash
+  cd mobile
+  npx expo start --tunnel
+  ```
+- Clear the Metro cache and restart:
+  ```bash
+  cd mobile
+  npx expo start --clear
+  ```
+- In Expo Go, shake the device and tap **Reload**, or force-close and reopen Expo Go.
+- Sanity check from the phone browser: open `http://<computer-ip>:8081/status`.
+  It should show `packager-status:running`.
+
 ---
 
 ## 4. Backend Development (`/src`)

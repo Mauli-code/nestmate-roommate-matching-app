@@ -5,16 +5,15 @@
   "scripts": {
     "build": "node --check src/main.js",
     "start": "node src/main.js",
-    "test": "node --test \"src/**/*.test.js\""
+    "test": "node --test \"src/**/*.test.js\"",
+    "mobile": "cd mobile && npx expo start",
+    "mobile:clear": "cd mobile && npx expo start --clear"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
-    "@nestjs/platform-express": "^11.2.8",
-    "bcryptjs": "^3.0.3",
-    "express": "^5.3.0",
-    "jsonwebtoken": "^9.0.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"
-  }
+  },
+  "devDependencies": {}
 }

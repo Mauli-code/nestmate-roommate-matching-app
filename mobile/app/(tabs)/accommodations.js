@@ -96,7 +96,7 @@ export default function AccommodationsScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Find Accommodation</Text>
-          <Text style={styles.headerSub}>PGs, Flats &amp; Shared Rooms</Text>
+          <Text style={styles.headerSub}>PGs, Flats & Shared Rooms</Text>
         </View>
         <Badge label={`${results.length} Listed`} variant="primary" size="md" />
       </View>

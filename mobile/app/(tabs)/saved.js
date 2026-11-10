@@ -40,7 +40,7 @@ export default function SavedScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Saved</Text>
-        <Text style={styles.headerSub}>Your bookmarks &amp; match requests</Text>
+        <Text style={styles.headerSub}>Your bookmarks & match requests</Text>
       </View>
 
       {/* Segmented Control */}

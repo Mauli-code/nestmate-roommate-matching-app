@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { COLORS, RADII, SHADOWS, SPACING, TYPOGRAPHY } from '../../src/constants';
+import { PropertyBadge, PriceLabel } from '../../src/components';
 import { useSavedProperties } from '../../src/hooks/useSavedProperties';
 import { MOCK_PROPERTIES } from '../../src/data/mockData';
 
@@ -70,9 +71,7 @@ export default function PropertyDetailsScreen() {
         <View style={styles.content}>
           {/* Type + Availability */}
           <View style={styles.badgeRow}>
-            <View style={styles.typeBadge}>
-              <Text style={styles.typeBadgeText}>{property.type}</Text>
-            </View>
+            <PropertyBadge label={property.type} style={styles.typeBadge} />
             <View style={[styles.availBadge, { backgroundColor: availColor + '20', borderColor: availColor }]}>
               <View style={[styles.dot, { backgroundColor: availColor }]} />
               <Text style={[styles.availText, { color: availColor }]}>{property.availability}</Text>
@@ -80,7 +79,7 @@ export default function PropertyDetailsScreen() {
           </View>
 
           <Text style={styles.title}>{property.title}</Text>
-          <Text style={styles.rent}>₹{property.rent.toLocaleString('en-IN')}<Text style={styles.rentSub}> / month</Text></Text>
+          <PriceLabel price={property.rent} period=" / month" style={styles.rent} periodStyle={styles.rentSub} />
 
           {/* Address */}
           <View style={styles.addressRow}>
