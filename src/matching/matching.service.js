@@ -38,19 +38,12 @@ class MatchingService {
       );
     }
     const safeCandidates = this.normalizeCandidates(profileId, candidates);
-    const activeCandidates = this.users
-      ? (await Promise.all(safeCandidates.map(async (profile) => ({
+    const candidateProfiles = (
+      await Promise.all(safeCandidates.map(async (profile) => ({
         profile,
-        active: this.users.isActive(await this.users.findById(profile.id)),
-      })))).filter((item) => item.active).map((item) => item.profile)
-      : safeCandidates;
-    const candidateProfiles = this.privacy || this.moderation
-      ? (await Promise.all(activeCandidates.map(async (profile) => ({
-        profile,
-        visible: (!this.privacy || (await this.privacy.forUser(profile.id)).showProfile) &&
-          (!this.moderation || !(await this.moderation.isBlockedBetween(profileId, profile.id))),
-      })))).filter((item) => item.visible).map((item) => item.profile)
-      : activeCandidates;
+        eligible: await this.isEligibleCandidate(profileId, profile),
+      })))
+    ).filter((item) => item.eligible).map((item) => item.profile);
     const rankedMatches = rankMatches(userProfile, candidateProfiles);
     const start = (pagination.page - 1) * pagination.limit;
     const matches = rankedMatches.slice(start, start + pagination.limit);
@@ -67,6 +60,35 @@ class MatchingService {
       hasNextPage: pagination.page < totalPages,
       hasPreviousPage: pagination.page > 1 && totalPages > 0,
     };
+  }
+
+  async isEligibleCandidate(profileId, candidateProfile) {
+    if (!candidateProfile || candidateProfile.id === profileId) {
+      return false;
+    }
+
+    if (this.users) {
+      const candidateUser = await this.users.findById(candidateProfile.id);
+      if (!candidateUser || !this.users.isActive(candidateUser)) {
+        return false;
+      }
+    }
+
+    if (this.privacy) {
+      const privacySettings = await this.privacy.forUser(candidateProfile.id);
+      if (privacySettings?.showProfile !== true) {
+        return false;
+      }
+    }
+
+    if (
+      this.moderation &&
+      await this.moderation.isBlockedBetween(profileId, candidateProfile.id)
+    ) {
+      return false;
+    }
+
+    return true;
   }
 
   validatePagination(page, limit) {
