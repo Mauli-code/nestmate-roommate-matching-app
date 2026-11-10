@@ -2,6 +2,8 @@ import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RADII, SHADOWS, SPACING, TYPOGRAPHY } from '../constants';
+import PriceLabel from './PriceLabel';
+import PropertyBadge from './PropertyBadge';
 
 export default function PropertyCard({ property, onPress, onSave, isSaved = false, style }) {
   if (!property) return null;
@@ -15,9 +17,7 @@ export default function PropertyCard({ property, onPress, onSave, isSaved = fals
       <View style={styles.imageContainer}>
         <Image source={{ uri: image }} style={styles.image} resizeMode="cover" />
         {/* Type badge */}
-        <View style={styles.typeBadge}>
-          <Text style={styles.typeBadgeText}>{type}</Text>
-        </View>
+        <PropertyBadge label={type} style={styles.typeBadge} />
         {/* Save button */}
         <TouchableOpacity style={styles.saveButton} onPress={onSave} activeOpacity={0.8}>
           <Ionicons name={isSaved ? 'bookmark' : 'bookmark-outline'} size={18} color={isSaved ? COLORS.primary : COLORS.surface} />
@@ -35,7 +35,7 @@ export default function PropertyCard({ property, onPress, onSave, isSaved = fals
         <Text style={styles.title} numberOfLines={2}>{title}</Text>
 
         {/* Rent */}
-        <Text style={styles.rent}>₹{rent.toLocaleString('en-IN')}<Text style={styles.rentSub}>/mo</Text></Text>
+        <PriceLabel price={rent} period="/mo" style={styles.rent} periodStyle={styles.rentSub} />
 
         {/* Location */}
         <View style={styles.row}>
