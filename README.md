@@ -56,12 +56,23 @@ The matching routes require that the authenticated user owns the requested profi
 Results are ranked before pagination. `page` defaults to `1`, `limit` defaults to
 `10`, and limits above `50` are capped at `50`.
 
+The complete matching workflow is covered by
+`src/matching/matching.workflow.test.js`: preferences are saved first, then
+eligible candidates are filtered, scored, ranked, explained, and paginated.
+
 `PUT /api/matches/<profileId>/preferences` saves or updates the authenticated user's preferences.
 Passwords are stored as bcrypt hashes and access tokens expire after one hour. Logout revokes the
 current token in the running process.
 
 The response has this shape:
 
+```
+
+The mobile package uses the same Node test runner:
+
+```bash
+cd mobile
+npm test
 ```json
 {
   "profileId": "user-1",
