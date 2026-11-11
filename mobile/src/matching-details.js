@@ -7,6 +7,16 @@ function getCompatibilityDetails(match = {}) {
   const explanations = match.explanations && typeof match.explanations === 'object'
     ? match.explanations
     : {};
+  const strengths = Array.isArray(match.strengths)
+    ? match.strengths
+    : Array.isArray(match.insights?.strengths)
+      ? match.insights.strengths
+      : [];
+  const differences = Array.isArray(match.differences)
+    ? match.differences
+    : Array.isArray(match.insights?.differences)
+      ? match.insights.differences
+      : [];
 
   return {
     overall: {
@@ -20,6 +30,14 @@ function getCompatibilityDetails(match = {}) {
       status: explanations[category]?.status || 'unavailable',
       text: explanations[category]?.text || 'Not enough information to compare this factor.',
     })),
+    strengths,
+    differences,
+    insights: {
+      strengths,
+      differences,
+      hasInsights: strengths.length > 0 || differences.length > 0,
+      emptyMessage: 'No match insights available for this profile.',
+    },
   };
 }
 

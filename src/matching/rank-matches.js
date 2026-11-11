@@ -20,6 +20,9 @@ function rankMatches(userProfile, candidateProfiles) {
         score: compatibility.score,
         breakdown: compatibility.breakdown,
         explanations: compatibility.explanations,
+        strengths: compatibility.strengths,
+        differences: compatibility.differences,
+        insights: compatibility.insights,
         originalIndex,
       };
     })

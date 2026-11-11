@@ -38,6 +38,9 @@ test('ranks candidates from highest to lowest compatibility', () => {
     'score',
     'breakdown',
     'explanations',
+    'strengths',
+    'differences',
+    'insights',
   ]);
 });
 

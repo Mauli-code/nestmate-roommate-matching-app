@@ -140,3 +140,53 @@ test('explains matching strengths and differences', () => {
   assert.match(result.explanations.lifestyle.text, /1 of 2/);
   assert.match(result.explanations.habitsAndPreferences.text, /1 of 2/);
 });
+
+test('returns multiple strengths from matching profile preferences', () => {
+  const result = calculateCompatibility(profile(), profile({ id: 'second' }));
+
+  assert.deepEqual(result.strengths, [
+    'Similar budget preferences.',
+    'Compatible location preferences.',
+    'Similar lifestyle choices.',
+    'Compatible daily habits.',
+  ]);
+  assert.deepEqual(result.differences, []);
+  assert.deepEqual(result.insights, {
+    strengths: result.strengths,
+    differences: result.differences,
+  });
+});
+
+test('returns only data-backed differences', () => {
+  const result = calculateCompatibility(
+    profile(),
+    profile({
+      budget: 2000,
+      preferredArea: 'North',
+      lifestyle: {
+        sleepSchedule: 'late',
+        cleanliness: 'medium',
+        smoking: false,
+        pets: false,
+      },
+    }),
+  );
+
+  assert.deepEqual(result.strengths, ['Compatible daily habits.']);
+  assert.deepEqual(result.differences, [
+    'Different budget expectations.',
+    'Location preference differences.',
+    'Different habits or schedules.',
+  ]);
+});
+
+test('returns empty insights when both profiles lack comparable preferences', () => {
+  const result = calculateCompatibility(
+    { budget: undefined, preferredArea: '', lifestyle: {} },
+    { budget: null, preferredArea: null, lifestyle: undefined },
+  );
+
+  assert.deepEqual(result.strengths, []);
+  assert.deepEqual(result.differences, []);
+  assert.deepEqual(result.insights, { strengths: [], differences: [] });
+});
