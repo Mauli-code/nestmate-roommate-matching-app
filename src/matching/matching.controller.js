@@ -19,25 +19,38 @@ class MatchingController {
   }
 
   async getMatches(profileId, page, limit, request) {
-    if (page && typeof page === 'object' && request === undefined) {
+    if (profileId && typeof profileId === 'object' && page === undefined && request === undefined) {
+      request = profileId;
+      profileId = undefined;
+    } else if (page && typeof page === 'object' && request === undefined) {
       request = page;
       page = undefined;
       limit = undefined;
     }
     this.assertOwnProfile(profileId, request);
-    return this.matchingService.getMatches(profileId, page, limit);
+    const authenticatedUserId = request.user.sub;
+    return this.matchingService.getMatches(authenticatedUserId, page, limit);
   }
 
   async savePreferences(profileId, preferences, request) {
     this.assertOwnProfile(profileId, request);
+    const authenticatedUserId = request.user.sub;
     return {
-      profile: await this.matchingService.savePreferences(profileId, preferences),
+      profile: await this.matchingService.savePreferences(authenticatedUserId, preferences),
       message: 'Preferences saved successfully',
     };
   }
 
   assertOwnProfile(profileId, request) {
-    if (!request?.user || request.user.sub !== profileId) {
+    if (!request?.user || request.user.sub === undefined || request.user.sub === null) {
+      throw new ForbiddenException('You can only access your own profile');
+    }
+    if (
+      profileId !== undefined &&
+      profileId !== null &&
+      profileId !== '' &&
+      profileId !== request.user.sub
+    ) {
       throw new ForbiddenException('You can only access your own profile');
     }
   }

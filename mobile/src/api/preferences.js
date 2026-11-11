@@ -1,5 +1,9 @@
 export async function savePreferences(profileId, preferences, token) {
-  const trimmedProfileId = profileId.trim();
+  if (!token || typeof token !== 'string' || !token.trim()) {
+    throw new Error('Authentication is required. Please log in to save preferences.');
+  }
+
+  const trimmedProfileId = typeof profileId === 'string' ? profileId.trim() : '';
   if (!trimmedProfileId) {
     throw new Error('Enter a profile ID before saving preferences.');
   }
@@ -12,7 +16,7 @@ export async function savePreferences(profileId, preferences, token) {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${token.trim()}`,
         },
         body: JSON.stringify(preferences),
       },
@@ -23,6 +27,12 @@ export async function savePreferences(profileId, preferences, token) {
 
   const body = await response.json().catch(() => null);
   if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error(body?.message || 'Your session has expired. Please log in again.');
+    }
+    if (response.status === 403) {
+      throw new Error(body?.message || 'You can only update preferences for your own profile.');
+    }
     throw new Error(body?.message || `The request failed (${response.status}).`);
   }
 
