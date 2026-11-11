@@ -24,6 +24,11 @@ function calculateCompatibility(firstProfile, secondProfile) {
 
   const rawScore =
     (budget + location + lifestyle + habitsAndPreferences) * CATEGORY_WEIGHT;
+  const insights = generateMatchInsights(
+    firstProfile,
+    secondProfile,
+    breakdown,
+  );
 
   return {
     score: Math.min(100, Math.max(0, Math.round(rawScore))),
@@ -34,6 +39,9 @@ function calculateCompatibility(firstProfile, secondProfile) {
       breakdown,
       rawScore,
     ),
+    strengths: insights.strengths,
+    differences: insights.differences,
+    insights,
   };
 }
 
@@ -224,8 +232,73 @@ function matchingValue(firstValue, secondValue) {
   return firstValue === secondValue ? 1 : 0;
 }
 
+function generateMatchInsights(firstProfile, secondProfile, breakdown) {
+  const strengths = [];
+  const differences = [];
+  const firstBudget = validBudget(firstProfile?.budget);
+  const secondBudget = validBudget(secondProfile?.budget);
+
+  if (firstBudget !== null && secondBudget !== null) {
+    if (breakdown.budget >= 0.75) {
+      strengths.push('Similar budget preferences.');
+    } else {
+      differences.push('Different budget expectations.');
+    }
+  }
+
+  const firstArea = normalizedArea(firstProfile?.preferredArea);
+  const secondArea = normalizedArea(secondProfile?.preferredArea);
+  if (firstArea !== null && secondArea !== null) {
+    if (breakdown.location === 1) {
+      strengths.push('Compatible location preferences.');
+    } else {
+      differences.push('Location preference differences.');
+    }
+  }
+
+  const firstLifestyle = firstProfile?.lifestyle;
+  const secondLifestyle = secondProfile?.lifestyle;
+  const availableLifestyleFields = ['sleepSchedule', 'cleanliness'].filter(
+    (field) => hasValue(firstLifestyle?.[field]) && hasValue(secondLifestyle?.[field]),
+  );
+  const cleanlinessDiffers = hasValue(firstLifestyle?.cleanliness)
+    && hasValue(secondLifestyle?.cleanliness)
+    && firstLifestyle.cleanliness !== secondLifestyle.cleanliness;
+  const scheduleDiffers = hasValue(firstLifestyle?.sleepSchedule)
+    && hasValue(secondLifestyle?.sleepSchedule)
+    && firstLifestyle.sleepSchedule !== secondLifestyle.sleepSchedule;
+  const lifestyleMatches = availableLifestyleFields.every(
+    (field) => firstLifestyle[field] === secondLifestyle[field],
+  );
+  if (availableLifestyleFields.length > 0) {
+    if (cleanlinessDiffers) {
+      differences.push('Different lifestyle preferences.');
+    } else if (lifestyleMatches) {
+      strengths.push('Similar lifestyle choices.');
+    }
+  }
+
+  const availableHabitFields = ['smoking', 'pets'].filter(
+    (field) => hasValue(firstLifestyle?.[field]) && hasValue(secondLifestyle?.[field]),
+  );
+  const habitDifferences = availableHabitFields.some(
+    (field) => firstLifestyle[field] !== secondLifestyle[field],
+  );
+  if (availableHabitFields.length > 0 && habitDifferences) {
+    differences.push('Different habits or schedules.');
+  } else if (availableHabitFields.length > 0) {
+    strengths.push('Compatible daily habits.');
+  }
+  if (scheduleDiffers && !differences.includes('Different habits or schedules.')) {
+    differences.push('Different habits or schedules.');
+  }
+
+  return { strengths, differences };
+}
+
 module.exports = {
   calculateCompatibility,
+  generateMatchInsights,
   budgetCompatibility,
   locationCompatibility,
   lifestyleCompatibility,

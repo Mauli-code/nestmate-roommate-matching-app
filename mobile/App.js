@@ -2147,6 +2147,29 @@ function MatchCard({ isFavorite, match, onPress, onToggleFavorite, rank }) {
           <Text style={styles.breakdownValue}>{factor.score}%</Text>
         </View>
       ))}
+
+      {/* Match quality insights — strengths and differences */}
+      {compatibility.insights.hasInsights && (
+        <View style={styles.insightSection}>
+          {compatibility.strengths.length > 0 && (
+            <View style={styles.insightGroup}>
+              <Text style={styles.insightSubtitle}>Compatibility strengths</Text>
+              {compatibility.strengths.map((s, i) => (
+                <Text key={`str-${i}`} style={styles.strengthText}>✓ {s}</Text>
+              ))}
+            </View>
+          )}
+          {compatibility.differences.length > 0 && (
+            <View style={styles.insightGroup}>
+              <Text style={styles.insightSubtitle}>Potential differences</Text>
+              {compatibility.differences.map((d, i) => (
+                <Text key={`diff-${i}`} style={styles.differenceText}>• {d}</Text>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
+
       <View style={styles.matchActions}>
         <Text style={styles.viewDetailsText}>View profile details</Text>
         <Pressable
@@ -2764,6 +2787,36 @@ function ProfileDetailsScreen({ match, onBack, onConnect, onChat, onBlock, onRep
             <Text style={styles.explanationText}>{factor.text}</Text>
           </View>
         ))}
+      </View>
+
+      {/* Match quality insights card */}
+      <View style={styles.detailsCard}>
+        <Text style={styles.detailsSectionTitle}>Match insights</Text>
+        {compatibility.insights.hasInsights ? (
+          <>
+            {compatibility.strengths.length > 0 && (
+              <View style={styles.insightGroup}>
+                <Text style={styles.insightSubtitle}>Compatibility strengths</Text>
+                {compatibility.strengths.map((s, i) => (
+                  <Text key={`str-${i}`} style={styles.strengthText}>✓ {s}</Text>
+                ))}
+              </View>
+            )}
+            {compatibility.differences.length > 0 && (
+              <View style={styles.insightGroup}>
+                <Text style={styles.insightSubtitle}>Potential differences</Text>
+                {compatibility.differences.map((d, i) => (
+                  <Text key={`diff-${i}`} style={styles.differenceText}>• {d}</Text>
+                ))}
+              </View>
+            )}
+          </>
+        ) : (
+          <Text style={styles.emptyInsightText}>{compatibility.insights.emptyMessage}</Text>
+        )}
+      </View>
+
+      <View style={styles.detailsCard}>
         {onConnect && match?.candidateId && (
           <Pressable
             accessibilityRole="button"
@@ -3264,4 +3317,11 @@ const styles = StyleSheet.create({
   detailsSectionTitle: { color: '#0f172a', fontSize: 17, fontWeight: '700' },
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 16 },
   detailValue: { color: '#334155', flex: 1, fontSize: 14, fontWeight: '600', textAlign: 'right' },
+  // Match quality insight styles
+  insightSection: { gap: 8, marginTop: 6 },
+  insightGroup: { gap: 4 },
+  insightSubtitle: { color: '#334155', fontSize: 13, fontWeight: '700', marginTop: 4 },
+  strengthText: { color: '#16a34a', fontSize: 13, lineHeight: 18 },
+  differenceText: { color: '#dc2626', fontSize: 13, lineHeight: 18 },
+  emptyInsightText: { color: '#94a3b8', fontSize: 13, fontStyle: 'italic' },
 });

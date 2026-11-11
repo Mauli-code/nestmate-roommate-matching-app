@@ -161,6 +161,17 @@ test('returns ranked matches with score breakdowns', async () => {
   ]);
   assert.equal(result.matches[0].explanations.overall.status, 'strong match');
   assert.match(result.matches[0].explanations.location.text, /match/);
+  assert.deepEqual(result.matches[0].strengths, [
+    'Similar budget preferences.',
+    'Compatible location preferences.',
+    'Similar lifestyle choices.',
+    'Compatible daily habits.',
+  ]);
+  assert.deepEqual(result.matches[0].differences, []);
+  assert.deepEqual(result.matches[0].insights, {
+    strengths: result.matches[0].strengths,
+    differences: result.matches[0].differences,
+  });
 });
 
 test('returns stable paginated results with counts and navigation metadata', async () => {
