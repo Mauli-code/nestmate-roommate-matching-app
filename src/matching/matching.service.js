@@ -26,9 +26,16 @@ class MatchingService {
     this.validateProfileId(profileId);
     const pagination = this.validatePagination(page, limit);
 
+    if (this.users) {
+      const user = await this.users.findById(profileId);
+      if (!user || (this.users.isActive && !this.users.isActive(user))) {
+        throw new NotFoundException(`User profile "${profileId}" was not found`);
+      }
+    }
+
     const userProfile = await this.profileRepository.findProfile(profileId);
     if (!userProfile || typeof userProfile !== 'object') {
-      throw new NotFoundException(`Profile "${profileId}" was not found`);
+      throw new NotFoundException(`Roommate preferences for "${profileId}" were not found`);
     }
 
     const candidates = await this.getCandidates(profileId);

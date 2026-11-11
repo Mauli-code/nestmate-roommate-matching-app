@@ -2,16 +2,29 @@ const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_BASE_URL || 'http://10.0.2.2:3001';
 
 export async function fetchMatches(profileId, token, page = 1, limit = 10) {
-  const trimmedProfileId = profileId.trim();
-  if (!trimmedProfileId) {
-    throw new Error('Enter a profile ID before searching.');
+  if (typeof profileId === 'string' && token === undefined && profileId.split('.').length === 3) {
+    token = profileId;
+    profileId = undefined;
   }
+
+  if (!token || typeof token !== 'string' || !token.trim()) {
+    throw new Error('Authentication is required. Please log in to view recommendations.');
+  }
+
+  const cleanToken = token.trim();
+  const trimmedProfileId = typeof profileId === 'string' ? profileId.trim() : '';
+  const queryParts = [];
+  if (trimmedProfileId) {
+    queryParts.push(`profileId=${encodeURIComponent(trimmedProfileId)}`);
+  }
+  queryParts.push(`page=${page}`);
+  queryParts.push(`limit=${limit}`);
 
   let response;
   try {
     response = await fetch(
-      `${API_BASE_URL}/api/matches?profileId=${encodeURIComponent(trimmedProfileId)}&page=${page}&limit=${limit}`,
-      { headers: { Authorization: `Bearer ${token}` } },
+      `${API_BASE_URL}/api/matches?${queryParts.join('&')}`,
+      { headers: { Authorization: `Bearer ${cleanToken}` } },
     );
   } catch {
     throw new Error(
@@ -27,7 +40,22 @@ export async function fetchMatches(profileId, token, page = 1, limit = 10) {
   }
 
   if (!response.ok) {
-    throw new Error(body.message || `The request failed (${response.status}).`);
+    if (response.status === 401) {
+      throw new Error(
+        body?.message || 'Your session has expired. Please log in again.',
+      );
+    }
+    if (response.status === 403) {
+      throw new Error(
+        body?.message || 'You can only view roommate recommendations for your own profile.',
+      );
+    }
+    if (response.status === 404) {
+      throw new Error(
+        body?.message || 'Roommate preferences were not found. Please save your preferences first.',
+      );
+    }
+    throw new Error(body?.message || `The request failed (${response.status}).`);
   }
 
   if (
