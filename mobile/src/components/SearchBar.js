@@ -13,6 +13,16 @@ export default function SearchBar({
   containerStyle,
   ...rest
 }) {
+  const hasValue = Boolean(value && String(value).length > 0);
+
+  const handleClear = () => {
+    if (onClear) {
+      onClear();
+    } else if (onChangeText) {
+      onChangeText('');
+    }
+  };
+
   return (
     <View style={[styles.container, containerStyle]}>
       <View style={styles.searchBox}>
@@ -28,14 +38,19 @@ export default function SearchBar({
           placeholder={placeholder}
           placeholderTextColor={COLORS.textMuted}
           returnKeyType="search"
+          autoCapitalize="none"
+          autoCorrect={false}
           style={styles.input}
+          accessibilityLabel="Search input"
           {...rest}
         />
-        {value && value.length > 0 && (
+        {hasValue && (
           <TouchableOpacity
-            onPress={onClear || (() => onChangeText && onChangeText(''))}
+            onPress={handleClear}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             style={styles.clearButton}
+            accessibilityRole="button"
+            accessibilityLabel="Clear search"
           >
             <Ionicons name="close-circle" size={18} color={COLORS.textMuted} />
           </TouchableOpacity>
