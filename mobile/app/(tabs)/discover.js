@@ -30,6 +30,7 @@ import {
 } from '../../src/components';
 import { useMatchRequests } from '../../src/hooks/useMatchRequests';
 import { MOCK_RECOMMENDED_ROOMMATES } from '../../src/data/mockData';
+import { searchRoommates } from '../../src/utils/searchUtils';
 
 const DEFAULT_FILTERS = {
   location: 'All',
@@ -54,6 +55,7 @@ export default function DiscoverScreen() {
   const [sortBy, setSortBy] = useState('compatibility');
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [modalCandidate, setModalCandidate] = useState(null);
@@ -73,78 +75,14 @@ export default function DiscoverScreen() {
     return count;
   }, [filters]);
 
-  // Client-side filtering and sorting logic
+  // Robust, case-insensitive, whitespace-trimmed filtering and sorting
   const filteredAndSortedRoommates = useMemo(() => {
-    const list = MOCK_RECOMMENDED_ROOMMATES.filter((r) => {
-      // Search query
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase().trim();
-        const matchesQuery =
-          r.name.toLowerCase().includes(query) ||
-          r.role.toLowerCase().includes(query) ||
-          r.preferredArea.toLowerCase().includes(query) ||
-          (r.tags && r.tags.some((t) => t.toLowerCase().includes(query)));
-        if (!matchesQuery) return false;
-      }
-
-      // Location
-      if (filters.location !== 'All' && r.preferredArea.toLowerCase() !== filters.location.toLowerCase()) {
-        return false;
-      }
-
-      // Max Budget
-      if (filters.maxBudget !== null && r.budget > filters.maxBudget) {
-        return false;
-      }
-
-      // Min Score
-      if (filters.minScore > 0 && r.score < filters.minScore) {
-        return false;
-      }
-
-      // Sleep Schedule
-      if (filters.sleepSchedule !== 'Any' && r.lifestyle?.sleepSchedule !== filters.sleepSchedule) {
-        return false;
-      }
-
-      // Cleanliness
-      if (filters.cleanliness !== 'Any' && r.lifestyle?.cleanliness !== filters.cleanliness) {
-        return false;
-      }
-
-      // Non-smoker only
-      if (filters.nonSmokerOnly && r.lifestyle?.smoking === true) {
-        return false;
-      }
-
-      // Pets only
-      if (filters.petsOnly && !r.lifestyle?.pets) {
-        return false;
-      }
-
-      return true;
-    });
-
-    // Sort according to selected sort option
-    return list.sort((a, b) => {
-      if (sortBy === 'compatibility') {
-        return b.score - a.score;
-      }
-      if (sortBy === 'budget_asc') {
-        return a.budget - b.budget;
-      }
-      if (sortBy === 'budget_desc') {
-        return b.budget - a.budget;
-      }
-      if (sortBy === 'location') {
-        return a.preferredArea.localeCompare(b.preferredArea);
-      }
-      return 0;
-    });
+    return searchRoommates(MOCK_RECOMMENDED_ROOMMATES, searchQuery, filters, sortBy);
   }, [searchQuery, filters, sortBy]);
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
+    setError(null);
     setTimeout(() => {
       setRefreshing(false);
     }, 800);
@@ -153,6 +91,7 @@ export default function DiscoverScreen() {
   const handleResetFilters = () => {
     setSearchQuery('');
     setFilters(DEFAULT_FILTERS);
+    setError(null);
   };
 
   const handleMatchRequest = async (candidate) => {
@@ -162,24 +101,35 @@ export default function DiscoverScreen() {
     }
   };
 
-  const renderEmptyState = () => (
-    <View style={styles.emptyContainer}>
-      <View style={styles.emptyIconCircle}>
-        <Ionicons name="filter-outline" size={36} color={COLORS.primary} />
+  const renderEmptyState = () => {
+    const hasSearch = Boolean(searchQuery.trim());
+    return (
+      <View style={styles.emptyContainer}>
+        <View style={styles.emptyIconCircle}>
+          <Ionicons
+            name={hasSearch ? 'search-outline' : 'filter-outline'}
+            size={36}
+            color={COLORS.primary}
+          />
+        </View>
+        <Text style={styles.emptyTitle}>
+          {hasSearch ? 'No Results Found' : 'No Matching Roommates'}
+        </Text>
+        <Text style={styles.emptyText}>
+          {hasSearch
+            ? `No roommate profiles matched "${searchQuery.trim()}". Try searching by another name, role, or area.`
+            : 'No profiles match your active filters. Try broadening your budget, area, or score criteria.'}
+        </Text>
+        <Button
+          title={hasSearch ? 'Clear Search' : 'Reset All Filters'}
+          variant="secondary"
+          size="md"
+          onPress={hasSearch ? () => setSearchQuery('') : handleResetFilters}
+          style={styles.emptyButton}
+        />
       </View>
-      <Text style={styles.emptyTitle}>No Matching Roommates</Text>
-      <Text style={styles.emptyText}>
-        No profiles match your active filters and search query. Try broadening your budget, area, or score criteria.
-      </Text>
-      <Button
-        title="Reset All Filters"
-        variant="secondary"
-        size="md"
-        onPress={handleResetFilters}
-        style={styles.emptyButton}
-      />
-    </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -264,7 +214,25 @@ export default function DiscoverScreen() {
       )}
 
       {/* Content */}
-      {loading ? (
+      {error ? (
+        <View style={styles.errorContainer}>
+          <View style={[styles.emptyIconCircle, { backgroundColor: '#FEE2E2' }]}>
+            <Ionicons name="alert-circle-outline" size={36} color={COLORS.danger} />
+          </View>
+          <Text style={styles.emptyTitle}>Unable to Load Roommates</Text>
+          <Text style={styles.emptyText}>{error}</Text>
+          <Button
+            title="Try Again"
+            variant="primary"
+            size="md"
+            onPress={() => {
+              setError(null);
+              onRefresh();
+            }}
+            style={styles.emptyButton}
+          />
+        </View>
+      ) : loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>Loading recommendations...</Text>
@@ -457,5 +425,11 @@ const styles = StyleSheet.create({
   },
   emptyButton: {
     minWidth: 160,
+  },
+  errorContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.xxxl,
   },
 });
