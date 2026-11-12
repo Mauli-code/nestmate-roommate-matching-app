@@ -26,19 +26,21 @@ import {
   MatchRequestModal,
 } from '../../src/components';
 import { useMatchRequests } from '../../src/hooks/useMatchRequests';
+import { useSavedRoommates } from '../../src/hooks/useSavedRoommates';
 import { MOCK_RECOMMENDED_ROOMMATES } from '../../src/data/mockData';
 
 export default function RoommateDetailsScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const [isSaved, setIsSaved] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
   const { isRequested, sendRequest } = useMatchRequests();
+  const { isSaved, toggleSave } = useSavedRoommates();
 
   // Find roommate by id
   const roommate = MOCK_RECOMMENDED_ROOMMATES.find((r) => r.id === id) || MOCK_RECOMMENDED_ROOMMATES[0];
   const requested = isRequested(roommate.id);
+  const saved = isSaved(roommate.id);
 
   const handleMatchRequest = async () => {
     const res = await sendRequest(roommate);
@@ -63,15 +65,15 @@ export default function RoommateDetailsScreen() {
         <Text style={styles.topBarTitle} numberOfLines={1}>Roommate Profile</Text>
 
         <TouchableOpacity
-          onPress={() => setIsSaved(!isSaved)}
+          onPress={() => toggleSave(roommate)}
           style={styles.circleButton}
           activeOpacity={0.7}
           accessibilityLabel="Save roommate"
         >
           <Ionicons
-            name={isSaved ? 'bookmark' : 'bookmark-outline'}
+            name={saved ? 'bookmark' : 'bookmark-outline'}
             size={20}
-            color={isSaved ? COLORS.primary : COLORS.navyDark}
+            color={saved ? COLORS.primary : COLORS.navyDark}
           />
         </TouchableOpacity>
       </View>

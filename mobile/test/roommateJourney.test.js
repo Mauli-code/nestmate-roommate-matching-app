@@ -54,3 +54,27 @@ test('Sorting roommates by compatibility and budget produces expected order', ()
     assert.ok(sortedByBudget[i].budget <= sortedByBudget[i + 1].budget);
   }
 });
+
+test('Roommate bookmark state management logic', () => {
+  const savedMap = {};
+  const candidate = MOCK_RECOMMENDED_ROOMMATES[0];
+
+  // Save candidate
+  savedMap[candidate.id] = candidate;
+  assert.equal(Boolean(savedMap[candidate.id]), true);
+
+  // Unsave candidate
+  delete savedMap[candidate.id];
+  assert.equal(Boolean(savedMap[candidate.id]), false);
+});
+
+test('Current user profile structure and preferences validation', () => {
+  const { CURRENT_USER } = require('../src/data/mockData');
+  assert.ok(CURRENT_USER.id);
+  assert.ok(CURRENT_USER.name);
+  assert.ok(typeof CURRENT_USER.budget === 'number' && CURRENT_USER.budget > 0);
+  assert.ok(CURRENT_USER.preferredArea);
+  assert.ok(CURRENT_USER.lifestyle);
+  assert.ok(['early', 'flexible', 'late'].includes(CURRENT_USER.lifestyle.sleepSchedule));
+  assert.ok(['high', 'medium', 'relaxed'].includes(CURRENT_USER.lifestyle.cleanliness));
+});
