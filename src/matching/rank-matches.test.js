@@ -37,6 +37,7 @@ test('ranks candidates from highest to lowest compatibility', () => {
     'candidateId',
     'score',
     'breakdown',
+    'explanations',
   ]);
 });
 
