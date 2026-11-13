@@ -2148,27 +2148,30 @@ function MatchCard({ isFavorite, match, onPress, onToggleFavorite, rank }) {
         </View>
       ))}
 
-      {/* Match quality insights — strengths and differences */}
-      {compatibility.insights.hasInsights && (
-        <View style={styles.insightSection}>
-          {compatibility.strengths.length > 0 && (
-            <View style={styles.insightGroup}>
-              <Text style={styles.insightSubtitle}>Compatibility strengths</Text>
-              {compatibility.strengths.map((s, i) => (
-                <Text key={`str-${i}`} style={styles.strengthText}>✓ {s}</Text>
-              ))}
-            </View>
-          )}
-          {compatibility.differences.length > 0 && (
-            <View style={styles.insightGroup}>
-              <Text style={styles.insightSubtitle}>Potential differences</Text>
-              {compatibility.differences.map((d, i) => (
-                <Text key={`diff-${i}`} style={styles.differenceText}>• {d}</Text>
-              ))}
-            </View>
-          )}
-        </View>
-      )}
+      <View style={styles.insightSection}>
+        {compatibility.insights.hasInsights ? (
+          <>
+            {compatibility.strengths.length > 0 && (
+              <View style={styles.insightGroup}>
+                <Text style={styles.insightSubtitle}>Compatibility strengths</Text>
+                {compatibility.strengths.map((s, i) => (
+                  <Text key={`str-${i}`} style={styles.strengthText}>✓ {s}</Text>
+                ))}
+              </View>
+            )}
+            {compatibility.differences.length > 0 && (
+              <View style={styles.insightGroup}>
+                <Text style={styles.insightSubtitle}>Potential differences</Text>
+                {compatibility.differences.map((d, i) => (
+                  <Text key={`diff-${i}`} style={styles.differenceText}>• {d}</Text>
+                ))}
+              </View>
+            )}
+          </>
+        ) : (
+          <Text style={styles.emptyInsightText}>{compatibility.insights.emptyMessage}</Text>
+        )}
+      </View>
 
       <View style={styles.matchActions}>
         <Text style={styles.viewDetailsText}>View profile details</Text>
