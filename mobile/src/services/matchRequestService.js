@@ -5,9 +5,9 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { resolveApiBaseUrl } from '../api/client.js';
 
 const STORAGE_KEY = '@nestmate_match_requests';
-const API_URL = process.env.EXPO_PUBLIC_API_BASE_URL || process.env.EXPO_PUBLIC_API_URL || null;
 
 export const matchRequestService = {
   /**
@@ -66,6 +66,7 @@ export const matchRequestService = {
     };
 
     // If a live backend is configured, attempt real API call
+    const API_URL = resolveApiBaseUrl();
     if (API_URL) {
       try {
         const response = await fetch(`${API_URL}/api/match-requests`, {

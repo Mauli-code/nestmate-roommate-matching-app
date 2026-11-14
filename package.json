@@ -3,9 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "setup": "bash setup.sh",
     "build": "node --check src/main.js",
     "start": "node src/main.js",
     "test": "NODE_ENV=test node --test \"src/**/*.test.js\"",
+    "test:mobile": "node --test \"mobile/test/**/*.test.js\" \"mobile/src/api/client.test.js\"",
+    "test:all": "npm test && npm run test:mobile",
     "mobile": "cd mobile && npx expo start",
     "mobile:clear": "cd mobile && npx expo start --clear"
   },
