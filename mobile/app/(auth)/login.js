@@ -35,6 +35,13 @@ export default function LoginScreen() {
     }
   }
 
+  function fillDemo() {
+    setEmail('alex@example.com');
+    setPassword('nestmate123');
+    setErrors({});
+    setMessage('');
+  }
+
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
@@ -51,6 +58,10 @@ export default function LoginScreen() {
           rightIcon={<Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={COLORS.textSecondary} />}
           onRightIconPress={() => setShowPassword(!showPassword)} />
         <Button title="Log in" onPress={submit} loading={loading} disabled={loading} fullWidth />
+        <TouchableOpacity style={styles.demoBox} onPress={fillDemo} activeOpacity={0.8}>
+          <Ionicons name="flash-outline" size={14} color={COLORS.primary} />
+          <Text style={styles.demoText}>Quick Demo: alex@example.com / nestmate123</Text>
+        </TouchableOpacity>
         <View style={styles.linkRow}>
           <Text style={styles.linkText}>New to NestMate? </Text>
           <Link href="/(auth)/register" style={styles.link}>Create an account</Link>
@@ -67,6 +78,20 @@ const styles = StyleSheet.create({
   title: { color: COLORS.navyDark, fontSize: TYPOGRAPHY.xxl.fontSize, fontWeight: '700' },
   subtitle: { color: COLORS.textSecondary, marginTop: SPACING.xs, marginBottom: SPACING.xl },
   message: { color: COLORS.danger, marginBottom: SPACING.md },
+  demoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: SPACING.md,
+    paddingVertical: 10,
+    paddingHorizontal: SPACING.md,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  demoText: { color: COLORS.primary, fontSize: 13, fontWeight: '600' },
   linkRow: { flexDirection: 'row', justifyContent: 'center', marginTop: SPACING.xl },
   linkText: { color: COLORS.textSecondary },
   link: { color: COLORS.primary, fontWeight: '600' },
