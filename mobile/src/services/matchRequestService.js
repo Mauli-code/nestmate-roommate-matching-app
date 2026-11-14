@@ -7,7 +7,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORAGE_KEY = '@nestmate_match_requests';
-const API_URL = process.env.EXPO_PUBLIC_API_URL || null;
+const API_URL = process.env.EXPO_PUBLIC_API_BASE_URL || process.env.EXPO_PUBLIC_API_URL || null;
 
 export const matchRequestService = {
   /**
