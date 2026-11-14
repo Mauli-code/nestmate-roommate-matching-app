@@ -6,6 +6,7 @@ const {
   UnauthorizedException,
 } = require('@nestjs/common');
 const { AuthService } = require('./auth.service');
+const profileRepository = require('../matching/profile-repository');
 
 function createService() {
   const users = new Map();
@@ -78,6 +79,43 @@ test('retrieves and updates the authenticated user profile', async () => {
   assert.equal(initialProfile.user.fullName, 'Original Name');
   assert.equal(updatedProfile.user.fullName, 'Updated Name');
   assert.equal(updatedProfile.user.email, 'profile@example.com');
+});
+
+test('saves profile details and returns phone only in the owner profile', async () => {
+  const service = createService();
+  const { user } = await service.register('Profile Owner', 'owner@example.com', 'password123');
+  const result = await service.updateProfile(user.id, {
+    occupation: 'student', city: 'Pune', bio: 'Looking for a quiet flatmate.', phone: '+91 98765 43210',
+  });
+  assert.equal(result.user.occupation, 'student');
+  assert.equal(result.user.city, 'Pune');
+  assert.equal(result.user.phone, '+91 98765 43210');
+  assert.equal(result.user.passwordHash, undefined);
+});
+
+test('profile response includes the saved matching preferences', async () => {
+  const service = createService();
+  const { user } = await service.register('Preferences Owner', 'prefs-owner@example.com', 'password123');
+  const saved = await profileRepository.saveProfile({
+    id: user.id, minBudget: 5000, maxBudget: 10000, preferredArea: 'Pune',
+  });
+  const result = await service.getProfile(user.id);
+  assert.deepEqual(result.preferences, saved);
+});
+
+test('changing password checks the old password and revokes earlier tokens', async () => {
+  const service = createService();
+  const registration = await service.register('Password Owner', 'password@example.com', 'password123');
+  await assert.rejects(
+    () => service.changePassword(registration.user.id, { oldPassword: 'wrong-pass', newPassword: 'newpass123' }),
+    (error) => error instanceof UnauthorizedException,
+  );
+  await service.changePassword(registration.user.id, { oldPassword: 'password123', newPassword: 'newpass123' });
+  await assert.rejects(
+    () => service.verifyAuthenticatedUser(service.verifyToken(registration.accessToken)),
+    (error) => error instanceof UnauthorizedException,
+  );
+  assert.equal((await service.login('password@example.com', 'newpass123')).user.email, 'password@example.com');
 });
 
 test('rejects profile access for an unknown user', async () => {

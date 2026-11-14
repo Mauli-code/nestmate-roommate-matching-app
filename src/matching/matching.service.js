@@ -4,6 +4,7 @@ const {
   NotFoundException,
 } = require('@nestjs/common');
 const { rankMatches } = require('./rank-matches');
+const { validatePreferences } = require('../auth/validators');
 
 const DEFAULT_PAGE_SIZE = 10;
 const MAX_PAGE_SIZE = 50;
@@ -164,55 +165,24 @@ class MatchingService {
   }
 
   validatePreferences(profileId, preferences) {
-    if (!preferences || typeof preferences !== 'object' || Array.isArray(preferences)) {
-      throw new BadRequestException('Preference data is required');
-    }
-
-    const minBudget = Number(preferences.minBudget);
-    const maxBudget = Number(preferences.maxBudget);
-    const preferredArea = preferences.preferredArea;
-    const requiredFields = [
-      'sleepSchedule',
-      'foodHabits',
-      'cleanliness',
-      'smoking',
-      'drinking',
-    ];
-
-    if (
-      !Number.isInteger(minBudget) ||
-      minBudget <= 0 ||
-      !Number.isInteger(maxBudget) ||
-      maxBudget < minBudget
-    ) {
-      throw new BadRequestException(
-        'Budget values must be positive whole numbers, with maximum at least minimum',
-      );
-    }
-
-    if (typeof preferredArea !== 'string' || !preferredArea.trim()) {
-      throw new BadRequestException('preferredArea is required');
-    }
-
-    if (requiredFields.some((field) => typeof preferences[field] !== 'string' || !preferences[field].trim())) {
-      throw new BadRequestException('All lifestyle preferences are required');
-    }
+    const values = validatePreferences(preferences);
+    const { minBudget, maxBudget, preferredArea } = values;
 
     return {
       id: profileId,
       budget: Math.round((minBudget + maxBudget) / 2),
       minBudget,
       maxBudget,
-      moveInDate: preferences.moveInDate || '',
+      moveInDate: '',
       preferredArea: preferredArea.trim(),
       lifestyle: {
-        sleepSchedule: preferences.sleepSchedule,
-        cleanliness: preferences.cleanliness,
-        smoking: preferences.smoking === 'yes',
-        pets: preferences.pets || 'not-specified',
+        sleepSchedule: values.sleepSchedule,
+        cleanliness: values.cleanliness,
+        smoking: values.smoking === 'yes',
+        pets: values.pets,
       },
-      foodHabits: preferences.foodHabits,
-      drinking: preferences.drinking,
+      foodHabits: values.foodHabits,
+      drinking: values.drinking,
     };
   }
 }

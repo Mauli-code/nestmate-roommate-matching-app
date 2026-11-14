@@ -11,6 +11,7 @@ const {
 } = require('@nestjs/common');
 const userRepository = require('./user-repository');
 const profileRepository = require('../matching/profile-repository');
+const { validateRegistration, validateNewPassword, validateProfile } = require('./validators');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'nestmate-development-secret';
 const TOKEN_LIFETIME = '1h';
@@ -25,7 +26,10 @@ class AuthService {
     const data = this.validateRegistration(fullName, email, password);
     const existingUser = await this.repository.findByEmail(data.email);
     if (existingUser) {
-      throw new ConflictException('An account with this email already exists');
+      throw new ConflictException({
+        message: 'An account with this email already exists',
+        errors: { email: 'An account with this email already exists.' },
+      });
     }
 
     const user = {
@@ -51,7 +55,10 @@ class AuthService {
 
     const user = await this.repository.findByEmail(email.trim().toLowerCase());
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
-      throw new UnauthorizedException('Email or password is incorrect');
+      throw new UnauthorizedException({
+        message: 'Email or password is incorrect',
+        errors: { password: 'Email or password is incorrect.' },
+      });
     }
     if (!this.isActive(user)) {
       throw new UnauthorizedException('Email or password is incorrect');
@@ -139,19 +146,31 @@ class AuthService {
       throw new UnauthorizedException('User account was not found');
     }
 
-    if (typeof body?.fullName !== 'string' || body.fullName.trim().length < 2) {
-      throw new BadRequestException('Full name must contain at least 2 characters');
-    }
-
-    const updatedUser = await this.repository.save({
-      ...user,
-      fullName: body.fullName.trim(),
-    });
+    const changes = validateProfile(body);
+    const updatedUser = await this.repository.save({ ...user, ...changes });
 
     return this.profileResponse(
       updatedUser,
       await profileRepository.findProfile(userId),
     );
+  }
+
+  async changePassword(userId, body) {
+    const user = await this.requireUser(userId);
+    if (typeof body?.oldPassword !== 'string' ||
+        !(await bcrypt.compare(body.oldPassword, user.passwordHash))) {
+      throw new UnauthorizedException({
+        message: 'Current password is incorrect',
+        errors: { oldPassword: 'Current password is incorrect.' },
+      });
+    }
+    const password = validateNewPassword(body.newPassword);
+    const updatedUser = await this.repository.save({
+      ...user,
+      passwordHash: await bcrypt.hash(password, 12),
+      authVersion: (user.authVersion || 0) + 1,
+    });
+    return { user: this.publicUser(updatedUser), message: 'Password changed. Please log in again.' };
   }
 
   async uploadPhoto(userId, file) {
@@ -215,21 +234,7 @@ class AuthService {
   }
 
   validateRegistration(fullName, email, password) {
-    if (typeof fullName !== 'string' || fullName.trim().length < 2) {
-      throw new BadRequestException('Full name must contain at least 2 characters');
-    }
-    if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      throw new BadRequestException('A valid email address is required');
-    }
-    if (typeof password !== 'string' || password.length < 8) {
-      throw new BadRequestException('Password must contain at least 8 characters');
-    }
-
-    return {
-      fullName: fullName.trim(),
-      email: email.trim().toLowerCase(),
-      password,
-    };
+    return validateRegistration(fullName, email, password);
   }
 
   createToken(user) {
@@ -262,7 +267,13 @@ class AuthService {
 
   profileResponse(user, preferences) {
     return {
-      user: this.publicUser(user),
+      user: {
+        ...this.publicUser(user),
+        occupation: user.occupation || '',
+        city: user.city || '',
+        bio: user.bio || '',
+        phone: user.phone || '',
+      },
       preferences: preferences || null,
     };
   }

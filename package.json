@@ -5,7 +5,7 @@
   "scripts": {
     "build": "node --check src/main.js",
     "start": "node src/main.js",
-    "test": "node --test \"src/**/*.test.js\"",
+    "test": "NODE_ENV=test node --test \"src/**/*.test.js\"",
     "mobile": "cd mobile && npx expo start",
     "mobile:clear": "cd mobile && npx expo start --clear"
   },
