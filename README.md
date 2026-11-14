@@ -282,7 +282,7 @@ Configuration guide:
 
 ## 12. Automated Testing
 
-The project includes **221 automated tests**: 151 backend tests and 70 mobile tests. The count is from the command below.
+The project includes **228 automated tests**: 153 backend tests and 75 mobile tests. The count is from the command below.
 
 ### Run all tests across the entire repository:
 ```bash
@@ -338,5 +338,5 @@ For the auth and profile demo:
 - [x] Accommodation listings, search, rent in ₹, and property details work.
 - [x] Saved items persist using local AsyncStorage.
 - [x] User profile screen allows editing housing and habit preferences.
-- [x] 221 automated tests pass with 0 failures.
+- [x] 228 automated tests pass with 0 failures.
 - [x] No secrets, passwords, or sensitive keys are committed.

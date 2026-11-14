@@ -12,6 +12,7 @@ import { uploadProfilePhoto, resolvePhotoUrl } from '../../src/api/photo';
 import { useAuth } from '../../src/context/AuthContext';
 import { validatePreferences } from '../../src/preferences';
 import { validatePassword } from '../../src/validation';
+import { validateProfilePhoto } from '../../src/photo-validation';
 import { COLORS, RADII, SPACING, TYPOGRAPHY } from '../../src/constants/theme';
 
 const emptyValues = {
@@ -129,17 +130,9 @@ export default function ProfileScreen() {
     });
     if (result.canceled) return;
     const image = result.assets[0];
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(image.mimeType)) {
-      setPhotoError('Choose a JPEG, PNG, or WebP image.');
-      return;
-    }
-    const fileSize = image.fileSize ?? image.file?.size;
-    if (!Number.isFinite(fileSize)) {
-      setPhotoError('Could not read the photo size. Choose a different image.');
-      return;
-    }
-    if (fileSize > 5 * 1024 * 1024) {
-      setPhotoError('Choose an image that is 5 MB or smaller.');
+    const validationError = validateProfilePhoto(image);
+    if (validationError) {
+      setPhotoError(validationError);
       return;
     }
     setPhotoLoading(true);
