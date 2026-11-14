@@ -1,10 +1,47 @@
 const CATEGORY_WEIGHT = 25;
 
 /**
+ * Pre-normalizes the fields that are reused on every candidate comparison.
+ *
+ * When one profile (usually the logged-in user) is compared against many
+ * candidates, calling this once and passing the result to calculateCompatibility
+ * avoids repeating the same string trimming and type checks for every candidate.
+ *
+ * The returned object is a plain copy — the original profile is not changed.
+ * Fields that cannot be normalized (wrong type, missing) are set to null so the
+ * scoring functions skip them cleanly, just as they would without pre-normalization.
+ */
+function normalizeProfile(profile) {
+  if (!profile || typeof profile !== 'object') {
+    return profile;
+  }
+
+  // Pre-compute the normalized area string (or null) once.
+  const normalizedPreferredArea = normalizedArea(profile.preferredArea);
+
+  // Pre-compute the valid budget number (or null) once.
+  const validatedBudget = validBudget(profile.budget);
+
+  return {
+    ...profile,
+    // Replace with pre-normalized values so inner helpers do trivial work.
+    // normalizedArea() returns null for a null input, so null stays null.
+    preferredArea: normalizedPreferredArea !== null ? normalizedPreferredArea : profile.preferredArea,
+    // validBudget() checks typeof === 'number' — keep as a number or leave original.
+    budget: validatedBudget !== null ? validatedBudget : profile.budget,
+    // Carry a flag so this function is idempotent — calling it twice is safe.
+    _normalized: true,
+  };
+}
+
+/**
  * Compares two roommate profiles and returns a score from 0 to 100.
  *
  * Each category contributes 25 points:
  * budget, location, lifestyle, and habits/preferences.
+ *
+ * For best performance when scoring many candidates against the same user profile,
+ * call normalizeProfile(userProfile) once and pass the result as firstProfile.
  */
 function calculateCompatibility(firstProfile, secondProfile) {
   const budget = budgetCompatibility(firstProfile, secondProfile);
@@ -298,6 +335,7 @@ function generateMatchInsights(firstProfile, secondProfile, breakdown) {
 
 module.exports = {
   calculateCompatibility,
+  normalizeProfile,
   generateMatchInsights,
   budgetCompatibility,
   locationCompatibility,

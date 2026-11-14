@@ -51,10 +51,14 @@ class MatchingService {
         eligible: await this.isEligibleCandidate(profileId, profile),
       })))
     ).filter((item) => item.eligible).map((item) => item.profile);
-    const rankedMatches = rankMatches(userProfile, candidateProfiles);
+    const resultLimit = Math.min(
+      candidateProfiles.length,
+      pagination.page * pagination.limit,
+    );
+    const rankedMatches = rankMatches(userProfile, candidateProfiles, resultLimit);
     const start = (pagination.page - 1) * pagination.limit;
     const matches = rankedMatches.slice(start, start + pagination.limit);
-    const total = rankedMatches.length;
+    const total = candidateProfiles.length;
     const totalPages = total === 0 ? 0 : Math.ceil(total / pagination.limit);
 
     return {
