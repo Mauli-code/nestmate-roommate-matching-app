@@ -18,6 +18,13 @@ export default function PropertyCard({ property, onPress, onSave, isSaved = fals
         <Image source={{ uri: image }} style={styles.image} resizeMode="cover" />
         {/* Type badge */}
         <PropertyBadge label={type} style={styles.typeBadge} />
+        {/* 360° Virtual Tour Badge */}
+        {property.virtualTour?.enabled && (
+          <View style={styles.vrBadge}>
+            <Ionicons name="scan-outline" size={11} color="#FFFFFF" />
+            <Text style={styles.vrBadgeText}>360° Tour</Text>
+          </View>
+        )}
         {/* Save button */}
         <TouchableOpacity style={styles.saveButton} onPress={onSave} activeOpacity={0.8}>
           <Ionicons name={isSaved ? 'bookmark' : 'bookmark-outline'} size={18} color={isSaved ? COLORS.primary : COLORS.surface} />
@@ -82,6 +89,26 @@ const styles = StyleSheet.create({
     borderRadius: RADII.pill,
   },
   typeBadgeText: { color: COLORS.textInverse, fontSize: 11, fontWeight: TYPOGRAPHY.semiBold },
+  vrBadge: {
+    position: 'absolute',
+    bottom: SPACING.sm,
+    left: SPACING.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 3,
+    borderRadius: RADII.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  vrBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: TYPOGRAPHY.bold,
+    letterSpacing: 0.3,
+  },
   saveButton: {
     position: 'absolute', top: SPACING.sm, right: SPACING.sm,
     backgroundColor: COLORS.navyDark + '88',
