@@ -20,7 +20,7 @@ export default function Input({
 
   return (
     <View style={[styles.container, containerStyle]}>
-      {label && <Text style={styles.label}>{label}</Text>}
+      {label ? <Text style={styles.label}>{label}</Text> : null}
       <View
         style={[
           styles.inputWrapper,
@@ -29,7 +29,7 @@ export default function Input({
           disabled && styles.inputWrapperDisabled,
         ]}
       >
-        {leftIcon && <View style={styles.leftIcon}>{leftIcon}</View>}
+        {leftIcon ? <View style={styles.leftIcon}>{leftIcon}</View> : null}
         <TextInput
           value={value}
           onChangeText={onChangeText}
@@ -41,7 +41,7 @@ export default function Input({
           style={[styles.input, inputStyle]}
           {...rest}
         />
-        {rightIcon && (
+        {rightIcon ? (
           <TouchableOpacity
             onPress={onRightIconPress}
             disabled={!onRightIconPress}
@@ -49,9 +49,9 @@ export default function Input({
           >
             {rightIcon}
           </TouchableOpacity>
-        )}
+        ) : null}
       </View>
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
     </View>
   );
 }

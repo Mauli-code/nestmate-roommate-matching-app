@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import * as authApi from '../api/auth';
 import { fetchProfile } from '../api/profile';
 import { fetchMatches } from '../api/matches';
@@ -15,18 +15,40 @@ export function AuthProvider({ children }) {
   const [profileChecked, setProfileChecked] = useState(false);
   const [matches, setMatches] = useState([]);
 
+  // Keep a ref so clearSession can be called from anywhere without stale closure
+  const tokenRef = useRef(null);
+
+  function clearSession() {
+    authApi.logout(tokenRef.current).catch(() => {});
+    tokenRef.current = null;
+    setToken(null);
+    setUser(null);
+    setProfile(null);
+    setProfileLoaded(false);
+    setProfileChecked(false);
+    setMatches([]);
+  }
+
+  // Auto-logout on any 401 from the API
+  function guardedFetch(fn) {
+    return fn().catch((err) => {
+      if (err?.status === 401) clearSession();
+      throw err;
+    });
+  }
+
   useEffect(() => {
     async function restore() {
       try {
         const session = await authApi.readSession();
         if (session) {
+          tokenRef.current = session.token;
           setToken(session.token);
           setUser(session.user);
           await refreshProfile(session.token);
         }
       } catch {
-        setToken(null);
-        setUser(null);
+        clearSession();
       } finally {
         setLoading(false);
       }
@@ -38,7 +60,7 @@ export function AuthProvider({ children }) {
     if (!currentToken) return null;
     setProfileChecked(false);
     try {
-      const result = await fetchProfile(currentToken);
+      const result = await guardedFetch(() => fetchProfile(currentToken));
       setProfile(result);
       setProfileLoaded(true);
       setProfileChecked(true);
@@ -53,13 +75,14 @@ export function AuthProvider({ children }) {
 
   const refreshMatches = useCallback(async () => {
     if (!token || !user?.id) return [];
-    const result = await fetchMatches(user.id, token);
+    const result = await guardedFetch(() => fetchMatches(user.id, token));
     setMatches((current) => mergeMatches(current, result.matches, false));
     return result.matches;
   }, [token, user?.id]);
 
   async function login(email, password) {
     const result = await authApi.login(email, password);
+    tokenRef.current = result.accessToken;
     setToken(result.accessToken);
     setUser(result.user);
     await refreshProfile(result.accessToken);
@@ -68,6 +91,7 @@ export function AuthProvider({ children }) {
 
   async function register(fullName, email, password) {
     const result = await authApi.register(fullName, email, password);
+    tokenRef.current = result.accessToken;
     setToken(result.accessToken);
     setUser(result.user);
     await refreshProfile(result.accessToken);
@@ -75,13 +99,7 @@ export function AuthProvider({ children }) {
   }
 
   async function logout() {
-    await authApi.logout(token);
-    setToken(null);
-    setUser(null);
-    setProfile(null);
-    setProfileLoaded(false);
-    setProfileChecked(false);
-    setMatches([]);
+    clearSession();
   }
 
   return (
