@@ -1,4 +1,4 @@
-import { request } from './client';
+import { request } from './client.js';
 
 export async function savePreferences(profileId, preferences, token) {
   if (!token || typeof token !== 'string' || !token.trim()) {

@@ -1,4 +1,4 @@
-import { request } from './client';
+import { request } from './client.js';
 
 export function fetchProfile(token) {
   return request('/api/auth/profile', { token });
