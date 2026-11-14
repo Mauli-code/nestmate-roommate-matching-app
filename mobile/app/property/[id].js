@@ -65,8 +65,21 @@ export default function PropertyDetailsScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-        {/* Hero image */}
-        <Image source={{ uri: property.image }} style={styles.heroImage} resizeMode="cover" />
+        {/* Hero image with 360 Tour Pill */}
+        <View style={styles.heroContainer}>
+          <Image source={{ uri: property.image }} style={styles.heroImage} resizeMode="cover" />
+          {property.virtualTour?.enabled && (
+            <TouchableOpacity
+              style={styles.heroTourPill}
+              onPress={() => router.push(`/tour/${property.id}`)}
+              activeOpacity={0.85}
+              accessibilityLabel="View 360 Virtual Tour"
+            >
+              <Ionicons name="scan" size={14} color="#FFFFFF" />
+              <Text style={styles.heroTourPillText}>View 360° Tour</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
         <View style={styles.content}>
           {/* Type + Availability */}
@@ -86,6 +99,34 @@ export default function PropertyDetailsScreen() {
             <Ionicons name="location" size={15} color={COLORS.primary} />
             <Text style={styles.addressText}>{property.fullAddress}</Text>
           </View>
+
+          {/* 360° Virtual Tour Banner Button */}
+          {property.virtualTour?.enabled && (
+            <TouchableOpacity
+              style={styles.virtualTourCard}
+              onPress={() => router.push(`/tour/${property.id}`)}
+              activeOpacity={0.88}
+              accessibilityLabel="Explore 360 Virtual Tour"
+            >
+              <View style={styles.tourIconCircle}>
+                <Ionicons name="scan-outline" size={24} color="#FFFFFF" />
+              </View>
+              <View style={styles.tourTextContainer}>
+                <View style={styles.tourBadgeRow}>
+                  <Text style={styles.tourBadgeText}>INTERACTIVE 360° TOUR</Text>
+                  <View style={styles.liveDot} />
+                </View>
+                <Text style={styles.tourCardTitle}>Explore Interior in VR</Text>
+                <Text style={styles.tourCardSub}>
+                  {property.virtualTour.scenes?.length || 0} immersive rooms • Drag to look around
+                </Text>
+              </View>
+              <View style={styles.tourActionBtn}>
+                <Text style={styles.tourActionText}>Start</Text>
+                <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
+              </View>
+            </TouchableOpacity>
+          )}
 
           {/* Info Grid */}
           <View style={styles.infoGrid}>
@@ -152,7 +193,62 @@ const styles = StyleSheet.create({
   backBtn: { padding: 4, marginRight: SPACING.sm },
   saveBtn: { padding: 4, marginLeft: SPACING.sm },
   topBarTitle: { flex: 1, fontSize: TYPOGRAPHY.base.fontSize, fontWeight: TYPOGRAPHY.semiBold, color: COLORS.navyDark },
-  heroImage: { width: '100%', height: 240 },
+  heroContainer: { position: 'relative', width: '100%', height: 240 },
+  heroImage: { width: '100%', height: '100%' },
+  heroTourPill: {
+    position: 'absolute',
+    bottom: SPACING.md,
+    right: SPACING.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 7,
+    borderRadius: RADII.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    ...SHADOWS.md,
+  },
+  heroTourPillText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.semiBold,
+  },
+  virtualTourCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
+    borderRadius: RADII.lg,
+    padding: SPACING.md,
+    marginBottom: SPACING.lg,
+    ...SHADOWS.md,
+  },
+  tourIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.md,
+  },
+  tourTextContainer: { flex: 1 },
+  tourBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 2 },
+  tourBadgeText: { fontSize: 10, color: '#38BDF8', fontWeight: TYPOGRAPHY.bold, letterSpacing: 0.5 },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#22C55E' },
+  tourCardTitle: { fontSize: 15, fontWeight: TYPOGRAPHY.bold, color: '#F8FAFC' },
+  tourCardSub: { fontSize: 12, color: '#94A3B8', marginTop: 2 },
+  tourActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 6,
+    borderRadius: RADII.pill,
+  },
+  tourActionText: { color: '#FFFFFF', fontSize: 12, fontWeight: TYPOGRAPHY.semiBold },
   content: { padding: SPACING.lg },
   badgeRow: { flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.sm },
   typeBadge: { backgroundColor: COLORS.navyDark, paddingHorizontal: SPACING.sm + 2, paddingVertical: 4, borderRadius: RADII.pill },
