@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
+import { useAuth } from '../../src/context/AuthContext';
 import { COLORS, RADII, SHADOWS, SPACING, TYPOGRAPHY } from '../../src/constants';
 import { Badge, Button, Card } from '../../src/components';
 import { CURRENT_USER } from '../../src/data/mockData';
@@ -27,6 +28,7 @@ const CLEAN_OPTIONS = ['high', 'medium', 'relaxed'];
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { logout } = useAuth();
   const [user, setUser] = useState(CURRENT_USER);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -101,8 +103,9 @@ export default function ProfileScreen() {
         {
           text: 'Log Out',
           style: 'destructive',
-          onPress: () => {
-            Alert.alert('Logged Out', 'You have been safely logged out for this demo session.');
+          onPress: async () => {
+            await logout();
+            router.replace('/(auth)/login');
           },
         },
       ],
