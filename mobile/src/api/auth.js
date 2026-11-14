@@ -1,77 +1,57 @@
-import * as SecureStore from 'expo-secure-store';
+import { request } from './client';
+import { getItem, removeItem, setItem } from '../storage';
 
-const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL || 'http://10.0.2.2:3001';
 const TOKEN_KEY = 'nestmate_access_token';
 const USER_KEY = 'nestmate_user';
 
-async function request(path, method, body, token) {
-  let response;
-  try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
-      method,
-      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      ...(body ? { body: JSON.stringify(body) } : {}),
-    });
-  } catch {
-    throw new Error('The backend could not be reached. Check that it is running.');
-  }
-
-  const responseBody = await response.json().catch(() => null);
-  if (!response.ok) {
-    throw new Error(responseBody?.message || `The request failed (${response.status}).`);
-  }
-  return responseBody;
-}
-
 export async function register(fullName, email, password) {
-  const result = await request('/api/auth/register', 'POST', { fullName, email, password });
-  await saveSession(result);
-  return result;
+  return saveSession(await request('/api/auth/register', {
+    method: 'POST', body: { fullName, email, password },
+  }));
 }
 
 export async function login(email, password) {
-  const result = await request('/api/auth/login', 'POST', { email, password });
-  await saveSession(result);
-  return result;
+  return saveSession(await request('/api/auth/login', {
+    method: 'POST', body: { email, password },
+  }));
 }
 
 export async function reactivate(email, password) {
-  const result = await request('/api/auth/reactivate', 'POST', { email, password });
-  await saveSession(result);
-  return result;
+  return saveSession(await request('/api/auth/reactivate', {
+    method: 'POST', body: { email, password },
+  }));
 }
 
 export function deactivateAccount(token) {
-  return request('/api/auth/deactivate', 'POST', { confirmation: true }, token);
+  return request('/api/auth/deactivate', { method: 'POST', body: { confirmation: true }, token });
 }
 
 export function requestAccountDeletion(token, password) {
-  return request(
-    '/api/auth/deletion-request',
-    'POST',
-    { confirmation: 'DELETE', password },
-    token,
-  );
+  return request('/api/auth/deletion-request', {
+    method: 'POST', body: { confirmation: 'DELETE', password }, token,
+  });
 }
 
 export async function logout(token) {
-  if (token) {
-    await request('/api/auth/logout', 'POST', undefined, token).catch(() => {});
-  }
-  await SecureStore.deleteItemAsync(TOKEN_KEY);
-  await SecureStore.deleteItemAsync(USER_KEY);
+  if (token) await request('/api/auth/logout', { method: 'POST', token }).catch(() => {});
+  await Promise.all([removeItem(TOKEN_KEY), removeItem(USER_KEY)]);
 }
 
 export async function readSession() {
-  const [token, userJson] = await Promise.all([
-    SecureStore.getItemAsync(TOKEN_KEY),
-    SecureStore.getItemAsync(USER_KEY),
-  ]);
-  return token && userJson ? { token, user: JSON.parse(userJson) } : null;
+  const [token, userJson] = await Promise.all([getItem(TOKEN_KEY), getItem(USER_KEY)]);
+  if (!token || !userJson) return null;
+  try {
+    return { token, user: JSON.parse(userJson) };
+  } catch {
+    await Promise.all([removeItem(TOKEN_KEY), removeItem(USER_KEY)]);
+    return null;
+  }
 }
 
 async function saveSession(result) {
-  await SecureStore.setItemAsync(TOKEN_KEY, result.accessToken);
-  await SecureStore.setItemAsync(USER_KEY, JSON.stringify(result.user));
+  await Promise.all([
+    setItem(TOKEN_KEY, result.accessToken),
+    setItem(USER_KEY, JSON.stringify(result.user)),
+  ]);
+  return result;
 }

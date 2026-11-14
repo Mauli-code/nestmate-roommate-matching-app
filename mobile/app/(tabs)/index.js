@@ -8,6 +8,7 @@ import {
   Image,
   RefreshControl,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,10 +27,10 @@ import {
   SearchBar,
 } from '../../src/components';
 import {
-  CURRENT_USER,
-  MOCK_RECOMMENDED_ROOMMATES,
   MOCK_RECOMMENDED_ACCOMMODATIONS,
 } from '../../src/data/mockData';
+import { useAuth } from '../../src/context/AuthContext';
+import { toMatchCards } from '../../src/match-display';
 import {
   searchHomeRoommates,
   searchHomeAccommodations,
@@ -45,16 +46,34 @@ const FILTER_PILLS = [
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { user, profile, matches, refreshMatches } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPill, setSelectedPill] = useState('All');
   const [refreshing, setRefreshing] = useState(false);
   const [favorites, setFavorites] = useState({});
+  const [matchLoading, setMatchLoading] = useState(true);
+  const [matchError, setMatchError] = useState('');
+
+  const roommates = React.useMemo(() => toMatchCards(matches), [matches]);
+
+  const loadMatches = React.useCallback(async () => {
+    setMatchError('');
+    try {
+      await refreshMatches();
+    } catch (error) {
+      setMatchError(error.message || 'Could not load roommate matches.');
+    } finally {
+      setMatchLoading(false);
+    }
+  }, [refreshMatches]);
+
+  React.useEffect(() => { loadMatches(); }, [loadMatches]);
 
   const isSearchActive = Boolean(searchQuery.trim() || selectedPill !== 'All');
 
   const filteredRoommates = React.useMemo(() => {
-    return searchHomeRoommates(MOCK_RECOMMENDED_ROOMMATES, searchQuery, selectedPill);
-  }, [searchQuery, selectedPill]);
+    return searchHomeRoommates(roommates, searchQuery, selectedPill);
+  }, [roommates, searchQuery, selectedPill]);
 
   const filteredAccommodations = React.useMemo(() => {
     return searchHomeAccommodations(MOCK_RECOMMENDED_ACCOMMODATIONS, searchQuery, selectedPill);
@@ -67,12 +86,11 @@ export default function HomeScreen() {
     setSelectedPill('All');
   };
 
-  const onRefresh = React.useCallback(() => {
+  const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1000);
-  }, []);
+    await loadMatches();
+    setRefreshing(false);
+  }, [loadMatches]);
 
   const toggleFavorite = (id) => {
     setFavorites((prev) => ({
@@ -98,14 +116,14 @@ export default function HomeScreen() {
         {/* Top Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>Good morning, {CURRENT_USER.name.split(' ')[0]} 👋</Text>
+            <Text style={styles.greeting}>Good morning, {(user?.fullName || 'there').split(' ')[0]}</Text>
             <TouchableOpacity
               activeOpacity={0.7}
               style={styles.locationPill}
               onPress={() => router.push('/(tabs)/profile')}
             >
               <Ionicons name="location-sharp" size={14} color={COLORS.primary} />
-              <Text style={styles.locationText}>{CURRENT_USER.location}</Text>
+              <Text style={styles.locationText}>{user?.city || 'Add your city in Profile'}</Text>
               <Ionicons name="chevron-down" size={12} color={COLORS.textSecondary} />
             </TouchableOpacity>
           </View>
@@ -214,7 +232,9 @@ export default function HomeScreen() {
                   <Text style={styles.smartMatchScore}>4 Pillars Aligned</Text>
                 </View>
                 <Text style={styles.smartMatchTitle}>
-                  Finding Roommates Within ${CURRENT_USER.budget}/mo in {CURRENT_USER.preferredArea}
+                  {profile?.preferences
+                    ? `Finding Roommates Within ₹${profile.preferences.minBudget}–₹${profile.preferences.maxBudget}/mo in ${profile.preferences.preferredArea}`
+                    : 'Add your preferences to find roommate matches'}
                 </Text>
                 <Text style={styles.smartMatchSub}>
                   Matching by budget (25%), location (25%), sleep/cleanliness (25%), & habits (25%).
@@ -225,17 +245,17 @@ export default function HomeScreen() {
             {/* Quick Stats Grid */}
             <View style={styles.statsRow}>
               <View style={styles.statBox}>
-                <Text style={styles.statNumber}>{CURRENT_USER.stats.activeMatches}</Text>
+                <Text style={styles.statNumber}>{matches.length}</Text>
                 <Text style={styles.statLabel}>Active Matches</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statBox}>
-                <Text style={styles.statNumber}>{CURRENT_USER.stats.pendingRequests}</Text>
+                <Text style={styles.statNumber}>0</Text>
                 <Text style={styles.statLabel}>Requests</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statBox}>
-                <Text style={styles.statNumber}>{CURRENT_USER.stats.savedAccommodations}</Text>
+                <Text style={styles.statNumber}>0</Text>
                 <Text style={styles.statLabel}>Saved Places</Text>
               </View>
             </View>
@@ -326,6 +346,12 @@ export default function HomeScreen() {
             </ScrollView>
           </>
         )}
+
+        {matchLoading ? <ActivityIndicator color={COLORS.primary} /> : null}
+        {!matchLoading && matchError ? <Text style={styles.sectionSubtitle}>{matchError}</Text> : null}
+        {!matchLoading && !matchError && !matches.length ? (
+          <Text style={styles.sectionSubtitle}>No roommate matches yet. Complete your profile and check back.</Text>
+        ) : null}
 
         {/* Accommodations Section (Shown when matches exist) */}
         {filteredAccommodations.length > 0 && (

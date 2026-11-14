@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -29,7 +29,8 @@ import {
   MatchRequestModal,
 } from '../../src/components';
 import { useMatchRequests } from '../../src/hooks/useMatchRequests';
-import { MOCK_RECOMMENDED_ROOMMATES } from '../../src/data/mockData';
+import { useAuth } from '../../src/context/AuthContext';
+import { toMatchCards } from '../../src/match-display';
 import { searchRoommates } from '../../src/utils/searchUtils';
 
 const DEFAULT_FILTERS = {
@@ -51,6 +52,7 @@ const SORT_OPTIONS = [
 
 export default function DiscoverScreen() {
   const router = useRouter();
+  const { matches, refreshMatches } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('compatibility');
   const [refreshing, setRefreshing] = useState(false);
@@ -76,17 +78,30 @@ export default function DiscoverScreen() {
   }, [filters]);
 
   // Robust, case-insensitive, whitespace-trimmed filtering and sorting
+  const roommates = useMemo(() => toMatchCards(matches), [matches]);
   const filteredAndSortedRoommates = useMemo(() => {
-    return searchRoommates(MOCK_RECOMMENDED_ROOMMATES, searchQuery, filters, sortBy);
-  }, [searchQuery, filters, sortBy]);
+    return searchRoommates(roommates, searchQuery, filters, sortBy);
+  }, [roommates, searchQuery, filters, sortBy]);
 
-  const onRefresh = React.useCallback(() => {
-    setRefreshing(true);
+  const loadMatches = useCallback(async () => {
+    setLoading(true);
     setError(null);
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 800);
-  }, []);
+    try {
+      await refreshMatches();
+    } catch (requestError) {
+      setError(requestError.message || 'Could not load roommate matches.');
+    } finally {
+      setLoading(false);
+    }
+  }, [refreshMatches]);
+
+  useEffect(() => { loadMatches(); }, [loadMatches]);
+
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    await loadMatches();
+    setRefreshing(false);
+  }, [loadMatches]);
 
   const handleResetFilters = () => {
     setSearchQuery('');
