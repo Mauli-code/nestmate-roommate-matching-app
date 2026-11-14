@@ -74,19 +74,29 @@ class MatchingService {
   }
 
   async isEligibleCandidate(profileId, candidateProfile) {
-    if (!candidateProfile || candidateProfile.id === profileId) {
+    if (!candidateProfile || typeof candidateProfile !== 'object' || Array.isArray(candidateProfile)) {
+      return false;
+    }
+
+    const rawCandidateId = candidateProfile.id;
+    const candidateId = (typeof rawCandidateId === 'string' || typeof rawCandidateId === 'number')
+      ? String(rawCandidateId).trim()
+      : '';
+    const normalizedProfileId = typeof profileId === 'string' ? profileId.trim() : String(profileId || '');
+
+    if (!candidateId || candidateId === normalizedProfileId) {
       return false;
     }
 
     if (this.users) {
-      const candidateUser = await this.users.findById(candidateProfile.id);
+      const candidateUser = await this.users.findById(candidateId);
       if (!candidateUser || !this.users.isActive(candidateUser)) {
         return false;
       }
     }
 
     if (this.privacy) {
-      const privacySettings = await this.privacy.forUser(candidateProfile.id);
+      const privacySettings = await this.privacy.forUser(candidateId);
       if (privacySettings?.showProfile !== true) {
         return false;
       }
@@ -94,7 +104,7 @@ class MatchingService {
 
     if (
       this.moderation &&
-      await this.moderation.isBlockedBetween(profileId, candidateProfile.id)
+      await this.moderation.isBlockedBetween(normalizedProfileId, candidateId)
     ) {
       return false;
     }
@@ -121,14 +131,18 @@ class MatchingService {
 
   normalizeCandidates(profileId, candidates) {
     const seenIds = new Set();
+    const normalizedProfileId = typeof profileId === 'string' ? profileId.trim() : String(profileId || '');
 
     return candidates.filter((profile) => {
       if (!profile || typeof profile !== 'object' || Array.isArray(profile)) {
         return false;
       }
 
-      const candidateId = typeof profile.id === 'string' ? profile.id.trim() : '';
-      if (!candidateId || candidateId === profileId || seenIds.has(candidateId)) {
+      const rawId = profile.id;
+      const candidateId = (typeof rawId === 'string' || typeof rawId === 'number')
+        ? String(rawId).trim()
+        : '';
+      if (!candidateId || candidateId === normalizedProfileId || seenIds.has(candidateId)) {
         return false;
       }
 

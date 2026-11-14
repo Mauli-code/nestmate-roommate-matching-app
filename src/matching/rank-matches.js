@@ -11,7 +11,7 @@ const { calculateCompatibility, normalizeProfile } = require('./compatibility-sc
  * when scoring large candidate lists.
  */
 function rankMatches(userProfile, candidateProfiles, maxResults) {
-  if (!Array.isArray(candidateProfiles)) {
+  if (!Array.isArray(candidateProfiles) || maxResults === 0) {
     return [];
   }
 
@@ -25,8 +25,13 @@ function rankMatches(userProfile, candidateProfiles, maxResults) {
 
   candidateProfiles.forEach((candidateProfile, originalIndex) => {
     const compatibility = calculateCompatibility(normalizedUserProfile, candidateProfile);
+    const rawId = candidateProfile?.id;
+    const candidateId = rawId != null
+      ? (typeof rawId === 'string' ? rawId.trim() : String(rawId))
+      : null;
+
     const match = {
-      candidateId: candidateProfile?.id ?? null,
+      candidateId: candidateId || null,
       score: compatibility.score,
       breakdown: compatibility.breakdown,
       explanations: compatibility.explanations,
@@ -51,8 +56,14 @@ function rankMatches(userProfile, candidateProfiles, maxResults) {
 }
 
 function compareMatches(firstMatch, secondMatch) {
-  const scoreDifference = secondMatch.score - firstMatch.score;
-  return scoreDifference || firstMatch.originalIndex - secondMatch.originalIndex;
+  const firstScore = Number.isFinite(firstMatch?.score) ? firstMatch.score : 0;
+  const secondScore = Number.isFinite(secondMatch?.score) ? secondMatch.score : 0;
+  const scoreDifference = secondScore - firstScore;
+
+  const firstIndex = Number.isFinite(firstMatch?.originalIndex) ? firstMatch.originalIndex : 0;
+  const secondIndex = Number.isFinite(secondMatch?.originalIndex) ? secondMatch.originalIndex : 0;
+
+  return scoreDifference || (firstIndex - secondIndex);
 }
 
 function insertRankedMatch(rankedMatches, match, maxResults) {
