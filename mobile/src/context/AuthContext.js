@@ -12,6 +12,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const [profileChecked, setProfileChecked] = useState(false);
   const [matches, setMatches] = useState([]);
 
   useEffect(() => {
@@ -35,14 +36,17 @@ export function AuthProvider({ children }) {
 
   async function refreshProfile(currentToken = token) {
     if (!currentToken) return null;
+    setProfileChecked(false);
     try {
       const result = await fetchProfile(currentToken);
       setProfile(result);
       setProfileLoaded(true);
+      setProfileChecked(true);
       if (result?.user) setUser(result.user);
       return result;
     } catch {
       setProfileLoaded(false);
+      setProfileChecked(true);
       return null;
     }
   }
@@ -76,12 +80,13 @@ export function AuthProvider({ children }) {
     setUser(null);
     setProfile(null);
     setProfileLoaded(false);
+    setProfileChecked(false);
     setMatches([]);
   }
 
   return (
     <AuthContext.Provider value={{
-      token, user, profile, profileLoaded, matches, loading, login, register, logout,
+      token, user, profile, profileLoaded, profileChecked, matches, loading, login, register, logout,
       setUser, refreshProfile, refreshMatches,
     }}>
       {children}
