@@ -12,6 +12,7 @@ import PropertyCard from '../../src/components/PropertyCard';
 import PropertyFilterModal, { DEFAULT_PROPERTY_FILTERS } from '../../src/components/PropertyFilterModal';
 import { useSavedProperties } from '../../src/hooks/useSavedProperties';
 import { MOCK_PROPERTIES } from '../../src/data/mockData';
+import { searchProperties } from '../../src/utils/searchUtils';
 
 const SORT_OPTIONS = [
   { id: 'popular', label: 'Popular', icon: 'flame-outline' },
@@ -27,6 +28,8 @@ export default function AccommodationsScreen() {
   const [filters, setFilters] = useState(DEFAULT_PROPERTY_FILTERS);
   const [filterModalOpen, setFilterModalOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const { isSaved, toggleSave } = useSavedProperties();
 
   const activeFiltersCount = useMemo(() => {
@@ -39,56 +42,52 @@ export default function AccommodationsScreen() {
     return n;
   }, [filters]);
 
+  // Robust, case-insensitive, whitespace-trimmed property search & filter
   const results = useMemo(() => {
-    let list = MOCK_PROPERTIES.filter(p => {
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        if (
-          !p.title.toLowerCase().includes(q) &&
-          !p.location.toLowerCase().includes(q) &&
-          !p.type.toLowerCase().includes(q)
-        ) return false;
-      }
-      if (filters.type !== 'All' && p.type !== filters.type) return false;
-      if (filters.minRent !== null && p.rent < filters.minRent) return false;
-      if (filters.maxRent !== null && p.rent > filters.maxRent) return false;
-      if (filters.furnishing !== 'Any' && p.furnishing !== filters.furnishing) return false;
-      if (filters.bedrooms !== 'Any') {
-        const bed = filters.bedrooms === '4+' ? 4 : parseInt(filters.bedrooms);
-        if (filters.bedrooms === '4+' ? p.bedrooms < 4 : p.bedrooms !== bed) return false;
-      }
-      if (filters.availability !== 'Any' && p.availability !== filters.availability) return false;
-      return true;
-    });
-
-    return list.sort((a, b) => {
-      if (sortBy === 'price_asc') return a.rent - b.rent;
-      if (sortBy === 'price_desc') return b.rent - a.rent;
-      if (sortBy === 'newest') return a.postedDaysAgo - b.postedDaysAgo;
-      return b.popularity - a.popularity;
-    });
+    return searchProperties(MOCK_PROPERTIES, searchQuery, filters, sortBy);
   }, [searchQuery, filters, sortBy]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
+    setError(null);
     setTimeout(() => setRefreshing(false), 800);
   }, []);
 
   const handleReset = () => {
     setSearchQuery('');
     setFilters(DEFAULT_PROPERTY_FILTERS);
+    setError(null);
   };
 
-  const renderEmpty = () => (
-    <View style={styles.emptyContainer}>
-      <View style={styles.emptyIconCircle}>
-        <Ionicons name="home-outline" size={36} color={COLORS.primary} />
+  const renderEmpty = () => {
+    const hasSearch = Boolean(searchQuery.trim());
+    return (
+      <View style={styles.emptyContainer}>
+        <View style={styles.emptyIconCircle}>
+          <Ionicons
+            name={hasSearch ? 'search-outline' : 'home-outline'}
+            size={36}
+            color={COLORS.primary}
+          />
+        </View>
+        <Text style={styles.emptyTitle}>
+          {hasSearch ? 'No Properties Found' : 'No Properties Found'}
+        </Text>
+        <Text style={styles.emptyText}>
+          {hasSearch
+            ? `No properties matched "${searchQuery.trim()}". Try searching by another city, neighborhood, or property type.`
+            : 'Try adjusting your search or filters to find more accommodation options.'}
+        </Text>
+        <Button
+          title={hasSearch ? 'Clear Search' : 'Reset Filters'}
+          variant="secondary"
+          size="md"
+          onPress={hasSearch ? () => setSearchQuery('') : handleReset}
+          style={{ marginTop: 12, minWidth: 160 }}
+        />
       </View>
-      <Text style={styles.emptyTitle}>No Properties Found</Text>
-      <Text style={styles.emptyText}>Try adjusting your search or filters to find more accommodation options.</Text>
-      <Button title="Reset Filters" variant="secondary" size="md" onPress={handleReset} style={{ marginTop: 12 }} />
-    </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -143,23 +142,50 @@ export default function AccommodationsScreen() {
         </View>
       )}
 
-      {/* List */}
-      <FlatList
-        data={results}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}
-        ListEmptyComponent={renderEmpty}
-        renderItem={({ item }) => (
-          <PropertyCard
-            property={item}
-            onPress={() => router.push(`/property/${item.id}`)}
-            onSave={() => toggleSave(item)}
-            isSaved={isSaved(item.id)}
+      {/* Content */}
+      {error ? (
+        <View style={styles.emptyContainer}>
+          <View style={[styles.emptyIconCircle, { backgroundColor: '#FEE2E2' }]}>
+            <Ionicons name="alert-circle-outline" size={36} color={COLORS.danger} />
+          </View>
+          <Text style={styles.emptyTitle}>Unable to Load Accommodations</Text>
+          <Text style={styles.emptyText}>{error}</Text>
+          <Button
+            title="Try Again"
+            variant="primary"
+            size="md"
+            onPress={() => {
+              setError(null);
+              onRefresh();
+            }}
+            style={{ marginTop: 12, minWidth: 160 }}
           />
-        )}
-      />
+        </View>
+      ) : loading ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={{ marginTop: 12, fontSize: TYPOGRAPHY.sm.fontSize, color: COLORS.textSecondary }}>
+            Loading accommodations...
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={results}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}
+          ListEmptyComponent={renderEmpty}
+          renderItem={({ item }) => (
+            <PropertyCard
+              property={item}
+              onPress={() => router.push(`/property/${item.id}`)}
+              onSave={() => toggleSave(item)}
+              isSaved={isSaved(item.id)}
+            />
+          )}
+        />
+      )}
 
       <PropertyFilterModal
         visible={filterModalOpen}
