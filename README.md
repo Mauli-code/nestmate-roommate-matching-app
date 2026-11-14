@@ -259,8 +259,13 @@ Configuration guide:
 | `GET` | `/api/health` | Service health status and uptime | No |
 | `POST` | `/api/auth/register` | Register new user account | No |
 | `POST` | `/api/auth/login` | Authenticate with email/password (returns JWT) | No |
+| `POST` | `/api/auth/logout` | Revoke the current token | Yes (Bearer) |
 | `GET` | `/api/auth/profile` | Retrieve authenticated user profile | Yes (Bearer) |
 | `PATCH`| `/api/auth/profile` | Update profile attributes and bio | Yes (Bearer) |
+| `PUT` | `/api/auth/profile` | Same profile update for existing clients | Yes (Bearer) |
+| `POST` | `/api/auth/change-password` | Change password and revoke earlier tokens | Yes (Bearer) |
+| `POST` | `/api/auth/profile/photo` | Upload a JPEG, PNG, or WebP profile photo (up to 5 MB) | Yes (Bearer) |
+| `PUT` | `/api/matches/:profileId/preferences` | Save the signed-in user's matching preferences | Yes (Bearer) |
 | `GET` | `/api/matches?profileId=:id` | Paginated ranked roommate compatibility matches | Yes (Bearer) |
 | `GET` | `/api/accommodations` | Filtered accommodation listings | Yes (Bearer) |
 | `GET` | `/api/accommodations/recommendations` | Ranked housing recommendations | Yes (Bearer) |
@@ -277,7 +282,7 @@ Configuration guide:
 
 ## 12. Automated Testing
 
-The project includes **189 automated unit and integration tests** executing via the native Node.js test runner:
+The project includes **221 automated tests**: 151 backend tests and 70 mobile tests. The count is from the command below.
 
 ### Run all tests across the entire repository:
 ```bash
@@ -294,52 +299,30 @@ npm test
 node --test 'mobile/**/*.test.js'
 ```
 
-### Test Suite Summary:
-* **Backend Services, Algorithms & Integration (142 tests)**:
-  * Compatibility scoring engine, formulas & insights (25 tests)
-  * Matching edge cases, NaN/Infinity, null safety & whitespace normalization (14 tests)
-  * End-to-end full matching integration & mobile client contracts (10 tests)
-  * Candidate ranking, bounded binary insertion & tie-breaking (6 tests)
-  * Matching service, large benchmarks (2,000 candidates) & pagination (15 tests)
-  * Matching authentication guards & cross-account access protection (9 tests)
-  * Authentication, session & photo uploads (11 tests)
-  * Accommodation management & recommendations (6 tests)
-  * Connection requests & booking inquiries (9 tests)
-  * Chat, privacy, moderation, notifications & reviews (44 tests)
-  * Health check endpoint (1 test)
-* **Mobile Client & Integration Journeys (47 tests)**:
-  * Roommate matching API client, contracts & error resilience (7 tests)
-  * Recommendation insights formatting & view models (7 tests)
-  * Match refresh & recommendation update synchronization (2 tests)
-  * Preference form validation (2 tests)
-  * Mock properties data integrity & search filters (5 tests)
-  * Roommate discovery, sorting & compatibility breakdown (3 tests)
-  * Saved roommate persistence & profile preference validation (2 tests)
-  * Seeker search & multi-attribute filter journeys (19 tests)
+The backend test script sets `NODE_ENV=test` so user and profile data stays in memory.
 
 ### Roommate Matching Module Documentation:
 For comprehensive technical documentation, scoring formulas, API contracts, and architecture of the roommate matching system, see [**docs/ROOMMATE_MATCHING.md**](docs/ROOMMATE_MATCHING.md).
+
+For authentication and profile endpoints, field rules, and mobile screen mappings, see [**docs/AUTH_PROFILE.md**](docs/AUTH_PROFILE.md).
 
 ---
 
 ## 13. End-to-End Demo Walkthrough
 
-Follow this step-by-step user journey during a presentation or demo:
+For the auth and profile demo:
 
-1. **Launch**: Start backend (`npm start`) and mobile app (`cd mobile && npx expo start`).
-2. **Home Screen**: View the welcome banner for Alex Rivera, smart match statistics, and top compatibility matches.
-3. **Discover Roommates**: Tap the **Discover** tab. Search for `"Bangalore"` or `"Sarah"`. Use the sort selector to rank by *Highest Match* or *Lowest Budget*. Open the filter modal to filter by non-smoker or pets.
-4. **Roommate Details**: Tap on a profile card (e.g. *Sarah Chen, 96% Match*). Review the 4-pillar compatibility breakdown bars. Tap **Match Request** to trigger the confirmation modal. Tap the top-right bookmark icon to save the roommate.
-5. **Accommodation Discovery**: Tap the **Places** tab. Browse listings across Bangalore, Mumbai, and Delhi. Filter for *PG* or *Flat* and adjust the budget range.
-6. **Property Details**: Tap on any property (e.g. *Cozy 1BHK near Koramangala Metro*). Review rent, amenities (WiFi, AC, Power Backup), and house rules. Tap **Save Bookmark** and **Contact Owner**.
-7. **Saved Items**: Tap the **Saved** tab. Notice the segmented control showing both your saved/bookmarked roommates and saved accommodations. Tap to unsave or view details.
-8. **Profile & Preferences**: Tap the **Profile** tab. Review current budget, area, and lifestyle habits. Tap **Edit** to change your monthly budget or cleanliness preference. Tap **Save** and verify changes persist across restarts.
+1. Start the backend with `npm start` and the app with `cd mobile && npx expo start`.
+2. Open **Create an account**, enter your name, email, and password, then continue to onboarding.
+3. Enter occupation, city, bio, rupee budget, preferred area, lifestyle, and habit choices. Save to open the tabs.
+4. Open **Profile**, tap **Edit**, change a detail or preference, and save. Reopen Profile to see the backend values.
+5. Tap **Log out** and confirm. The app returns to login; sign in again to see the saved profile.
 
 ---
 
 ## 14. Known Limitations
 
-* **In-Memory Backend Storage**: The NestJS backend currently uses thread-safe in-memory maps seeded with demo data rather than an external PostgreSQL instance. All created users, requests, and reviews persist for the duration of the server process.
+* **Backend Storage**: User accounts and roommate profiles are saved in `data/store.json`. Other domain data is held in memory while the server runs.
 * **Image Uploads**: Profile photo uploads use local file storage in `/uploads`. In a production deployment, this would be wired to an S3 or Google Cloud Storage bucket.
 * **Push Notifications**: Notification preferences and in-app notification state are fully modeled in the backend, while push notifications rely on local device alerts in the mobile demo.
 
@@ -355,5 +338,5 @@ Follow this step-by-step user journey during a presentation or demo:
 - [x] Accommodation listings, search, rent in ₹, and property details work.
 - [x] Saved items persist using local AsyncStorage.
 - [x] User profile screen allows editing housing and habit preferences.
-- [x] 189 automated unit and integration tests pass with 0 failures.
+- [x] 221 automated tests pass with 0 failures.
 - [x] No secrets, passwords, or sensitive keys are committed.

@@ -130,7 +130,12 @@ export default function ProfileScreen() {
       setPhotoError('Choose a JPEG, PNG, or WebP image.');
       return;
     }
-    if (image.fileSize > 5 * 1024 * 1024) {
+    const fileSize = image.fileSize ?? image.file?.size;
+    if (!Number.isFinite(fileSize)) {
+      setPhotoError('Could not read the photo size. Choose a different image.');
+      return;
+    }
+    if (fileSize > 5 * 1024 * 1024) {
       setPhotoError('Choose an image that is 5 MB or smaller.');
       return;
     }

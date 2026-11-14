@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
+const jwt = require('jsonwebtoken');
 const {
   BadRequestException,
   ConflictException,
@@ -33,10 +34,12 @@ test('rejects duplicate email addresses', async () => {
   const service = createService();
   await service.register('First User', 'same@example.com', 'password123');
 
+  let duplicateError;
   await assert.rejects(
     () => service.register('Second User', 'SAME@example.com', 'password123'),
-    (error) => error instanceof ConflictException,
+    (error) => { duplicateError = error; return error instanceof ConflictException; },
   );
+  assert.equal(duplicateError.getResponse().errors.email, 'An account with this email already exists.');
 });
 
 test('logs in with a correct password and rejects an incorrect one', async () => {
@@ -46,10 +49,12 @@ test('logs in with a correct password and rejects an incorrect one', async () =>
   const result = await service.login('test@example.com', 'password123');
   assert.equal(result.user.email, 'test@example.com');
 
+  let passwordError;
   await assert.rejects(
     () => service.login('test@example.com', 'wrong-password'),
-    (error) => error instanceof UnauthorizedException,
+    (error) => { passwordError = error; return error instanceof UnauthorizedException; },
   );
+  assert.equal(passwordError.getResponse().errors.password, 'Email or password is incorrect.');
 });
 
 test('revokes a token during logout', async () => {
@@ -59,6 +64,11 @@ test('revokes a token during logout', async () => {
   assert.equal(service.verifyToken(accessToken).email, 'logout@example.com');
   service.revokeToken(accessToken);
   assert.throws(() => service.verifyToken(accessToken), UnauthorizedException);
+});
+
+test('rejects an expired signed token', () => {
+  const expired = jwt.sign({ sub: 'old-user' }, process.env.JWT_SECRET || 'nestmate-development-secret', { expiresIn: -1 });
+  assert.throws(() => createService().verifyToken(expired), UnauthorizedException);
 });
 
 test('retrieves and updates the authenticated user profile', async () => {
