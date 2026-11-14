@@ -8,9 +8,8 @@ const { AuthGuard } = require('./auth.guard');
 const { AuthService } = require('./auth.service');
 
 class AuthController {
-  constructor() {
-    const { AuthService } = require('./auth.service');
-    this.authService = new AuthService();
+  constructor(authService) {
+    this.authService = authService || new AuthService();
   }
 
   async register(body) {

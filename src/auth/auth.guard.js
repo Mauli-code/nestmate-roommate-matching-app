@@ -7,7 +7,12 @@ const {
 
 class AuthGuard {
   constructor(authService) {
-    this.authService = authService;
+    if (authService) {
+      this.authService = authService;
+    } else {
+      const { AuthService } = require('./auth.service');
+      this.authService = new AuthService();
+    }
   }
 
   canActivate(context) {

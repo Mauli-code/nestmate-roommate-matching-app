@@ -14,7 +14,9 @@ export async function request(path, { method = 'GET', body, token, headers = {} 
       ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
     });
   } catch {
-    const error = new Error('The backend could not be reached. Check that it is running.');
+    const error = new Error(
+      'The backend could not be reached. Ensure the backend server is running with `npm start` on port 3000.'
+    );
     error.status = 0;
     error.errors = {};
     throw error;
