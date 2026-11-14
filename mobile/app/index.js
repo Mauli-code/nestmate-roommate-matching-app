@@ -1,5 +1,4 @@
-import { Redirect } from 'expo-router';
-
+// Removed unconditional redirect; navigation now handled by RouteGuard.
 export default function Index() {
-  return <Redirect href="/(tabs)" />;
+  return null;
 }
