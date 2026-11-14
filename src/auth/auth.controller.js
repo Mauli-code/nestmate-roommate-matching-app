@@ -3,6 +3,7 @@ const {
   Controller,
   Get,
   Post,
+  Patch,
   Put,
   Req,
   UploadedFile,
@@ -46,6 +47,14 @@ class AuthController {
     return this.authService.updateProfile(request.user.sub, body);
   }
 
+  async replaceProfile(request, body) {
+    return this.authService.updateProfile(request.user.sub, body);
+  }
+
+  async changePassword(request, body) {
+    return this.authService.changePassword(request.user.sub, body);
+  }
+
   async uploadPhoto(request, file) {
     return this.authService.uploadPhoto(request.user.sub, file);
   }
@@ -84,10 +93,26 @@ const updateProfileDescriptor = Object.getOwnPropertyDescriptor(
   AuthController.prototype,
   'updateProfile',
 );
-Put('profile')(AuthController.prototype, 'updateProfile', updateProfileDescriptor);
+Patch('profile')(AuthController.prototype, 'updateProfile', updateProfileDescriptor);
 Req()(AuthController.prototype, 'updateProfile', 0);
 Body()(AuthController.prototype, 'updateProfile', 1);
 UseGuards(AuthGuard)(AuthController.prototype, 'updateProfile', updateProfileDescriptor);
+const replaceProfileDescriptor = Object.getOwnPropertyDescriptor(
+  AuthController.prototype,
+  'replaceProfile',
+);
+Put('profile')(AuthController.prototype, 'replaceProfile', replaceProfileDescriptor);
+Req()(AuthController.prototype, 'replaceProfile', 0);
+Body()(AuthController.prototype, 'replaceProfile', 1);
+UseGuards(AuthGuard)(AuthController.prototype, 'replaceProfile', replaceProfileDescriptor);
+const changePasswordDescriptor = Object.getOwnPropertyDescriptor(
+  AuthController.prototype,
+  'changePassword',
+);
+Post('change-password')(AuthController.prototype, 'changePassword', changePasswordDescriptor);
+Req()(AuthController.prototype, 'changePassword', 0);
+Body()(AuthController.prototype, 'changePassword', 1);
+UseGuards(AuthGuard)(AuthController.prototype, 'changePassword', changePasswordDescriptor);
 const uploadPhotoDescriptor = Object.getOwnPropertyDescriptor(
   AuthController.prototype,
   'uploadPhoto',
