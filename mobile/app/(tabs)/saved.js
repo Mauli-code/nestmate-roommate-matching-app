@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity, Image,
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  Image,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,7 +14,9 @@ import { useRouter } from 'expo-router';
 import { COLORS, RADII, SHADOWS, SPACING, TYPOGRAPHY } from '../../src/constants';
 import { useMatchRequests } from '../../src/hooks/useMatchRequests';
 import { useSavedProperties } from '../../src/hooks/useSavedProperties';
+import { useSavedRoommates } from '../../src/hooks/useSavedRoommates';
 import PropertyCard from '../../src/components/PropertyCard';
+import Badge from '../../src/components/Badge';
 
 function EmptyState({ icon, title, subtitle, actionLabel, onAction }) {
   return (
@@ -30,10 +38,12 @@ function EmptyState({ icon, title, subtitle, actionLabel, onAction }) {
 export default function SavedScreen() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('roommates');
-  const { requestsMap, loading: loadingRM } = useMatchRequests();
-  const { savedList, loading: loadingProps, isSaved, toggleSave } = useSavedProperties();
+  const { requestsMap } = useMatchRequests();
+  const { savedList: savedPropertiesList, isSaved: isPropertySaved, toggleSave: toggleSaveProperty } = useSavedProperties();
+  const { savedList: savedRoommatesList, isSaved: isRoommateSaved, toggleSave: toggleSaveRoommate } = useSavedRoommates();
 
   const sentRequests = Object.values(requestsMap);
+  const totalRoommatesCount = savedRoommatesList.length + sentRequests.length;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -50,9 +60,13 @@ export default function SavedScreen() {
           onPress={() => setActiveTab('roommates')}
           activeOpacity={0.8}
         >
-          <Ionicons name="people-outline" size={16} color={activeTab === 'roommates' ? COLORS.textInverse : COLORS.textSecondary} />
+          <Ionicons
+            name="people-outline"
+            size={16}
+            color={activeTab === 'roommates' ? COLORS.textInverse : COLORS.textSecondary}
+          />
           <Text style={[styles.segmentText, activeTab === 'roommates' && styles.segmentTextActive]}>
-            Roommates ({sentRequests.length})
+            Roommates ({totalRoommatesCount})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -60,57 +74,104 @@ export default function SavedScreen() {
           onPress={() => setActiveTab('properties')}
           activeOpacity={0.8}
         >
-          <Ionicons name="home-outline" size={16} color={activeTab === 'properties' ? COLORS.textInverse : COLORS.textSecondary} />
+          <Ionicons
+            name="home-outline"
+            size={16}
+            color={activeTab === 'properties' ? COLORS.textInverse : COLORS.textSecondary}
+          />
           <Text style={[styles.segmentText, activeTab === 'properties' && styles.segmentTextActive]}>
-            Properties ({savedList.length})
+            Properties ({savedPropertiesList.length})
           </Text>
         </TouchableOpacity>
       </View>
 
       {/* Content */}
       {activeTab === 'roommates' ? (
-        <FlatList
-          data={sentRequests}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
+        <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
+          {totalRoommatesCount === 0 ? (
             <EmptyState
-              icon="person-add-outline"
-              title="No Match Requests Yet"
-              subtitle="Discover roommates and send match requests to see them here."
+              icon="people-outline"
+              title="No Saved Roommates"
+              subtitle="Discover compatible roommates and save or request to connect with them."
               actionLabel="Discover Roommates"
               onAction={() => router.push('/(tabs)/discover')}
             />
-          }
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.requestCard}
-              onPress={() => router.push(`/roommate/${item.candidateId}`)}
-              activeOpacity={0.85}
-            >
-              <Image source={{ uri: item.candidateAvatar }} style={styles.avatar} />
-              <View style={styles.requestInfo}>
-                <Text style={styles.requestName}>{item.candidateName}</Text>
-                <Text style={styles.requestRole} numberOfLines={1}>{item.candidateRole}</Text>
-                <View style={styles.requestMeta}>
-                  <View style={[styles.statusDot, { backgroundColor: COLORS.warning }]} />
-                  <Text style={styles.requestStatus}>Request Pending</Text>
-                  {item.candidateScore && (
-                    <View style={styles.scoreBadge}>
-                      <Text style={styles.scoreText}>{item.candidateScore}% match</Text>
-                    </View>
-                  )}
+          ) : (
+            <>
+              {/* Saved Bookmarked Roommates Section */}
+              {savedRoommatesList.length > 0 && (
+                <View style={styles.sectionGroup}>
+                  <Text style={styles.sectionHeaderTitle}>Bookmarked Roommates ({savedRoommatesList.length})</Text>
+                  {savedRoommatesList.map((roommate) => (
+                    <TouchableOpacity
+                      key={roommate.id}
+                      style={styles.roommateCard}
+                      onPress={() => router.push(`/roommate/${roommate.id}`)}
+                      activeOpacity={0.85}
+                    >
+                      <Image source={{ uri: roommate.avatar }} style={styles.avatar} />
+                      <View style={styles.requestInfo}>
+                        <View style={styles.nameScoreRow}>
+                          <Text style={styles.requestName}>{roommate.name}, {roommate.age}</Text>
+                          <Badge
+                            label={`${roommate.score}% Match`}
+                            variant={roommate.score >= 90 ? 'success' : 'primary'}
+                            size="sm"
+                          />
+                        </View>
+                        <Text style={styles.requestRole} numberOfLines={1}>{roommate.role}</Text>
+                        <View style={styles.roommateMetaRow}>
+                          <Text style={styles.roommateMetaText}>₹{roommate.budget}/mo • {roommate.preferredArea}</Text>
+                        </View>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => toggleSaveRoommate(roommate)}
+                        style={styles.bookmarkActionBtn}
+                      >
+                        <Ionicons name="bookmark" size={20} color={COLORS.primary} />
+                      </TouchableOpacity>
+                    </TouchableOpacity>
+                  ))}
                 </View>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
-            </TouchableOpacity>
+              )}
+
+              {/* Sent Match Requests Section */}
+              {sentRequests.length > 0 && (
+                <View style={styles.sectionGroup}>
+                  <Text style={styles.sectionHeaderTitle}>Sent Match Requests ({sentRequests.length})</Text>
+                  {sentRequests.map((item) => (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={styles.requestCard}
+                      onPress={() => router.push(`/roommate/${item.candidateId}`)}
+                      activeOpacity={0.85}
+                    >
+                      <Image source={{ uri: item.candidateAvatar }} style={styles.avatar} />
+                      <View style={styles.requestInfo}>
+                        <Text style={styles.requestName}>{item.candidateName}</Text>
+                        <Text style={styles.requestRole} numberOfLines={1}>{item.candidateRole}</Text>
+                        <View style={styles.requestMeta}>
+                          <View style={[styles.statusDot, { backgroundColor: COLORS.warning }]} />
+                          <Text style={styles.requestStatus}>Request Pending</Text>
+                          {item.candidateScore && (
+                            <View style={styles.scoreBadge}>
+                              <Text style={styles.scoreText}>{item.candidateScore}% match</Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </>
           )}
-        />
+        </ScrollView>
       ) : (
         <FlatList
-          data={savedList}
-          keyExtractor={item => item.id}
+          data={savedPropertiesList}
+          keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
@@ -126,8 +187,8 @@ export default function SavedScreen() {
             <PropertyCard
               property={item}
               onPress={() => router.push(`/property/${item.id}`)}
-              onSave={() => toggleSave(item)}
-              isSaved={isSaved(item.id)}
+              onSave={() => toggleSaveProperty(item)}
+              isSaved={isPropertySaved(item.id)}
             />
           )}
         />
@@ -147,11 +208,18 @@ const styles = StyleSheet.create({
   segmentText: { fontSize: 13, fontWeight: TYPOGRAPHY.semiBold, color: COLORS.textSecondary },
   segmentTextActive: { color: COLORS.textInverse },
   listContent: { paddingHorizontal: SPACING.lg, paddingBottom: 32, paddingTop: SPACING.xs },
+  sectionGroup: { marginBottom: SPACING.md },
+  sectionHeaderTitle: { fontSize: 13, fontWeight: TYPOGRAPHY.semiBold, color: COLORS.textSecondary, marginBottom: SPACING.xs, textTransform: 'uppercase', letterSpacing: 0.5 },
+  roommateCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface, borderRadius: RADII.lg, padding: SPACING.md, marginBottom: SPACING.sm, ...SHADOWS.sm },
   requestCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface, borderRadius: RADII.lg, padding: SPACING.md, marginBottom: SPACING.sm, ...SHADOWS.sm },
   avatar: { width: 52, height: 52, borderRadius: 26, marginRight: SPACING.md },
   requestInfo: { flex: 1 },
+  nameScoreRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingRight: SPACING.sm },
   requestName: { fontSize: TYPOGRAPHY.base.fontSize, fontWeight: TYPOGRAPHY.semiBold, color: COLORS.navyDark },
   requestRole: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
+  roommateMetaRow: { marginTop: 4 },
+  roommateMetaText: { fontSize: 12, color: COLORS.primaryDark, fontWeight: TYPOGRAPHY.medium },
+  bookmarkActionBtn: { padding: 6 },
   requestMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
   statusDot: { width: 7, height: 7, borderRadius: 4 },
   requestStatus: { fontSize: 11, color: COLORS.textMuted, fontWeight: TYPOGRAPHY.medium },
