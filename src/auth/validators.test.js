@@ -35,6 +35,7 @@ test('profile validates occupation, city, bio and private phone', () => {
   });
   const errors = fieldErrors(() => validateProfile({ occupation: 'other', city: ' ', bio: 'x'.repeat(201), phone: 'bad' }));
   assert.deepEqual(Object.keys(errors).sort(), ['bio', 'city', 'occupation', 'phone']);
+  assert.equal(fieldErrors(() => validateProfile({ phone: '------' })).phone !== undefined, true);
 });
 
 test('preferences errors identify budget and lifestyle fields', () => {

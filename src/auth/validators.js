@@ -53,9 +53,12 @@ function validateProfile(body) {
     else profile.bio = body.bio.trim();
   }
   if ('phone' in body) {
-    if (body.phone !== '' && (typeof body.phone !== 'string' || !/^\+?[0-9 ()-]{7,20}$/.test(body.phone.trim()))) {
+    const phone = typeof body.phone === 'string' ? body.phone.trim() : '';
+    const digitCount = phone.replace(/\D/g, '').length;
+    if (body.phone !== '' && (typeof body.phone !== 'string' || !/^\+?[0-9 ()-]+$/.test(phone) ||
+        phone.length > 20 || digitCount < 7 || digitCount > 15)) {
       errors.phone = 'Enter a valid phone number or leave it blank.';
-    } else profile.phone = body.phone.trim();
+    } else profile.phone = phone;
   }
   if (!Object.keys(profile).length && !Object.keys(errors).length) errors.profile = 'Add at least one profile field.';
   if (Object.keys(errors).length) invalid(errors);
