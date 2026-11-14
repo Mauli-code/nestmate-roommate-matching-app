@@ -1,716 +1,341 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Image,
-  TouchableOpacity,
-  Modal,
-  TextInput,
-  Alert,
-  Switch,
-  Platform,
+  ActivityIndicator, Image, Modal, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import { COLORS, RADII, SHADOWS, SPACING, TYPOGRAPHY } from '../../src/constants';
-import { Badge, Button, Card } from '../../src/components';
-import { CURRENT_USER } from '../../src/data/mockData';
+import { Button, Input, PreferenceChoice } from '../../src/components';
+import { fetchProfile, updateProfile, changePassword } from '../../src/api/profile';
+import { savePreferences } from '../../src/api/preferences';
+import { uploadProfilePhoto, resolvePhotoUrl } from '../../src/api/photo';
+import { useAuth } from '../../src/context/AuthContext';
+import { validatePreferences } from '../../src/preferences';
+import { validatePassword } from '../../src/validation';
+import { validateProfilePhoto } from '../../src/photo-validation';
+import { COLORS, RADII, SPACING, TYPOGRAPHY } from '../../src/constants/theme';
 
-const USER_PROFILE_KEY = '@nestmate_user_profile';
+const emptyValues = {
+  fullName: '', occupation: '', city: '', bio: '', phone: '', minBudget: '', maxBudget: '',
+  preferredArea: '', sleepSchedule: '', foodHabits: '', cleanliness: '', smoking: '',
+  drinking: '', pets: '',
+};
 
-const SLEEP_OPTIONS = ['early', 'flexible', 'late'];
-const CLEAN_OPTIONS = ['high', 'medium', 'relaxed'];
+function valuesFromProfile(data) {
+  const user = data.user || {};
+  const preferences = data.preferences || {};
+  const lifestyle = preferences.lifestyle || {};
+  return {
+    fullName: user.fullName || '', occupation: user.occupation || '', city: user.city || '',
+    bio: user.bio || '', phone: user.phone || '', minBudget: String(preferences.minBudget || ''),
+    maxBudget: String(preferences.maxBudget || ''), preferredArea: preferences.preferredArea || '',
+    sleepSchedule: lifestyle.sleepSchedule || '', foodHabits: preferences.foodHabits || '',
+    cleanliness: lifestyle.cleanliness || '', smoking: lifestyle.smoking ? 'yes' : 'no',
+    drinking: preferences.drinking || '', pets: lifestyle.pets || 'any',
+  };
+}
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const [user, setUser] = useState(CURRENT_USER);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [profileVisible, setProfileVisible] = useState(true);
+  const { token, user, logout, refreshProfile, refreshMatches } = useAuth();
+  const [data, setData] = useState(null);
+  const [values, setValues] = useState(emptyValues);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [message, setMessage] = useState('');
+  const [photoLoading, setPhotoLoading] = useState(false);
+  const [photoError, setPhotoError] = useState('');
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordMessage, setPasswordMessage] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [logoutConfirm, setLogoutConfirm] = useState(false);
+  const [logoutLoading, setLogoutLoading] = useState(false);
+  const [logoutError, setLogoutError] = useState('');
 
-  // Form states for editing
-  const [editBudget, setEditBudget] = useState(String(CURRENT_USER.budget));
-  const [editArea, setEditArea] = useState(CURRENT_USER.preferredArea);
-  const [editSleep, setEditSleep] = useState(CURRENT_USER.lifestyle.sleepSchedule);
-  const [editClean, setEditClean] = useState(CURRENT_USER.lifestyle.cleanliness);
-  const [editSmoking, setEditSmoking] = useState(CURRENT_USER.lifestyle.smoking);
-  const [editPets, setEditPets] = useState(CURRENT_USER.lifestyle.pets);
-
-  // Load custom saved profile from AsyncStorage if exists
-  useEffect(() => {
-    async function loadProfile() {
-      try {
-        const stored = await AsyncStorage.getItem(USER_PROFILE_KEY);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          setUser(parsed);
-          setEditBudget(String(parsed.budget));
-          setEditArea(parsed.preferredArea);
-          setEditSleep(parsed.lifestyle.sleepSchedule);
-          setEditClean(parsed.lifestyle.cleanliness);
-          setEditSmoking(parsed.lifestyle.smoking);
-          setEditPets(parsed.lifestyle.pets);
-        }
-      } catch (e) {
-        console.warn('Failed to load user profile from storage', e);
-      }
+  async function loadProfile() {
+    setLoading(true);
+    setLoadError('');
+    try {
+      const result = await fetchProfile(token);
+      setData(result);
+      setValues({ ...emptyValues, ...valuesFromProfile(result) });
+      await refreshProfile(token);
+    } catch (error) {
+      setLoadError(error.message || 'Could not load your profile.');
+    } finally {
+      setLoading(false);
     }
-    loadProfile();
-  }, []);
+  }
 
-  const handleSaveProfile = async () => {
-    const numBudget = parseInt(editBudget, 10);
-    if (isNaN(numBudget) || numBudget <= 0) {
-      Alert.alert('Invalid Budget', 'Please enter a valid monthly budget.');
+  useEffect(() => { loadProfile(); }, [token]);
+
+  function update(field, value) {
+    setValues((current) => ({ ...current, [field]: value }));
+    setErrors((current) => ({ ...current, [field]: '' }));
+    setMessage('');
+  }
+
+  async function saveProfile() {
+    const nextErrors = validatePreferences(values);
+    if (typeof values.fullName !== 'string' || values.fullName.trim().length < 2 || values.fullName.trim().length > 80) {
+      nextErrors.fullName = 'Enter a name between 2 and 80 characters.';
+    }
+    setErrors(nextErrors);
+    setMessage('');
+    if (Object.keys(nextErrors).length) return;
+    setSaving(true);
+    try {
+      await updateProfile(token, {
+        fullName: values.fullName,
+        occupation: values.occupation,
+        city: values.city,
+        bio: values.bio,
+        phone: values.phone,
+      });
+      await savePreferences(user.id, {
+        minBudget: values.minBudget, maxBudget: values.maxBudget,
+        preferredArea: values.preferredArea, sleepSchedule: values.sleepSchedule,
+        foodHabits: values.foodHabits, cleanliness: values.cleanliness,
+        smoking: values.smoking, drinking: values.drinking, pets: values.pets,
+      }, token);
+      const updated = await fetchProfile(token);
+      setData(updated);
+      setValues({ ...emptyValues, ...valuesFromProfile(updated) });
+      await refreshProfile(token);
+      await refreshMatches().catch(() => {});
+      setEditing(false);
+      setMessage('Profile saved.');
+    } catch (error) {
+      setErrors(error.errors || {});
+      setMessage(error.message || 'Could not save your profile.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function choosePhoto() {
+    setPhotoError('');
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      setPhotoError('Allow photo access to choose a profile photo.');
       return;
     }
-
-    const updatedUser = {
-      ...user,
-      budget: numBudget,
-      preferredArea: editArea.trim() || user.preferredArea,
-      lifestyle: {
-        ...user.lifestyle,
-        sleepSchedule: editSleep,
-        cleanliness: editClean,
-        smoking: editSmoking,
-        pets: editPets,
-      },
-    };
-
-    try {
-      await AsyncStorage.setItem(USER_PROFILE_KEY, JSON.stringify(updatedUser));
-      setUser(updatedUser);
-      setIsEditModalOpen(false);
-      Alert.alert('Profile Updated', 'Your roommate matching preferences have been saved successfully!');
-    } catch (err) {
-      Alert.alert('Error', 'Failed to save changes.');
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'], allowsEditing: true, quality: 0.85,
+    });
+    if (result.canceled) return;
+    const image = result.assets[0];
+    const validationError = validateProfilePhoto(image);
+    if (validationError) {
+      setPhotoError(validationError);
+      return;
     }
-  };
+    setPhotoLoading(true);
+    try {
+      await uploadProfilePhoto(token, image);
+      await loadProfile();
+    } catch (error) {
+      setPhotoError(error.message || 'Could not upload the photo.');
+    } finally {
+      setPhotoLoading(false);
+    }
+  }
 
-  const handleLogout = () => {
-    Alert.alert(
-      'Log Out',
-      'Are you sure you want to log out of NestMate?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Log Out',
-          style: 'destructive',
-          onPress: () => {
-            Alert.alert('Logged Out', 'You have been safely logged out for this demo session.');
-          },
-        },
-      ],
+  async function savePassword() {
+    const validationError = validatePassword(newPassword);
+    if (!oldPassword || validationError) {
+      setPasswordError(validationError || 'Enter your current password.');
+      return;
+    }
+    setPasswordError('');
+    setPasswordMessage('');
+    setPasswordLoading(true);
+    try {
+      await changePassword(token, oldPassword, newPassword);
+      await logout();
+      router.replace('/(auth)/login');
+    } catch (error) {
+      setPasswordError(error.errors?.oldPassword || error.errors?.newPassword || error.message);
+    } finally {
+      setPasswordLoading(false);
+    }
+  }
+
+  function confirmLogout() {
+    setLogoutError('');
+    setLogoutConfirm(true);
+  }
+
+  async function finishLogout() {
+    setLogoutLoading(true);
+    setLogoutError('');
+    try {
+      await logout();
+      setLogoutConfirm(false);
+      router.replace('/(auth)/login');
+    } catch (error) {
+      setLogoutError(error.message || 'Could not clear the saved session. Try again.');
+    } finally {
+      setLogoutLoading(false);
+    }
+  }
+
+  if (loading) {
+    return <SafeAreaView style={styles.center}><ActivityIndicator size="large" color={COLORS.primary} /></SafeAreaView>;
+  }
+  if (loadError || !data) {
+    return (
+      <SafeAreaView style={styles.center}>
+        <Text style={styles.error}>{loadError || 'Profile is unavailable.'}</Text>
+        <Button title="Try again" onPress={loadProfile} />
+      </SafeAreaView>
     );
-  };
+  }
+
+  const profileUser = data.user || {};
+  const preferences = data.preferences;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Profile</Text>
-        <TouchableOpacity
-          onPress={() => setIsEditModalOpen(true)}
-          style={styles.editHeaderButton}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="create-outline" size={18} color={COLORS.primary} />
-          <Text style={styles.editHeaderText}>Edit</Text>
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {/* Profile Card */}
-        <Card variant="elevated" style={styles.userCard}>
-          <View style={styles.userHeaderRow}>
-            <View style={styles.avatarContainer}>
-              <Image
-                source={{ uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80' }}
-                style={styles.avatar}
-              />
-              <View style={styles.verifiedBadge}>
-                <Ionicons name="checkmark" size={12} color={COLORS.textInverse} />
-              </View>
-            </View>
-
-            <View style={styles.userInfo}>
-              <Text style={styles.userName}>{user.name}</Text>
-              <Text style={styles.userRole}>{user.university}</Text>
-              <View style={styles.locationRow}>
-                <Ionicons name="location-outline" size={13} color={COLORS.textSecondary} />
-                <Text style={styles.userLocation}>{user.location}</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Quick Stats */}
-          <View style={styles.statsRow}>
-            <View style={styles.statBox}>
-              <Text style={styles.statNumber}>{user.stats.activeMatches}</Text>
-              <Text style={styles.statLabel}>Active Matches</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statBox}>
-              <Text style={styles.statNumber}>{user.stats.pendingRequests}</Text>
-              <Text style={styles.statLabel}>Requests</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statBox}>
-              <Text style={styles.statNumber}>{user.stats.savedAccommodations}</Text>
-              <Text style={styles.statLabel}>Saved Places</Text>
-            </View>
-          </View>
-        </Card>
-
-        {/* Housing & Budget Preferences */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Housing Preferences</Text>
-          <Card variant="outlined" style={styles.prefCard}>
-            <View style={styles.prefRow}>
-              <View style={styles.prefIconBox}>
-                <Ionicons name="wallet-outline" size={18} color={COLORS.primary} />
-              </View>
-              <View style={styles.prefInfo}>
-                <Text style={styles.prefLabel}>Monthly Budget</Text>
-                <Text style={styles.prefValue}>₹{user.budget.toLocaleString('en-IN')} / month</Text>
-              </View>
-            </View>
-
-            <View style={styles.prefDivider} />
-
-            <View style={styles.prefRow}>
-              <View style={styles.prefIconBox}>
-                <Ionicons name="map-outline" size={18} color={COLORS.primary} />
-              </View>
-              <View style={styles.prefInfo}>
-                <Text style={styles.prefLabel}>Target Area</Text>
-                <Text style={styles.prefValue}>{user.preferredArea}</Text>
-              </View>
-            </View>
-
-            <View style={styles.prefDivider} />
-
-            <View style={styles.prefRow}>
-              <View style={styles.prefIconBox}>
-                <Ionicons name="calendar-outline" size={18} color={COLORS.primary} />
-              </View>
-              <View style={styles.prefInfo}>
-                <Text style={styles.prefLabel}>Target Move-in Date</Text>
-                <Text style={styles.prefValue}>{user.moveInDate}</Text>
-              </View>
-            </View>
-          </Card>
+    <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
+      <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.headingRow}>
+          <Text style={styles.heading}>Your profile</Text>
+          <Button title="Edit" variant="outline" size="sm" onPress={() => {
+            setValues({ ...emptyValues, ...valuesFromProfile(data) });
+            setErrors({}); setMessage(''); setEditing(true);
+          }} />
         </View>
-
-        {/* Lifestyle & Habits */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Lifestyle & Habits</Text>
-          <View style={styles.lifestyleGrid}>
-            <View style={styles.lifestyleCard}>
-              <Ionicons name="moon-outline" size={20} color={COLORS.primaryDark} />
-              <Text style={styles.lifestyleCardTitle}>Sleep</Text>
-              <Text style={styles.lifestyleCardValue}>{user.lifestyle.sleepSchedule}</Text>
-            </View>
-
-            <View style={styles.lifestyleCard}>
-              <Ionicons name="sparkles-outline" size={20} color={COLORS.primaryDark} />
-              <Text style={styles.lifestyleCardTitle}>Cleanliness</Text>
-              <Text style={styles.lifestyleCardValue}>{user.lifestyle.cleanliness}</Text>
-            </View>
-
-            <View style={styles.lifestyleCard}>
-              <Ionicons name="shield-checkmark-outline" size={20} color={COLORS.primaryDark} />
-              <Text style={styles.lifestyleCardTitle}>Smoking</Text>
-              <Text style={styles.lifestyleCardValue}>
-                {user.lifestyle.smoking ? 'Smoker' : 'Non-Smoker'}
-              </Text>
-            </View>
-
-            <View style={styles.lifestyleCard}>
-              <Ionicons name="paw-outline" size={20} color={COLORS.primaryDark} />
-              <Text style={styles.lifestyleCardTitle}>Pets</Text>
-              <Text style={styles.lifestyleCardValue}>
-                {user.lifestyle.pets ? 'Pet Friendly' : 'No Pets'}
-              </Text>
-            </View>
+        <View style={styles.userCard}>
+          {profileUser.photoUrl ? (
+            <Image source={{ uri: resolvePhotoUrl(profileUser.photoUrl) }} style={styles.avatar} />
+          ) : <View style={styles.avatarPlaceholder}><Text style={styles.avatarLetter}>{profileUser.fullName?.[0] || '?'}</Text></View>}
+          <View style={styles.identity}>
+            <Text style={styles.name}>{profileUser.fullName}</Text>
+            <Text style={styles.secondary}>{profileUser.email}</Text>
+            <Text style={styles.secondary}>{profileUser.occupation || 'Occupation not set'} · {profileUser.city || 'City not set'}</Text>
           </View>
         </View>
+        <Button title={photoLoading ? 'Uploading photo…' : 'Change photo'} variant="outline" onPress={choosePhoto} loading={photoLoading} disabled={photoLoading} />
+        {photoError ? <Text style={styles.error}>{photoError}</Text> : null}
+        {message ? <Text style={styles.success}>{message}</Text> : null}
 
-        {/* Settings & System Toggles */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Settings</Text>
-          <Card variant="outlined" style={styles.settingsCard}>
-            <View style={styles.settingToggleRow}>
-              <View style={styles.settingTextGroup}>
-                <Text style={styles.settingTitle}>Match Notifications</Text>
-                <Text style={styles.settingSubtitle}>Alerts for new compatible roommate recommendations</Text>
-              </View>
-              <Switch
-                value={notificationsEnabled}
-                onValueChange={setNotificationsEnabled}
-                trackColor={{ false: COLORS.border, true: COLORS.primary }}
-              />
-            </View>
-
-            <View style={styles.prefDivider} />
-
-            <View style={styles.settingToggleRow}>
-              <View style={styles.settingTextGroup}>
-                <Text style={styles.settingTitle}>Profile Discovery Visibility</Text>
-                <Text style={styles.settingSubtitle}>Allow other seekers to discover your profile</Text>
-              </View>
-              <Switch
-                value={profileVisible}
-                onValueChange={setProfileVisible}
-                trackColor={{ false: COLORS.border, true: COLORS.primary }}
-              />
-            </View>
-          </Card>
+          <Text style={styles.sectionTitle}>About you</Text>
+          <Text style={styles.value}>{profileUser.bio || 'No bio yet.'}</Text>
+          {profileUser.phone ? <Text style={styles.secondary}>Private phone: {profileUser.phone}</Text> : null}
+        </View>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Roommate preferences</Text>
+          {preferences ? (
+            <>
+              <Text style={styles.value}>₹{Number(preferences.minBudget).toLocaleString('en-IN')}–₹{Number(preferences.maxBudget).toLocaleString('en-IN')} per month</Text>
+              <Text style={styles.secondary}>Area: {preferences.preferredArea}</Text>
+              <Text style={styles.secondary}>Sleep: {preferences.lifestyle?.sleepSchedule || '—'} · Cleanliness: {preferences.lifestyle?.cleanliness || '—'}</Text>
+              <Text style={styles.secondary}>Food: {preferences.foodHabits || '—'} · Smoking: {preferences.lifestyle?.smoking ? 'Yes' : 'No'} · Drinking: {preferences.drinking || '—'} · Pets: {preferences.lifestyle?.pets || '—'}</Text>
+            </>
+          ) : <Text style={styles.secondary}>Preferences have not been saved.</Text>}
         </View>
 
-        {/* Backend Status info pill */}
-        <View style={styles.statusBox}>
-          <Ionicons name="server-outline" size={16} color={COLORS.success} />
-          <Text style={styles.statusText}>Backend: NestJS API Connected (Health: OK)</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Change password</Text>
+          <Input label="Current password" value={oldPassword} onChangeText={setOldPassword} secureTextEntry autoCapitalize="none" />
+          <Input label="New password" value={newPassword} onChangeText={setNewPassword} secureTextEntry autoCapitalize="none" />
+          {passwordError ? <Text style={styles.error}>{passwordError}</Text> : null}
+          {passwordMessage ? <Text style={styles.success}>{passwordMessage}</Text> : null}
+          <Button title="Change password" variant="outline" onPress={savePassword} loading={passwordLoading} disabled={passwordLoading} />
         </View>
-
-        {/* Log Out Button */}
-        <Button
-          title="Log Out"
-          variant="outline"
-          size="md"
-          icon={<Ionicons name="log-out-outline" size={18} color={COLORS.danger} />}
-          onPress={handleLogout}
-          style={styles.logoutButton}
-          textStyle={{ color: COLORS.danger }}
-        />
+        <Button title="Log out" variant="danger" onPress={confirmLogout} />
       </ScrollView>
 
-      {/* Edit Profile Modal */}
-      <Modal visible={isEditModalOpen} animationType="slide" transparent={false} onRequestClose={() => setIsEditModalOpen(false)}>
-        <SafeAreaView style={styles.modalContainer} edges={['top', 'bottom']}>
+      <Modal visible={editing} animationType="slide" onRequestClose={() => setEditing(false)}>
+        <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setIsEditModalOpen(false)} style={styles.modalCloseBtn}>
-              <Ionicons name="close" size={24} color={COLORS.navyDark} />
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>Edit Match Preferences</Text>
-            <TouchableOpacity onPress={handleSaveProfile} style={styles.modalSaveBtn}>
-              <Text style={styles.modalSaveText}>Save</Text>
-            </TouchableOpacity>
+            <Text style={styles.heading}>Edit profile</Text>
+            <Button title="Close" variant="ghost" size="sm" onPress={() => setEditing(false)} />
           </View>
-
-          <ScrollView contentContainerStyle={styles.modalBody}>
-            {/* Budget Input */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Monthly Budget (₹)</Text>
-              <TextInput
-                style={styles.textInput}
-                keyboardType="numeric"
-                value={editBudget}
-                onChangeText={setEditBudget}
-                placeholder="e.g. 15000"
-              />
-            </View>
-
-            {/* Target Area Input */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Preferred Area / Neighborhood</Text>
-              <TextInput
-                style={styles.textInput}
-                value={editArea}
-                onChangeText={setEditArea}
-                placeholder="e.g. Koramangala or Central"
-              />
-            </View>
-
-            {/* Sleep Schedule Picker */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Sleep Schedule</Text>
-              <View style={styles.pillRow}>
-                {SLEEP_OPTIONS.map((opt) => (
-                  <TouchableOpacity
-                    key={opt}
-                    style={[styles.modalPill, editSleep === opt && styles.modalPillActive]}
-                    onPress={() => setEditSleep(opt)}
-                  >
-                    <Text style={[styles.modalPillText, editSleep === opt && styles.modalPillTextActive]}>
-                      {opt.charAt(0).toUpperCase() + opt.slice(1)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* Cleanliness Picker */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Cleanliness</Text>
-              <View style={styles.pillRow}>
-                {CLEAN_OPTIONS.map((opt) => (
-                  <TouchableOpacity
-                    key={opt}
-                    style={[styles.modalPill, editClean === opt && styles.modalPillActive]}
-                    onPress={() => setEditClean(opt)}
-                  >
-                    <Text style={[styles.modalPillText, editClean === opt && styles.modalPillTextActive]}>
-                      {opt.charAt(0).toUpperCase() + opt.slice(1)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* Smoking Toggle */}
-            <View style={styles.switchRow}>
-              <Text style={styles.inputLabel}>Smoking Allowed / Smoker</Text>
-              <Switch
-                value={editSmoking}
-                onValueChange={setEditSmoking}
-                trackColor={{ false: COLORS.border, true: COLORS.primary }}
-              />
-            </View>
-
-            {/* Pets Toggle */}
-            <View style={styles.switchRow}>
-              <Text style={styles.inputLabel}>Pet Friendly</Text>
-              <Switch
-                value={editPets}
-                onValueChange={setEditPets}
-                trackColor={{ false: COLORS.border, true: COLORS.primary }}
-              />
-            </View>
+          <ScrollView contentContainerStyle={styles.modalContent} keyboardShouldPersistTaps="handled">
+            <Input label="Full name" value={values.fullName} onChangeText={(value) => update('fullName', value)} error={errors.fullName} />
+            <PreferenceChoice label="Occupation" value={values.occupation} error={errors.occupation} onChange={(value) => update('occupation', value)} options={[
+              { label: 'Student', value: 'student' }, { label: 'Working', value: 'working' },
+            ]} />
+            <Input label="City" value={values.city} onChangeText={(value) => update('city', value)} error={errors.city} />
+            <Input label="Short bio" value={values.bio} onChangeText={(value) => update('bio', value)} error={errors.bio} multiline maxLength={200} />
+            <Input label="Phone (private)" value={values.phone} onChangeText={(value) => update('phone', value)} error={errors.phone} keyboardType="phone-pad" />
+            <Input label="Minimum budget (₹)" value={values.minBudget} onChangeText={(value) => update('minBudget', value)} error={errors.minBudget} keyboardType="number-pad" />
+            <Input label="Maximum budget (₹)" value={values.maxBudget} onChangeText={(value) => update('maxBudget', value)} error={errors.maxBudget} keyboardType="number-pad" />
+            <Input label="Preferred area" value={values.preferredArea} onChangeText={(value) => update('preferredArea', value)} error={errors.preferredArea} />
+            <PreferenceChoice label="Sleep schedule" value={values.sleepSchedule} error={errors.sleepSchedule} onChange={(value) => update('sleepSchedule', value)} options={[
+              { label: 'Early', value: 'early' }, { label: 'Flexible', value: 'flexible' }, { label: 'Late', value: 'late' },
+            ]} />
+            <PreferenceChoice label="Food habits" value={values.foodHabits} error={errors.foodHabits} onChange={(value) => update('foodHabits', value)} options={[
+              { label: 'Vegetarian', value: 'vegetarian' }, { label: 'Non-vegetarian', value: 'non-vegetarian' }, { label: 'Vegan', value: 'vegan' }, { label: 'Any', value: 'any' },
+            ]} />
+            <PreferenceChoice label="Cleanliness" value={values.cleanliness} error={errors.cleanliness} onChange={(value) => update('cleanliness', value)} options={[
+              { label: 'High', value: 'high' }, { label: 'Medium', value: 'medium' }, { label: 'Relaxed', value: 'relaxed' },
+            ]} />
+            <PreferenceChoice label="Smoking" value={values.smoking} error={errors.smoking} onChange={(value) => update('smoking', value)} options={[
+              { label: 'No', value: 'no' }, { label: 'Yes', value: 'yes' },
+            ]} />
+            <PreferenceChoice label="Drinking" value={values.drinking} error={errors.drinking} onChange={(value) => update('drinking', value)} options={[
+              { label: 'Never', value: 'never' }, { label: 'Socially', value: 'occasionally' }, { label: 'Often', value: 'often' },
+            ]} />
+            <PreferenceChoice label="Pets" value={values.pets} error={errors.pets} onChange={(value) => update('pets', value)} options={[
+              { label: 'No pets', value: 'no' }, { label: 'Pets okay', value: 'yes' }, { label: 'Any', value: 'any' },
+            ]} />
+            {message ? <Text style={styles.error}>{message}</Text> : null}
+            <Button title="Save profile" onPress={saveProfile} loading={saving} disabled={saving} />
           </ScrollView>
-
-          <View style={styles.modalFooter}>
-            <Button title="Save Preferences" variant="primary" size="lg" onPress={handleSaveProfile} />
-          </View>
         </SafeAreaView>
+      </Modal>
+
+      <Modal
+        visible={logoutConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLogoutConfirm(false)}
+      >
+        <View style={styles.dialogBackdrop}>
+          <View style={styles.dialog}>
+            <Text style={styles.sectionTitle}>Log out of NestMate?</Text>
+            <Text style={styles.secondary}>You can sign in again to see your saved profile.</Text>
+            {logoutError ? <Text accessibilityRole="alert" style={styles.error}>{logoutError}</Text> : null}
+            <View style={styles.dialogActions}>
+              <Button title="Cancel" variant="ghost" onPress={() => setLogoutConfirm(false)} disabled={logoutLoading} />
+              <Button title="Log out" variant="danger" onPress={finishLogout} loading={logoutLoading} disabled={logoutLoading} />
+            </View>
+          </View>
+        </View>
       </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.md,
-    paddingBottom: SPACING.sm,
-  },
-  headerTitle: {
-    fontSize: TYPOGRAPHY.xl.fontSize,
-    fontWeight: TYPOGRAPHY.bold,
-    color: COLORS.navyDark,
-  },
-  editHeaderButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-  },
-  editHeaderText: {
-    fontSize: 14,
-    fontWeight: TYPOGRAPHY.semiBold,
-    color: COLORS.primary,
-  },
-  scrollContent: {
-    paddingHorizontal: SPACING.lg,
-    paddingBottom: 40,
-  },
-  userCard: {
-    padding: SPACING.lg,
-    marginBottom: SPACING.lg,
-  },
-  userHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACING.lg,
-  },
-  avatarContainer: {
-    position: 'relative',
-    marginRight: SPACING.md,
-  },
-  avatar: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-  },
-  verifiedBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: COLORS.primary,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: COLORS.surface,
-  },
-  userInfo: {
-    flex: 1,
-  },
-  userName: {
-    fontSize: TYPOGRAPHY.lg.fontSize,
-    fontWeight: TYPOGRAPHY.bold,
-    color: COLORS.navyDark,
-  },
-  userRole: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    marginTop: 4,
-  },
-  userLocation: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    paddingTop: SPACING.md,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.borderLight,
-  },
-  statBox: {
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: 18,
-    fontWeight: TYPOGRAPHY.bold,
-    color: COLORS.navyDark,
-  },
-  statLabel: {
-    fontSize: 11,
-    color: COLORS.textMuted,
-    marginTop: 2,
-  },
-  statDivider: {
-    width: 1,
-    height: 24,
-    backgroundColor: COLORS.border,
-  },
-  section: {
-    marginBottom: SPACING.lg,
-  },
-  sectionTitle: {
-    fontSize: TYPOGRAPHY.base.fontSize,
-    fontWeight: TYPOGRAPHY.bold,
-    color: COLORS.navyDark,
-    marginBottom: SPACING.sm,
-  },
-  prefCard: {
-    padding: SPACING.md,
-  },
-  prefRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: SPACING.xs,
-  },
-  prefIconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: RADII.md,
-    backgroundColor: COLORS.softBlue,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: SPACING.md,
-  },
-  prefInfo: {
-    flex: 1,
-  },
-  prefLabel: {
-    fontSize: 11,
-    color: COLORS.textMuted,
-    fontWeight: TYPOGRAPHY.medium,
-  },
-  prefValue: {
-    fontSize: 14,
-    fontWeight: TYPOGRAPHY.semiBold,
-    color: COLORS.navyDark,
-    marginTop: 1,
-  },
-  prefDivider: {
-    height: 1,
-    backgroundColor: COLORS.borderLight,
-    marginVertical: SPACING.sm,
-  },
-  lifestyleGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.sm,
-  },
-  lifestyleCard: {
-    width: '48%',
-    backgroundColor: COLORS.surface,
-    borderRadius: RADII.lg,
-    padding: SPACING.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    alignItems: 'center',
-    gap: 4,
-  },
-  lifestyleCardTitle: {
-    fontSize: 11,
-    color: COLORS.textMuted,
-    fontWeight: TYPOGRAPHY.medium,
-    marginTop: 2,
-  },
-  lifestyleCardValue: {
-    fontSize: 13,
-    fontWeight: TYPOGRAPHY.semiBold,
-    color: COLORS.navyDark,
-    textTransform: 'capitalize',
-  },
-  settingsCard: {
-    padding: SPACING.md,
-  },
-  settingToggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: SPACING.xs,
-  },
-  settingTextGroup: {
-    flex: 1,
-    paddingRight: SPACING.md,
-  },
-  settingTitle: {
-    fontSize: 13,
-    fontWeight: TYPOGRAPHY.semiBold,
-    color: COLORS.navyDark,
-  },
-  settingSubtitle: {
-    fontSize: 11,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
-  statusBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#ECFDF5',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: RADII.pill,
-    marginBottom: SPACING.lg,
-    alignSelf: 'center',
-  },
-  statusText: {
-    fontSize: 12,
-    color: '#065F46',
-    fontWeight: TYPOGRAPHY.medium,
-  },
-  logoutButton: {
-    borderColor: COLORS.danger,
-    marginTop: SPACING.xs,
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    backgroundColor: COLORS.surface,
-  },
-  modalCloseBtn: {
-    padding: 4,
-  },
-  modalTitle: {
-    fontSize: TYPOGRAPHY.base.fontSize,
-    fontWeight: TYPOGRAPHY.bold,
-    color: COLORS.navyDark,
-  },
-  modalSaveBtn: {
-    padding: 4,
-  },
-  modalSaveText: {
-    fontSize: 15,
-    fontWeight: TYPOGRAPHY.bold,
-    color: COLORS.primary,
-  },
-  modalBody: {
-    padding: SPACING.lg,
-    gap: SPACING.lg,
-  },
-  inputGroup: {
-    gap: 6,
-  },
-  inputLabel: {
-    fontSize: 13,
-    fontWeight: TYPOGRAPHY.semiBold,
-    color: COLORS.navyDark,
-  },
-  textInput: {
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: RADII.md,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm + 2,
-    fontSize: 14,
-    color: COLORS.navyDark,
-  },
-  pillRow: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
-  },
-  modalPill: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderRadius: RADII.pill,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.surface,
-  },
-  modalPillActive: {
-    backgroundColor: COLORS.navyDark,
-    borderColor: COLORS.navyDark,
-  },
-  modalPillText: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    fontWeight: TYPOGRAPHY.medium,
-  },
-  modalPillTextActive: {
-    color: COLORS.textInverse,
-    fontWeight: TYPOGRAPHY.semiBold,
-  },
-  switchRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 4,
-  },
-  modalFooter: {
-    padding: SPACING.lg,
-    backgroundColor: COLORS.surface,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-  },
+  screen: { flex: 1, backgroundColor: COLORS.background },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.background, padding: SPACING.xl, gap: SPACING.md },
+  content: { padding: SPACING.lg, paddingBottom: SPACING.xxxl, gap: SPACING.md },
+  headingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  heading: { color: COLORS.navyDark, fontSize: TYPOGRAPHY.xxl.fontSize, fontWeight: '700' },
+  userCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface, borderRadius: RADII.lg, padding: SPACING.lg, gap: SPACING.md },
+  avatar: { width: 64, height: 64, borderRadius: 32 },
+  avatarPlaceholder: { width: 64, height: 64, borderRadius: 32, backgroundColor: COLORS.softBlue, alignItems: 'center', justifyContent: 'center' },
+  avatarLetter: { color: COLORS.primary, fontSize: 28, fontWeight: '700' },
+  identity: { flex: 1, gap: 3 },
+  name: { color: COLORS.navyDark, fontSize: TYPOGRAPHY.lg.fontSize, fontWeight: '700' },
+  secondary: { color: COLORS.textSecondary, fontSize: TYPOGRAPHY.sm.fontSize, marginTop: SPACING.xs },
+  value: { color: COLORS.navyDark, fontSize: TYPOGRAPHY.md.fontSize, marginTop: SPACING.sm },
+  section: { backgroundColor: COLORS.surface, borderRadius: RADII.lg, padding: SPACING.lg, marginTop: SPACING.sm },
+  sectionTitle: { color: COLORS.navyDark, fontSize: TYPOGRAPHY.base.fontSize, fontWeight: '700' },
+  error: { color: COLORS.danger, marginVertical: SPACING.sm },
+  success: { color: COLORS.success, marginVertical: SPACING.sm },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: SPACING.lg, backgroundColor: COLORS.surface },
+  modalContent: { padding: SPACING.lg, paddingBottom: SPACING.xxxl },
+  dialogBackdrop: { flex: 1, justifyContent: 'center', padding: SPACING.xl, backgroundColor: 'rgba(15, 37, 55, 0.45)' },
+  dialog: { backgroundColor: COLORS.surface, borderRadius: RADII.lg, padding: SPACING.xl },
+  dialogActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: SPACING.sm, marginTop: SPACING.lg },
 });

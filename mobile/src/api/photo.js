@@ -1,5 +1,5 @@
 const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL || 'http://10.0.2.2:3001';
+  process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000';
 
 export async function uploadProfilePhoto(token, image) {
   const formData = new FormData();
