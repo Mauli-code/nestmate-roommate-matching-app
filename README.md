@@ -1,182 +1,347 @@
 # NestMate — Smart Roommate Matching & Accommodation Application
 
-NestMate is a mobile application designed to help students and working professionals find compatible roommates based on budget, location, lifestyle, habits, and preferences, while also discovering verified accommodation options.
+NestMate is a modern full-stack mobile application designed to help students and working professionals find compatible roommates based on budget, location, lifestyle, habits, and preferences, while discovering verified accommodation options (flats, PGs, and shared rooms).
 
 ---
 
-## 1. Project Architecture
+## 1. Problem Statement
 
-The repository is structured into two decoupled tiers:
-
-- **Backend (`/src`)**: NestJS matching engine written in JavaScript with compatibility scoring (0–100%) and candidate ranking.
-- **Mobile Frontend (`/mobile`)**: React Native mobile application built with Expo and Expo Router, featuring a custom navy/blue design system, reusable UI components, and bottom tab navigation.
+Finding a suitable roommate or shared housing in urban centers and near university campuses is traditionally an unorganized, high-friction process. Seekers face:
+* Mismatched lifestyle expectations (cleanliness, sleep cycles, dietary and smoking habits).
+* Incompatible budget splits and geographic requirements.
+* Unverified listings and scattered communication channels.
+* Cluttered, unfiltered classifieds with no quantitative measure of roommate compatibility.
 
 ---
 
-## 2. Mobile Application (`mobile/`)
+## 2. Project Objectives
 
-The mobile UI is designed specifically for students and professionals looking for flatmates and housing.
+1. **Algorithmic Compatibility Matching**: Automatically compute a multi-factor compatibility score (0–100%) between candidates across four pillars (Budget, Location, Lifestyle, and Habits).
+2. **Comprehensive Accommodation Discovery**: Enable seekers to discover verified PGs, flats, private rooms, and shared apartments with detailed specs (rent in ₹, furnishing, BHK, amenities, house rules).
+3. **Structured Social Connection**: Provide match requests, connection requests, and booking inquiries without exposing private contact info prematurely.
+4. **Intuitive Mobile Experience**: Deliver a responsive, native-feeling mobile app built on React Native & Expo Router with persistent bookmarks, real-time search, multi-factor filtering, and customizable profile preferences.
 
-### Tech Stack
-- **Framework**: React Native with Expo (SDK 58)
-- **Language**: JavaScript
-- **Navigation**: Expo Router (file-based navigation with tabs and dynamic routes)
-- **Styling**: React Native `StyleSheet` with centralized design tokens
-- **Icons**: `@expo/vector-icons` (Ionicons)
-- **Storage**: `@react-native-async-storage/async-storage`
+---
 
-### Directory Structure
+## 3. Technology Stack
+
+### Mobile Frontend (`mobile/`)
+* **Framework**: React Native with **Expo SDK 58**
+* **Routing**: **Expo Router** (file-based navigation with tab bar and nested stack routes)
+* **Language**: JavaScript (ES Modules)
+* **Styling**: React Native `StyleSheet` with centralized design tokens (`COLORS`, `RADII`, `TYPOGRAPHY`, `SHADOWS`)
+* **Icons**: `@expo/vector-icons` (Ionicons)
+* **Persistence**: `@react-native-async-storage/async-storage` for saved properties, bookmarked roommates, and local session profile state
+* **Web Bundling**: `react-native-web` for cross-platform browser support
+
+### Backend API (`src/`)
+* **Framework**: **NestJS 11** with `@nestjs/platform-express` HTTP driver
+* **Architecture**: Modular Domain-Driven Design (Controllers, Services, In-Memory Repositories, Guards)
+* **Security & Auth**: `jsonwebtoken` (JWT), `bcryptjs` password hashing, token revocation, account lifecycle guards
+* **CORS**: Enabled for seamless cross-origin requests from web and mobile clients
+* **Testing**: Node.js built-in test runner (`node:test` and `node:assert/strict`)
+
+---
+
+## 4. Project Architecture
+
+NestMate uses a decoupled, clean two-tier architecture:
+
+```text
+┌────────────────────────────────────────────────────────┐
+│               NestMate Mobile Client                   │
+│   (Expo Router • 5 Tabs • Dynamic Stack Routes)        │
+│                                                        │
+│  [Home]  [Discover]  [Places]  [Saved]  [Profile]      │
+└──────────────┬─────────────────────────┬───────────────┘
+               │ HTTP / JSON             │ Local Storage
+               ▼                         ▼
+┌──────────────────────────────┐  ┌──────────────────────┐
+│     NestJS Backend API       │  │ AsyncStorage Cache   │
+│  (14 Modules • Controllers)  │  │ - Saved Properties   │
+│                              │  │ - Bookmarked Matches │
+│  • Auth & User Management    │  │ - Sent Requests      │
+│  • 4-Pillar Matching Engine  │  │ - Edited Profile     │
+│  • Accommodations & Bookings │  └──────────────────────┘
+│  • Favorites & Connections   │
+│  • Chat, Reviews, Dashboard  │
+│  • Health Check API          │
+└──────────────┬───────────────┘
+               │
+               ▼
+┌──────────────────────────────┐
+│ In-Memory Repository Layer   │
+│ (Seeded Demo Datasets)       │
+└──────────────────────────────┘
 ```
-mobile/
-├── app/                      # Expo Router file-based routes
-│   ├── _layout.js            # Root layout with SafeAreaProvider & Stack
-│   ├── index.js              # Entry redirect to (tabs)
-│   ├── (tabs)/               # Bottom tab navigation
-│   │   ├── _layout.js        # Tab bar configuration & icons
-│   │   ├── index.js          # Home / Discovery screen
-│   │   ├── discover.js       # Roommate discovery with search & sorting
-│   │   ├── saved.js          # Bookmarked roommates & accommodations
-│   │   └── profile.js        # User profile & preferences
-│   └── roommate/
-│       └── [id].js           # Roommate profile details & compatibility breakdown
-├── src/
-│   ├── components/           # Reusable UI component library
-│   │   ├── Button.js         # Primary, secondary, outline, danger buttons
-│   │   ├── Card.js           # Elevated, outlined, and flat cards
-│   │   ├── Input.js          # Form text inputs with icons & validation
-│   │   ├── SearchBar.js      # Search input with filter toggle
-│   │   ├── Badge.js          # Compatibility & status pills
-│   │   ├── RoommateCard.js   # Roommate recommendation card
-│   │   ├── CompatibilityBreakdown.js # 4-pillar visual scoring breakdown
-│   │   ├── RoommateFilterModal.js    # Filter bottom sheet modal
-│   │   ├── MatchRequestModal.js      # Match request confirmation dialog
-│   │   └── index.js
-│   ├── constants/            # Design system tokens
-│   │   ├── theme.js          # Palette (Navy/Blue), Typography, Spacing, Shadows
-│   │   └── index.js
-│   ├── hooks/
-│   │   └── useMatchRequests.js # Hook for managing match request states
-│   ├── services/
-│   │   └── matchRequestService.js # Match request storage & API client
-│   └── data/
-│       └── mockData.js       # Realistic mock data aligned with backend schemas
-├── test/
-│   └── roommateJourney.test.js # Automated verification for roommate discovery journey
-├── assets/                   # App icons, splash screens, and images
-├── app.json                  # Expo project configuration
-└── package.json              # Mobile dependencies and scripts
+
+---
+
+## 5. Folder Structure
+
+```text
+nestmate-roommate-matching-app-main/
+├── src/                          # NestJS Backend Modules
+│   ├── main.js                   # Server bootstrap & CORS configuration
+│   ├── app.module.js             # Root module aggregating all domain modules
+│   ├── health/                   # Health-check endpoint (/api/health)
+│   ├── auth/                     # JWT authentication, register, login, photo upload
+│   ├── matching/                 # Compatibility scoring, ranking & profile repository
+│   ├── accommodations/           # Accommodation listings, filters & recommendations
+│   ├── booking-requests/         # Booking inquiry workflow
+│   ├── connection-requests/      # Roommate connection workflow
+│   ├── favorites/                # Roommate favorites API
+│   ├── chat/                     # In-app messaging & blocking controls
+│   ├── dashboard/                # User metrics & profile completion statistics
+│   ├── notifications/            # Notification center & preference controls
+│   ├── privacy/                  # Profile visibility & field concealment
+│   ├── moderation/               # User reporting & safety blocks
+│   ├── reviews/                  # Roommate & accommodation rating reviews
+│   └── search/                   # Global multi-parameter seeker search
+│
+├── mobile/                       # React Native Mobile Application (Expo SDK 58)
+│   ├── app/                      # Expo Router navigation routes
+│   │   ├── _layout.js            # Root Stack layout
+│   │   ├── index.js              # Entry redirect to (tabs)
+│   │   ├── (tabs)/               # Bottom tab navigator
+│   │   │   ├── _layout.js        # Tab configuration (Home, Discover, Places, Saved, Profile)
+│   │   │   ├── index.js          # Home screen (Greeting, Stats, Smart Match Overview)
+│   │   │   ├── discover.js       # Roommate discovery (Search, Sort, Filters)
+│   │   │   ├── accommodations.js # Accommodation listings (PGs, Flats, Rooms)
+│   │   │   ├── saved.js          # Segmented saved bookmarks (Roommates & Properties)
+│   │   │   └── profile.js        # User profile, preferences editor & logout
+│   │   ├── roommate/[id].js      # Roommate details & compatibility breakdown
+│   │   └── property/[id].js      # Accommodation property details & contact CTA
+│   │
+│   ├── src/
+│   │   ├── api/                  # Backend REST API client services
+│   │   ├── components/           # Reusable UI component library (13 components)
+│   │   ├── constants/theme.js    # Design system palette, typography, radii, spacing
+│   │   ├── data/mockData.js      # Seeded realistic datasets (users, roommates, properties)
+│   │   ├── hooks/                # Custom hooks (useMatchRequests, useSavedProperties, useSavedRoommates)
+│   │   └── services/             # Client persistence and backend fallback services
+│   └── test/                     # Mobile automated journey verification tests
+│
+├── .env.example                  # Backend environment variable template
+├── mobile/.env.example           # Mobile client environment variable template
+├── package.json                  # Root backend scripts & dependencies
+└── README.md                     # Project documentation
 ```
 
 ---
 
-## 3. Mobile Setup and Startup
+## 6. Features Overview
+
+### A. Mobile Application Features
+* **Home Screen**: Personalized greeting, live active match counts, Smart Match explanation card, horizontal top roommate carousel, and quick category pills.
+* **Roommate Discovery**: Instant keyword search (name, role, area, vibe), horizontal sorting pills (Highest Match, Budget Asc/Desc, Location), multi-criteria filter modal (Budget, Sleep, Cleanliness, Smoking, Pets), and pull-to-refresh.
+* **Roommate Profile Details**: Profile hero image, verified status, 4-pillar compatibility breakdown bars, lifestyle tags, habit preferences, match request modal action, and persistent bookmarking.
+* **Accommodation Listings ("Places")**: Dedicated listings for 10 realistic properties across Indian metro hubs (Bangalore, Mumbai, Delhi, Hyderabad, Pune, Noida, Chennai). Includes rent in ₹, property type (PG, Flat, Shared Room, Private Room), BHK, furnishing chips, availability indicator, search bar, sort selector, and filter modal.
+* **Property Details**: Hero image, full street address, specifications grid (BHK, baths, deposit, furnishing), description, amenity chips (WiFi, AC, Power Backup, Gym), house rules, and fixed bottom "Contact Owner" CTA.
+* **Segmented Saved Screen**: Segmented control switching between **Bookmarked Roommates & Match Requests** and **Saved Accommodation Properties**, backed by persistent device storage (`AsyncStorage`).
+* **Profile & Preferences Editor**: Complete profile screen showing personal details, housing preferences, lifestyle habits, notification toggles, privacy toggles, an interactive **Edit Preferences Modal**, and session reset/logout.
+
+### B. Backend API Features
+* **Compatibility Scoring Engine**: Quantitative 0–100% calculation factoring budget proximity (25%), location match (25%), sleep/cleanliness alignment (25%), and smoking/pets habits (25%) with human-readable match explanations.
+* **Authentication**: User registration, login with bcrypt password comparison, JWT token issuance, profile editing, photo upload, and account deactivation/deletion requests.
+* **Connection & Match Requests**: Create, list sent, list received, accept, reject, and cancel pending requests.
+* **Accommodation Management**: CRUD endpoints for housing listings with suitability scoring and recommendations.
+* **Health Check**: High-availability health status endpoint at `/api/health`.
+
+---
+
+## 7. Installation Instructions (Fresh Clone)
 
 ### Prerequisites
-- Node.js (v18 or newer)
-- npm or yarn
-- Expo Go mobile app (iOS App Store or Google Play Store) or an iOS/Android simulator
+* **Node.js**: v18.0.0 or newer (Node v20+ / v24 verified)
+* **npm**: v9.0.0 or newer
+* **Expo Go**: Available on iOS App Store & Android Google Play Store (for physical phone testing)
 
-### Quick Start
+### Step 1: Clone the repository
+```bash
+git clone https://github.com/Mauli-code/nestmate-roommate-matching-app.git
+cd nestmate-roommate-matching-app
+```
 
-1. **Navigate to the mobile directory**:
-   ```bash
-   cd mobile
-   ```
+### Step 2: Install Root & Backend Dependencies
+```bash
+npm install
+```
 
-2. **Install dependencies**:
-   ```bash
-   npm install
-   ```
-
-3. **Start the Expo development server**:
-   ```bash
-   npm start
-   # or
-   npx expo start
-   ```
-
-4. **Run on your preferred target**:
-   - Press `i` to launch in the **iOS Simulator** (macOS required with Xcode).
-   - Press `a` to launch in the **Android Emulator** (Android Studio required).
-   - Press `w` to open in the **Web browser**.
-   - Scan the QR code using the **Expo Go** app on your physical device.
-
-5. **Run mobile journey tests**:
-   ```bash
-   node --test mobile/test/roommateJourney.test.js
-   ```
-
-### Expo Go troubleshooting (QR scans but the app only reloads / shows nothing)
-
-The most common cause is starting Expo from the repository root instead of the
-`mobile/` folder. From the root, Metro serves `expo/AppEntry` and fails with
-`Unable to resolve module ../../App`, so Expo Go loops on the splash screen.
-
-- **Always start from `mobile/`.** From the repository root you can also run
-  `npm run mobile` (or `npm run mobile:clear` to reset Metro's cache).
-- Update **Expo Go** to the latest version (SDK 58) from the App Store / Play Store.
-- Keep the phone and computer on the **same Wi-Fi**. Turn off VPNs and
-  iCloud Private Relay while testing.
-- **Android:** scan the QR from *inside* Expo Go (tap **Scan QR code**), not from
-  the camera / Google Lens — the camera may open a browser that cannot handle
-  `exp://` URLs. Check connectivity in Chrome with
-  `http://<computer-ip>:8081/status` (it must show `packager-status:running`).
-  Guest / college Wi-Fi often blocks phone-to-laptop traffic; use a phone
-  hotspot or `npx expo start --tunnel` (tunnel requires `npx expo login`).
-- **iPhone (physical device):** Expo Go and Expo CLI must be signed in to the
-  same Expo account (SDK 58 requirement). Run `npx expo login`, then sign in to
-  Expo Go with the same account.
-- If the LAN connection is blocked, use a tunnel:
-  ```bash
-  cd mobile
-  npx expo start --tunnel
-  ```
-- Clear the Metro cache and restart:
-  ```bash
-  cd mobile
-  npx expo start --clear
-  ```
-- In Expo Go, shake the device and tap **Reload**, or force-close and reopen Expo Go.
-- Sanity check from the phone browser: open `http://<computer-ip>:8081/status`.
-  It should show `packager-status:running`.
+### Step 3: Install Mobile Dependencies
+```bash
+cd mobile
+npm install
+cd ..
+```
 
 ---
 
-## 4. Backend Development (`/src`)
+## 8. Backend Startup Instructions
 
-The matching backend contains the 4-pillar compatibility algorithm and ranking engine:
+Start the NestJS backend from the repository root:
 
 ```bash
-npm install
-npm run build
+npm start
+```
+
+The backend starts on port 3000:
+```text
+[Nest] LOG [NestApplication] Nest application successfully started
+```
+
+To verify the backend is running, query the health-check endpoint:
+```bash
+curl http://localhost:3000/api/health
+```
+
+Expected response:
+```json
+{
+  "status": "ok",
+  "service": "nestmate-backend",
+  "timestamp": "2026-11-12T09:00:07.236Z",
+  "uptime": 12.34
+}
+```
+
+---
+
+## 9. Mobile Startup Instructions
+
+Start the Expo mobile app:
+
+```bash
+cd mobile
+npx expo start --clear
+```
+
+### Target Options:
+* **Web Browser**: Press `w` in the terminal or open `http://localhost:8081` in Chrome/Safari.
+* **Physical Device (Expo Go)**:
+  1. Ensure your mobile phone and computer are on the **same Wi-Fi network**.
+  2. Open the **Expo Go** app on your phone.
+  3. Scan the terminal's QR code (on Android, scan via Expo Go's built-in "Scan QR code"; on iOS, scan with the Camera app).
+* **iOS Simulator**: Press `i` (macOS with Xcode required).
+* **Android Emulator**: Press `a` (Android Studio required).
+
+---
+
+## 10. Environment Variable Setup
+
+### Backend (`.env`)
+Copy the template in the root directory:
+```bash
+cp .env.example .env
+```
+Default values:
+```env
+PORT=3000
+JWT_SECRET=nestmate-jwt-secret-for-demo
+```
+
+### Mobile Frontend (`mobile/.env`)
+Copy the template in the `mobile/` directory:
+```bash
+cp mobile/.env.example mobile/.env
+```
+Configuration guide:
+* **Web / iOS Simulator**: `EXPO_PUBLIC_API_BASE_URL=http://localhost:3000`
+* **Android Emulator**: `EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:3000`
+* **Physical Device via Wi-Fi**: `EXPO_PUBLIC_API_BASE_URL=http://<YOUR_COMPUTER_LOCAL_IP>:3000` (e.g. `http://192.168.1.102:3000`)
+
+---
+
+## 11. Backend API Overview
+
+| Method | Endpoint | Description | Auth Required |
+| :--- | :--- | :--- | :---: |
+| `GET` | `/api/health` | Service health status and uptime | No |
+| `POST` | `/api/auth/register` | Register new user account | No |
+| `POST` | `/api/auth/login` | Authenticate with email/password (returns JWT) | No |
+| `GET` | `/api/auth/profile` | Retrieve authenticated user profile | Yes (Bearer) |
+| `PATCH`| `/api/auth/profile` | Update profile attributes and bio | Yes (Bearer) |
+| `GET` | `/api/matches?profileId=:id` | Paginated ranked roommate compatibility matches | Yes (Bearer) |
+| `GET` | `/api/accommodations` | Filtered accommodation listings | Yes (Bearer) |
+| `GET` | `/api/accommodations/recommendations` | Ranked housing recommendations | Yes (Bearer) |
+| `GET` | `/api/accommodations/:id` | Accommodation listing detail by ID | Yes (Bearer) |
+| `POST` | `/api/connection-requests/:id` | Send roommate connection request | Yes (Bearer) |
+| `GET` | `/api/connection-requests/sent` | List connection requests sent by user | Yes (Bearer) |
+| `GET` | `/api/connection-requests/received`| List received connection requests | Yes (Bearer) |
+| `GET` | `/api/favorites` | List user's bookmarked favorite roommates | Yes (Bearer) |
+| `POST` | `/api/favorites/:id` | Add roommate to favorites | Yes (Bearer) |
+| `DELETE`| `/api/favorites/:id` | Remove roommate from favorites | Yes (Bearer) |
+| `GET` | `/api/dashboard` | Activity summary and profile completion percentage | Yes (Bearer) |
+
+---
+
+## 12. Automated Testing
+
+The project includes **113 automated unit and integration tests** executing via the native Node.js test runner:
+
+### Run all tests across the entire repository:
+```bash
+node --test 'src/**/*.test.js' 'mobile/src/**/*.test.js' 'mobile/test/*.test.js'
+```
+
+### Run backend tests only:
+```bash
 npm test
 ```
 
-- Compatibility is scored from 0 to 100 based on:
-  1. **Budget (25%)**: Proportional difference ratio.
-  2. **Location (25%)**: Case-insensitive area matching.
-  3. **Lifestyle (25%)**: Sleep schedule & cleanliness alignment.
-  4. **Habits & Preferences (25%)**: Smoking & pet compatibility.
+### Run mobile journey tests only:
+```bash
+node --test 'mobile/test/*.test.js'
+```
+
+### Test Suite Summary:
+* **Backend Services & Controllers (96 tests)**:
+  * Compatibility calculation & ranking algorithms (25 tests)
+  * Authentication, session & photo uploads (11 tests)
+  * Accommodation management & recommendations (6 tests)
+  * Connection requests & booking inquiries (9 tests)
+  * Chat, privacy, moderation, notifications & reviews (44 tests)
+  * Health check endpoint (1 test)
+* **Mobile Client & User Journeys (17 tests)**:
+  * Mock properties data integrity & search filters (5 tests)
+  * Roommate discovery, sorting & compatibility breakdown (3 tests)
+  * Saved roommate persistence & profile preference validation (2 tests)
+  * Mobile API contracts & pagination helpers (7 tests)
 
 ---
 
-## 5. Development Progress
+## 13. End-to-End Demo Walkthrough
 
-### Day 1 Summary
-- [x] Initialized Expo mobile application inside `mobile/`.
-- [x] Configured Expo Router with file-based routing and root stack.
-- [x] Established design system with navy, soft blue, and white palette, spacing, typography, and shadows.
-- [x] Built reusable components: `Button`, `Card`, `Input`, `SearchBar`, and `Badge`.
-- [x] Implemented bottom tab navigation (`Home`, `Discover`, `Saved`, `Profile`).
-- [x] Built initial Home screen with user greeting, search bar, filter pills, and recommendation preview cards.
-- [x] Preserved all existing backend files and unit tests.
+Follow this step-by-step user journey during a presentation or demo:
 
-### Day 2 Summary (Roommate Discovery & Recommendations)
-- [x] **Roommate Discovery Screen**: Polished `discover.js` with responsive card layout, search bar, active filter count, loading indicator, and empty states.
-- [x] **Recommendation Cards**: `RoommateCard.js` displaying profile photo, age, role, budget ($/mo), area, lifestyle chips (cleanliness, sleep schedule, smoking, pets), and match percentage badge.
-- [x] **Profile Details Screen**: `roommate/[id].js` dynamic route with full introduction, key lease specs, habits grid, roommate preferences (WFH, cooking, guests), and interest tags.
-- [x] **Compatibility Breakdown Component**: `CompatibilityBreakdown.js` visualizing the 4 pillars (Budget, Location, Lifestyle, Habits) with progress bars, color thresholds, and mathematical verification that category scores sum strictly to the backend total score (25 pts each = 100 max).
-- [x] **Client-Side Filters**: `RoommateFilterModal.js` bottom sheet filtering by preferred area, max budget, minimum score threshold (80%+, 85%+, 90%+), sleep schedule, cleanliness, non-smoking only, and pet-friendly.
-- [x] **Sorting Controls**: Real-time sorting by Highest Match, Lowest Budget, Highest Budget, and Preferred Location.
-- [x] **Match Request Interactions**: `matchRequestService.js` and `useMatchRequests.js` with AsyncStorage persistence, duplicate prevention, and `MatchRequestModal.js` confirmation feedback.
-- [x] **User Journey Verification**: `roommateJourney.test.js` validating compatibility scoring math, filtering accuracy, and sorting order.
+1. **Launch**: Start backend (`npm start`) and mobile app (`cd mobile && npx expo start`).
+2. **Home Screen**: View the welcome banner for Alex Rivera, smart match statistics, and top compatibility matches.
+3. **Discover Roommates**: Tap the **Discover** tab. Search for `"Bangalore"` or `"Sarah"`. Use the sort selector to rank by *Highest Match* or *Lowest Budget*. Open the filter modal to filter by non-smoker or pets.
+4. **Roommate Details**: Tap on a profile card (e.g. *Sarah Chen, 96% Match*). Review the 4-pillar compatibility breakdown bars. Tap **Match Request** to trigger the confirmation modal. Tap the top-right bookmark icon to save the roommate.
+5. **Accommodation Discovery**: Tap the **Places** tab. Browse listings across Bangalore, Mumbai, and Delhi. Filter for *PG* or *Flat* and adjust the budget range.
+6. **Property Details**: Tap on any property (e.g. *Cozy 1BHK near Koramangala Metro*). Review rent, amenities (WiFi, AC, Power Backup), and house rules. Tap **Save Bookmark** and **Contact Owner**.
+7. **Saved Items**: Tap the **Saved** tab. Notice the segmented control showing both your saved/bookmarked roommates and saved accommodations. Tap to unsave or view details.
+8. **Profile & Preferences**: Tap the **Profile** tab. Review current budget, area, and lifestyle habits. Tap **Edit** to change your monthly budget or cleanliness preference. Tap **Save** and verify changes persist across restarts.
+
+---
+
+## 14. Known Limitations
+
+* **In-Memory Backend Storage**: The NestJS backend currently uses thread-safe in-memory maps seeded with demo data rather than an external PostgreSQL instance. All created users, requests, and reviews persist for the duration of the server process.
+* **Image Uploads**: Profile photo uploads use local file storage in `/uploads`. In a production deployment, this would be wired to an S3 or Google Cloud Storage bucket.
+* **Push Notifications**: Notification preferences and in-app notification state are fully modeled in the backend, while push notifications rely on local device alerts in the mobile demo.
+
+---
+
+## 15. Submission Verification Checklist
+
+- [x] Backend starts cleanly with `npm start` without missing driver errors.
+- [x] Health check endpoint `/api/health` returns `200 OK`.
+- [x] Mobile app builds and runs cleanly via Expo SDK 58 on Web and Expo Go.
+- [x] All 5 bottom navigation tabs are responsive and fully functional.
+- [x] Roommate search, filtering, and compatibility scoring work as specified.
+- [x] Accommodation listings, search, rent in ₹, and property details work.
+- [x] Saved items persist using local AsyncStorage.
+- [x] User profile screen allows editing housing and habit preferences.
+- [x] 113 automated unit and integration tests pass with 0 failures.
+- [x] No secrets, passwords, or sensitive keys are committed.
