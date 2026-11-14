@@ -1,18 +1,65 @@
 const CATEGORY_WEIGHT = 25;
 
 /**
+ * Checks whether a value is a valid non-null, non-array object.
+ */
+function isProfileObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+/**
+ * Pre-normalizes the fields that are reused on every candidate comparison.
+ *
+ * When one profile (usually the logged-in user) is compared against many
+ * candidates, calling this once and passing the result to calculateCompatibility
+ * avoids repeating the same string trimming and type checks for every candidate.
+ *
+ * The returned object is a plain copy — the original profile is not changed.
+ * Fields that cannot be normalized (wrong type, missing) are set to null so the
+ * scoring functions skip them cleanly, just as they would without pre-normalization.
+ */
+function normalizeProfile(profile) {
+  if (!isProfileObject(profile)) {
+    return profile;
+  }
+
+  // Pre-compute the normalized area string (or null) once.
+  const normalizedPreferredArea = normalizedArea(profile.preferredArea);
+
+  // Pre-compute the valid budget number (or null) once.
+  const validatedBudget = validBudget(profile.budget);
+
+  return {
+    ...profile,
+    // Replace with pre-normalized values so inner helpers do trivial work.
+    // normalizedArea() returns null for a null input, so null stays null.
+    preferredArea: normalizedPreferredArea !== null ? normalizedPreferredArea : profile.preferredArea,
+    // validBudget() checks typeof === 'number' — keep as a number or leave original.
+    budget: validatedBudget !== null ? validatedBudget : profile.budget,
+    // Carry a flag so this function is idempotent — calling it twice is safe.
+    _normalized: true,
+  };
+}
+
+/**
  * Compares two roommate profiles and returns a score from 0 to 100.
  *
  * Each category contributes 25 points:
  * budget, location, lifestyle, and habits/preferences.
+ *
+ * For best performance when scoring many candidates against the same user profile,
+ * call normalizeProfile(userProfile) once and pass the result as firstProfile.
  */
 function calculateCompatibility(firstProfile, secondProfile) {
-  const budget = budgetCompatibility(firstProfile, secondProfile);
-  const location = locationCompatibility(firstProfile, secondProfile);
-  const lifestyle = lifestyleCompatibility(firstProfile, secondProfile);
+  const safeFirst = isProfileObject(firstProfile) ? firstProfile : {};
+  const safeSecond = isProfileObject(secondProfile) ? secondProfile : {};
+
+  const budget = budgetCompatibility(safeFirst, safeSecond);
+  const location = locationCompatibility(safeFirst, safeSecond);
+  const lifestyle = lifestyleCompatibility(safeFirst, safeSecond);
   const habitsAndPreferences = habitsAndPreferencesCompatibility(
-    firstProfile,
-    secondProfile,
+    safeFirst,
+    safeSecond,
   );
 
   const breakdown = {
@@ -25,8 +72,8 @@ function calculateCompatibility(firstProfile, secondProfile) {
   const rawScore =
     (budget + location + lifestyle + habitsAndPreferences) * CATEGORY_WEIGHT;
   const insights = generateMatchInsights(
-    firstProfile,
-    secondProfile,
+    safeFirst,
+    safeSecond,
     breakdown,
   );
 
@@ -34,8 +81,8 @@ function calculateCompatibility(firstProfile, secondProfile) {
     score: Math.min(100, Math.max(0, Math.round(rawScore))),
     breakdown,
     explanations: createExplanations(
-      firstProfile,
-      secondProfile,
+      safeFirst,
+      safeSecond,
       breakdown,
       rawScore,
     ),
@@ -125,7 +172,7 @@ function explainPairedPreferences(
   }
 
   const matchingFields = availableFields.filter((field) =>
-    firstPreferences[field] === secondPreferences[field]);
+    valuesMatch(firstPreferences[field], secondPreferences[field]));
   const text = `${matchingFields.length} of ${availableFields.length} available ${category} preferences match.`
     + (matchingFields.length < availableFields.length ? ' Some preferences differ.' : '')
     + (availableFields.length < fields.length ? ' Some preferences are missing.' : '');
@@ -143,7 +190,44 @@ function scoreStatus(score) {
 }
 
 function hasValue(value) {
-  return value !== undefined && value !== null && value !== '';
+  if (value === undefined || value === null) {
+    return false;
+  }
+  if (typeof value === 'string') {
+    return value.trim() !== '';
+  }
+  return true;
+}
+
+function normalizeBooleanLike(value) {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const lower = value.trim().toLowerCase();
+    if (lower === 'true' || lower === 'yes') return true;
+    if (lower === 'false' || lower === 'no') return false;
+  }
+  return value;
+}
+
+function valuesMatch(firstValue, secondValue) {
+  if (!hasValue(firstValue) || !hasValue(secondValue)) {
+    return false;
+  }
+
+  const normFirst = normalizeBooleanLike(firstValue);
+  const normSecond = normalizeBooleanLike(secondValue);
+
+  if (typeof normFirst === 'boolean' && typeof normSecond === 'boolean') {
+    return normFirst === normSecond;
+  }
+
+  if (typeof normFirst === 'string' && typeof normSecond === 'string') {
+    return normFirst.trim().toLowerCase() === normSecond.trim().toLowerCase();
+  }
+
+  return normFirst === normSecond;
 }
 
 function capitalize(value) {
@@ -211,9 +295,14 @@ function habitsAndPreferencesCompatibility(firstProfile, secondProfile) {
 }
 
 function validBudget(value) {
-  return typeof value === 'number' && Number.isFinite(value) && value > 0
-    ? value
-    : null;
+  if (typeof value === 'number') {
+    return Number.isFinite(value) && value > 0 ? value : null;
+  }
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }
+  return null;
 }
 
 function normalizedArea(value) {
@@ -225,11 +314,7 @@ function normalizedArea(value) {
 }
 
 function matchingValue(firstValue, secondValue) {
-  if (!hasValue(firstValue) || !hasValue(secondValue)) {
-    return 0;
-  }
-
-  return firstValue === secondValue ? 1 : 0;
+  return valuesMatch(firstValue, secondValue) ? 1 : 0;
 }
 
 function generateMatchInsights(firstProfile, secondProfile, breakdown) {
@@ -263,12 +348,12 @@ function generateMatchInsights(firstProfile, secondProfile, breakdown) {
   );
   const cleanlinessDiffers = hasValue(firstLifestyle?.cleanliness)
     && hasValue(secondLifestyle?.cleanliness)
-    && firstLifestyle.cleanliness !== secondLifestyle.cleanliness;
+    && !valuesMatch(firstLifestyle.cleanliness, secondLifestyle.cleanliness);
   const scheduleDiffers = hasValue(firstLifestyle?.sleepSchedule)
     && hasValue(secondLifestyle?.sleepSchedule)
-    && firstLifestyle.sleepSchedule !== secondLifestyle.sleepSchedule;
-  const lifestyleMatches = availableLifestyleFields.every(
-    (field) => firstLifestyle[field] === secondLifestyle[field],
+    && !valuesMatch(firstLifestyle.sleepSchedule, secondLifestyle.sleepSchedule);
+  const lifestyleMatches = availableLifestyleFields.length > 0 && availableLifestyleFields.every(
+    (field) => valuesMatch(firstLifestyle[field], secondLifestyle[field]),
   );
   if (availableLifestyleFields.length > 0) {
     if (cleanlinessDiffers) {
@@ -282,7 +367,7 @@ function generateMatchInsights(firstProfile, secondProfile, breakdown) {
     (field) => hasValue(firstLifestyle?.[field]) && hasValue(secondLifestyle?.[field]),
   );
   const habitDifferences = availableHabitFields.some(
-    (field) => firstLifestyle[field] !== secondLifestyle[field],
+    (field) => !valuesMatch(firstLifestyle[field], secondLifestyle[field]),
   );
   if (availableHabitFields.length > 0 && habitDifferences) {
     differences.push('Different habits or schedules.');
@@ -298,6 +383,7 @@ function generateMatchInsights(firstProfile, secondProfile, breakdown) {
 
 module.exports = {
   calculateCompatibility,
+  normalizeProfile,
   generateMatchInsights,
   budgetCompatibility,
   locationCompatibility,
