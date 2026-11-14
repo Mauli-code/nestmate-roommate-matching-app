@@ -71,3 +71,21 @@ test('safely ranks an invalid candidate with a zero score', () => {
   assert.equal(rankedMatches[1].candidateId, null);
   assert.equal(rankedMatches[1].score, 0);
 });
+
+test('limits ranked output without changing the highest-ranked results', () => {
+  const candidates = [
+    profile('lowest', { budget: 100 }),
+    profile('highest'),
+    profile('middle', { budget: 500 }),
+  ];
+
+  const rankedMatches = rankMatches(profile('user'), candidates, 2);
+
+  assert.deepEqual(
+    rankedMatches.map(({ candidateId, score }) => [candidateId, score]),
+    [
+      ['highest', 100],
+      ['middle', 88],
+    ],
+  );
+});

@@ -277,11 +277,11 @@ Configuration guide:
 
 ## 12. Automated Testing
 
-The project includes **113 automated unit and integration tests** executing via the native Node.js test runner:
+The project includes **189 automated unit and integration tests** executing via the native Node.js test runner:
 
 ### Run all tests across the entire repository:
 ```bash
-node --test 'src/**/*.test.js' 'mobile/src/**/*.test.js' 'mobile/test/*.test.js'
+npm test && node --test 'mobile/**/*.test.js'
 ```
 
 ### Run backend tests only:
@@ -289,24 +289,36 @@ node --test 'src/**/*.test.js' 'mobile/src/**/*.test.js' 'mobile/test/*.test.js'
 npm test
 ```
 
-### Run mobile journey tests only:
+### Run mobile tests only:
 ```bash
-node --test 'mobile/test/*.test.js'
+node --test 'mobile/**/*.test.js'
 ```
 
 ### Test Suite Summary:
-* **Backend Services & Controllers (96 tests)**:
-  * Compatibility calculation & ranking algorithms (25 tests)
+* **Backend Services, Algorithms & Integration (142 tests)**:
+  * Compatibility scoring engine, formulas & insights (25 tests)
+  * Matching edge cases, NaN/Infinity, null safety & whitespace normalization (14 tests)
+  * End-to-end full matching integration & mobile client contracts (10 tests)
+  * Candidate ranking, bounded binary insertion & tie-breaking (6 tests)
+  * Matching service, large benchmarks (2,000 candidates) & pagination (15 tests)
+  * Matching authentication guards & cross-account access protection (9 tests)
   * Authentication, session & photo uploads (11 tests)
   * Accommodation management & recommendations (6 tests)
   * Connection requests & booking inquiries (9 tests)
   * Chat, privacy, moderation, notifications & reviews (44 tests)
   * Health check endpoint (1 test)
-* **Mobile Client & User Journeys (17 tests)**:
+* **Mobile Client & Integration Journeys (47 tests)**:
+  * Roommate matching API client, contracts & error resilience (7 tests)
+  * Recommendation insights formatting & view models (7 tests)
+  * Match refresh & recommendation update synchronization (2 tests)
+  * Preference form validation (2 tests)
   * Mock properties data integrity & search filters (5 tests)
   * Roommate discovery, sorting & compatibility breakdown (3 tests)
   * Saved roommate persistence & profile preference validation (2 tests)
-  * Mobile API contracts & pagination helpers (7 tests)
+  * Seeker search & multi-attribute filter journeys (19 tests)
+
+### Roommate Matching Module Documentation:
+For comprehensive technical documentation, scoring formulas, API contracts, and architecture of the roommate matching system, see [**docs/ROOMMATE_MATCHING.md**](docs/ROOMMATE_MATCHING.md).
 
 ---
 
@@ -343,5 +355,5 @@ Follow this step-by-step user journey during a presentation or demo:
 - [x] Accommodation listings, search, rent in ₹, and property details work.
 - [x] Saved items persist using local AsyncStorage.
 - [x] User profile screen allows editing housing and habit preferences.
-- [x] 113 automated unit and integration tests pass with 0 failures.
+- [x] 189 automated unit and integration tests pass with 0 failures.
 - [x] No secrets, passwords, or sensitive keys are committed.
