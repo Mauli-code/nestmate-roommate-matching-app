@@ -18,7 +18,7 @@ const emptyValues = {
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const { token, user, refreshProfile } = useAuth();
+  const { token, user, refreshProfile, refreshMatches } = useAuth();
   const [values, setValues] = useState(emptyValues);
   const [step, setStep] = useState(0);
   const [errors, setErrors] = useState({});
@@ -60,6 +60,7 @@ export default function OnboardingScreen() {
         pets: values.pets,
       }, token);
       await refreshProfile(token);
+      await refreshMatches().catch(() => {});
       router.replace('/(tabs)');
     } catch (error) {
       setErrors(error.errors || {});

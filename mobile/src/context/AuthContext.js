@@ -1,6 +1,8 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import * as authApi from '../api/auth';
 import { fetchProfile } from '../api/profile';
+import { fetchMatches } from '../api/matches';
+import { mergeMatches } from '../match-refresh';
 
 const AuthContext = createContext(null);
 
@@ -10,6 +12,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const [matches, setMatches] = useState([]);
 
   useEffect(() => {
     async function restore() {
@@ -44,6 +47,13 @@ export function AuthProvider({ children }) {
     }
   }
 
+  const refreshMatches = useCallback(async () => {
+    if (!token || !user?.id) return [];
+    const result = await fetchMatches(user.id, token);
+    setMatches((current) => mergeMatches(current, result.matches, false));
+    return result.matches;
+  }, [token, user?.id]);
+
   async function login(email, password) {
     const result = await authApi.login(email, password);
     setToken(result.accessToken);
@@ -66,12 +76,13 @@ export function AuthProvider({ children }) {
     setUser(null);
     setProfile(null);
     setProfileLoaded(false);
+    setMatches([]);
   }
 
   return (
     <AuthContext.Provider value={{
-      token, user, profile, profileLoaded, loading, login, register, logout,
-      setUser, refreshProfile,
+      token, user, profile, profileLoaded, matches, loading, login, register, logout,
+      setUser, refreshProfile, refreshMatches,
     }}>
       {children}
     </AuthContext.Provider>
