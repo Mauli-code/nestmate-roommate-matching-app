@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Image, Modal, ScrollView, StyleSheet, Text, View,
+  ActivityIndicator, Image, Modal, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -52,6 +52,9 @@ export default function ProfileScreen() {
   const [passwordError, setPasswordError] = useState('');
   const [passwordMessage, setPasswordMessage] = useState('');
   const [passwordLoading, setPasswordLoading] = useState(false);
+  const [logoutConfirm, setLogoutConfirm] = useState(false);
+  const [logoutLoading, setLogoutLoading] = useState(false);
+  const [logoutError, setLogoutError] = useState('');
 
   async function loadProfile() {
     setLoading(true);
@@ -171,13 +174,22 @@ export default function ProfileScreen() {
   }
 
   function confirmLogout() {
-    Alert.alert('Log out', 'Log out of NestMate?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Log out', style: 'destructive', onPress: async () => {
-        await logout();
-        router.replace('/(auth)/login');
-      } },
-    ]);
+    setLogoutError('');
+    setLogoutConfirm(true);
+  }
+
+  async function finishLogout() {
+    setLogoutLoading(true);
+    setLogoutError('');
+    try {
+      await logout();
+      setLogoutConfirm(false);
+      router.replace('/(auth)/login');
+    } catch (error) {
+      setLogoutError(error.message || 'Could not clear the saved session. Try again.');
+    } finally {
+      setLogoutLoading(false);
+    }
   }
 
   if (loading) {
@@ -287,6 +299,25 @@ export default function ProfileScreen() {
           </ScrollView>
         </SafeAreaView>
       </Modal>
+
+      <Modal
+        visible={logoutConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLogoutConfirm(false)}
+      >
+        <View style={styles.dialogBackdrop}>
+          <View style={styles.dialog}>
+            <Text style={styles.sectionTitle}>Log out of NestMate?</Text>
+            <Text style={styles.secondary}>You can sign in again to see your saved profile.</Text>
+            {logoutError ? <Text accessibilityRole="alert" style={styles.error}>{logoutError}</Text> : null}
+            <View style={styles.dialogActions}>
+              <Button title="Cancel" variant="ghost" onPress={() => setLogoutConfirm(false)} disabled={logoutLoading} />
+              <Button title="Log out" variant="danger" onPress={finishLogout} loading={logoutLoading} disabled={logoutLoading} />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -311,4 +342,7 @@ const styles = StyleSheet.create({
   success: { color: COLORS.success, marginVertical: SPACING.sm },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: SPACING.lg, backgroundColor: COLORS.surface },
   modalContent: { padding: SPACING.lg, paddingBottom: SPACING.xxxl },
+  dialogBackdrop: { flex: 1, justifyContent: 'center', padding: SPACING.xl, backgroundColor: 'rgba(15, 37, 55, 0.45)' },
+  dialog: { backgroundColor: COLORS.surface, borderRadius: RADII.lg, padding: SPACING.xl },
+  dialogActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: SPACING.sm, marginTop: SPACING.lg },
 });
