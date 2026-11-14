@@ -196,6 +196,23 @@ test('returns stable paginated results with counts and navigation metadata', asy
   assert.equal(secondPage.hasPreviousPage, true);
 });
 
+test('benchmarks large candidate collections without changing page ranking', async () => {
+  const candidates = Array.from({ length: 2000 }, (_, index) =>
+    profile(`candidate-${index}`, { budget: 500 + (index % 500) }));
+  const service = new MatchingService({
+    findProfile: async () => profile('user'),
+    findCandidates: async () => candidates,
+  });
+
+  const start = process.hrtime.bigint();
+  const result = await service.getMatches('user', 1, 10);
+  const elapsedMs = Number(process.hrtime.bigint() - start) / 1e6;
+
+  assert.equal(result.total, candidates.length);
+  assert.equal(result.matches.length, 10);
+  assert.equal(result.matches[0].score >= result.matches[9].score, true);
+});
+
 test('returns an empty page when the requested page is beyond the results', async () => {
   const repository = {
     findProfile: async () => profile('user'),

@@ -26,6 +26,9 @@ class MatchingController {
       request = page;
       page = undefined;
       limit = undefined;
+    } else if (limit && typeof limit === 'object' && request === undefined) {
+      request = limit;
+      limit = undefined;
     }
     this.assertOwnProfile(profileId, request);
     const authenticatedUserId = request.user.sub;
@@ -33,6 +36,11 @@ class MatchingController {
   }
 
   async savePreferences(profileId, preferences, request) {
+    if (profileId && typeof profileId === 'object' && preferences && typeof preferences === 'object' && request === undefined) {
+      request = preferences;
+      preferences = profileId;
+      profileId = undefined;
+    }
     this.assertOwnProfile(profileId, request);
     const authenticatedUserId = request.user.sub;
     return {

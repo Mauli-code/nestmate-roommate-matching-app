@@ -77,10 +77,29 @@ export async function fetchMatches(profileId, token, page = 1, limit = 10) {
         !match.explanations ||
         typeof match.explanations !== 'object' ||
         !match.explanations.overall ||
-        typeof match.explanations.overall.text !== 'string',
+        typeof match.explanations.overall.text !== 'string' ||
+        !validateOptionalInsightArray(match?.strengths) ||
+        !validateOptionalInsightArray(match?.differences) ||
+        !validateOptionalInsights(match?.insights),
     )
   ) {
     throw new Error('The backend returned an invalid matches response.');
+  }
+
+  function validateOptionalInsightArray(value) {
+    return value === undefined || (
+      Array.isArray(value) && value.every((insight) => typeof insight === 'string')
+    );
+  }
+
+  function validateOptionalInsights(value) {
+    return value === undefined || (
+      value &&
+      typeof value === 'object' &&
+      !Array.isArray(value) &&
+      validateOptionalInsightArray(value.strengths) &&
+      validateOptionalInsightArray(value.differences)
+    );
   }
 
   return {

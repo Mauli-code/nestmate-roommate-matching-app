@@ -82,6 +82,78 @@ test('attaches authentication token to matching API request', async () => {
   }
 });
 
+test('preserves structured match insights from the API', async () => {
+  const { fetchMatches } = await import('./matches.js');
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({
+      profileId: 'user-1',
+      page: 1,
+      limit: 10,
+      total: 1,
+      totalPages: 1,
+      hasNextPage: false,
+      hasPreviousPage: false,
+      matches: [{
+        candidateId: 'candidate-1',
+        score: 95,
+        breakdown: {},
+        explanations: { overall: { text: 'Strong match' } },
+        strengths: ['Similar budget preferences.'],
+        differences: ['Different lifestyle preferences.'],
+        insights: {
+          strengths: ['Similar budget preferences.'],
+          differences: ['Different lifestyle preferences.'],
+        },
+      }],
+    }),
+  });
+
+  try {
+    const result = await fetchMatches('user-1', 'valid-token');
+    assert.deepEqual(result.matches[0].strengths, ['Similar budget preferences.']);
+    assert.deepEqual(result.matches[0].differences, ['Different lifestyle preferences.']);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('rejects malformed structured match insights', async () => {
+  const { fetchMatches } = await import('./matches.js');
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({
+      profileId: 'user-1',
+      page: 1,
+      limit: 10,
+      total: 1,
+      totalPages: 1,
+      hasNextPage: false,
+      hasPreviousPage: false,
+      matches: [{
+        candidateId: 'candidate-1',
+        score: 95,
+        breakdown: {},
+        explanations: { overall: { text: 'Strong match' } },
+        strengths: ['valid', 42],
+      }],
+    }),
+  });
+
+  try {
+    await assert.rejects(
+      () => fetchMatches('user-1', 'valid-token'),
+      (error) => error.message === 'The backend returned an invalid matches response.',
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('handles expired or invalid session (401) without crashing', async () => {
   const { fetchMatches } = await import('./matches.js');
   const originalFetch = globalThis.fetch;
