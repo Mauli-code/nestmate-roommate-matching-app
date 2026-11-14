@@ -211,7 +211,6 @@ test('benchmarks large candidate collections without changing page ranking', asy
   assert.equal(result.total, candidates.length);
   assert.equal(result.matches.length, 10);
   assert.equal(result.matches[0].score >= result.matches[9].score, true);
-  console.info(`Large matching benchmark: ${candidates.length} candidates in ${elapsedMs.toFixed(2)}ms`);
 });
 
 test('returns an empty page when the requested page is beyond the results', async () => {
