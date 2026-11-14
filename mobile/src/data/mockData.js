@@ -278,6 +278,43 @@ export const MOCK_PROPERTIES = [
     postedDaysAgo: 2,
     popularity: 87,
     isFavorite: false,
+    virtualTour: {
+      enabled: true,
+      title: 'Koramangala 1BHK 360° Tour',
+      defaultSceneId: 'living-room',
+      scenes: [
+        {
+          id: 'living-room',
+          name: 'Living Room',
+          icon: 'tv-outline',
+          description: 'Sunlit living hall with modular layout and wooden entertainment unit.',
+          panoramaUrl: 'https://images.unsplash.com/photo-1558882224-dda166733046?auto=format&fit=crop&w=2048&q=80',
+          initialYaw: 0,
+          initialPitch: 0,
+          initialFov: 75,
+        },
+        {
+          id: 'bedroom',
+          name: 'Bedroom',
+          icon: 'bed-outline',
+          description: 'Spacious bedroom with queen-sized bed, wardrobe, and window view.',
+          panoramaUrl: 'https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=2048&q=80',
+          initialYaw: 45,
+          initialPitch: 0,
+          initialFov: 75,
+        },
+        {
+          id: 'balcony',
+          name: 'Balcony',
+          icon: 'leaf-outline',
+          description: 'Airy balcony overlooking Koramangala residential greenery.',
+          panoramaUrl: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=2048&q=80',
+          initialYaw: 0,
+          initialPitch: 5,
+          initialFov: 80,
+        },
+      ],
+    },
   },
   {
     id: 'prop-2',
@@ -298,6 +335,53 @@ export const MOCK_PROPERTIES = [
     postedDaysAgo: 1,
     popularity: 94,
     isFavorite: false,
+    virtualTour: {
+      enabled: true,
+      title: 'Bandra West 2BHK 360° Luxury Tour',
+      defaultSceneId: 'living-room',
+      scenes: [
+        {
+          id: 'living-room',
+          name: 'Living Room',
+          icon: 'tv-outline',
+          description: 'Modern open-plan living area with Italian marble flooring and ambient lighting.',
+          panoramaUrl: 'https://images.unsplash.com/photo-1558882224-dda166733046?auto=format&fit=crop&w=2048&q=80',
+          initialYaw: 0,
+          initialPitch: 0,
+          initialFov: 75,
+        },
+        {
+          id: 'master-bedroom',
+          name: 'Master Suite',
+          icon: 'bed-outline',
+          description: 'King bed suite with walk-in wardrobe and ensuite bath.',
+          panoramaUrl: 'https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=2048&q=80',
+          initialYaw: 30,
+          initialPitch: -5,
+          initialFov: 75,
+        },
+        {
+          id: 'kitchen',
+          name: 'Modular Kitchen',
+          icon: 'restaurant-outline',
+          description: 'Modern kitchen equipped with induction hob, chimney, and quartz countertop.',
+          panoramaUrl: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=2048&q=80',
+          initialYaw: 90,
+          initialPitch: 0,
+          initialFov: 75,
+        },
+        {
+          id: 'balcony',
+          name: 'Sea View Balcony',
+          icon: 'water-outline',
+          description: 'Private sit-out balcony with breeze from the Arabian Sea.',
+          panoramaUrl: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=2048&q=80',
+          initialYaw: 180,
+          initialPitch: 10,
+          initialFov: 80,
+        },
+      ],
+    },
   },
   {
     id: 'prop-3',
@@ -318,6 +402,7 @@ export const MOCK_PROPERTIES = [
     postedDaysAgo: 3,
     popularity: 72,
     isFavorite: false,
+    virtualTour: null,
   },
   {
     id: 'prop-4',
@@ -338,6 +423,33 @@ export const MOCK_PROPERTIES = [
     postedDaysAgo: 5,
     popularity: 81,
     isFavorite: false,
+    virtualTour: {
+      enabled: true,
+      title: 'Hitech City Co-living 360° Tour',
+      defaultSceneId: 'shared-room',
+      scenes: [
+        {
+          id: 'shared-room',
+          name: 'Shared Room',
+          icon: 'people-outline',
+          description: 'Double-sharing room with individual ergonomic study desks and lockers.',
+          panoramaUrl: 'https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=2048&q=80',
+          initialYaw: 0,
+          initialPitch: 0,
+          initialFov: 75,
+        },
+        {
+          id: 'lounge',
+          name: 'Co-Working Lounge',
+          icon: 'laptop-outline',
+          description: '24/7 high-speed WiFi co-working space with coffee bar.',
+          panoramaUrl: 'https://images.unsplash.com/photo-1558882224-dda166733046?auto=format&fit=crop&w=2048&q=80',
+          initialYaw: 45,
+          initialPitch: 0,
+          initialFov: 75,
+        },
+      ],
+    },
   },
   {
     id: 'prop-5',
@@ -358,6 +470,7 @@ export const MOCK_PROPERTIES = [
     postedDaysAgo: 7,
     popularity: 68,
     isFavorite: false,
+    virtualTour: null,
   },
   {
     id: 'prop-6',
@@ -378,6 +491,53 @@ export const MOCK_PROPERTIES = [
     postedDaysAgo: 1,
     popularity: 97,
     isFavorite: false,
+    virtualTour: {
+      enabled: true,
+      title: 'Indiranagar Penthouse 360° Tour',
+      defaultSceneId: 'penthouse-hall',
+      scenes: [
+        {
+          id: 'penthouse-hall',
+          name: 'Grand Hall',
+          icon: 'sparkles-outline',
+          description: 'Double-height ceiling living room with contemporary designer decor.',
+          panoramaUrl: 'https://images.unsplash.com/photo-1558882224-dda166733046?auto=format&fit=crop&w=2048&q=80',
+          initialYaw: 0,
+          initialPitch: 0,
+          initialFov: 75,
+        },
+        {
+          id: 'master-bedroom',
+          name: 'Master Suite',
+          icon: 'bed-outline',
+          description: 'Expansive master bedroom with wooden flooring and private study nook.',
+          panoramaUrl: 'https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=2048&q=80',
+          initialYaw: 60,
+          initialPitch: 0,
+          initialFov: 75,
+        },
+        {
+          id: 'chef-kitchen',
+          name: 'Chef Kitchen',
+          icon: 'restaurant-outline',
+          description: 'Island kitchen with breakfast counter and premium built-in appliances.',
+          panoramaUrl: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=2048&q=80',
+          initialYaw: 120,
+          initialPitch: 0,
+          initialFov: 75,
+        },
+        {
+          id: 'rooftop-terrace',
+          name: 'Rooftop Terrace',
+          icon: 'sunny-outline',
+          description: 'Landscaped private terrace with 360° skyline views of Bangalore.',
+          panoramaUrl: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=2048&q=80',
+          initialYaw: 0,
+          initialPitch: 10,
+          initialFov: 80,
+        },
+      ],
+    },
   },
   {
     id: 'prop-7',
@@ -458,5 +618,19 @@ export const MOCK_PROPERTIES = [
     postedDaysAgo: 2,
     popularity: 91,
     isFavorite: false,
+    virtualTour: null,
   },
 ];
+
+export function getPropertyById(id) {
+  if (!id) return null;
+  return MOCK_PROPERTIES.find(p => p.id === id) || null;
+}
+
+export function getPropertyVirtualTour(id) {
+  const property = getPropertyById(id);
+  if (!property || !property.virtualTour || !property.virtualTour.enabled) {
+    return null;
+  }
+  return property.virtualTour;
+}

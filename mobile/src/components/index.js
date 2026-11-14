@@ -11,3 +11,4 @@ export { default as PropertyCard } from './PropertyCard';
 export { default as PropertyFilterModal } from './PropertyFilterModal';
 export { default as PriceLabel } from './PriceLabel';
 export { default as PropertyBadge } from './PropertyBadge';
+export { default as PanoramaViewer } from './PanoramaViewer';
