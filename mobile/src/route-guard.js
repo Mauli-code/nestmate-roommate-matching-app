@@ -2,7 +2,7 @@ export function getAuthRedirect({ token, section, profileChecked, profileLoaded,
   if (!token) return section === '(auth)' ? null : '/(auth)/login';
   if (!profileChecked) return null;
 
-  if (section === '(auth)') {
+  if (section === '(auth)' || !section || section === 'index') {
     if (!profileLoaded) return '/(tabs)';
     return profile?.preferences ? '/(tabs)' : '/onboarding';
   }

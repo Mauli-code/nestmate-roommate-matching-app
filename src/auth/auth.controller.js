@@ -1,4 +1,4 @@
-const { Body, Controller, Get, Post, Patch, Put, Req, UploadedFile, UseInterceptors, UseGuards, Injectable } = require('@nestjs/common');
+const { Body, Controller, Get, Post, Patch, Put, Req, UploadedFile, UseInterceptors, UseGuards, Injectable, Inject } = require('@nestjs/common');
 const { FileInterceptor } = require('@nestjs/platform-express');
 const { diskStorage } = require('multer');
 const crypto = require('node:crypto');
@@ -59,6 +59,7 @@ class AuthController {
 
 Injectable()(AuthController);
 Controller('api/auth')(AuthController);
+Inject(AuthService)(AuthController, undefined, 0);
 const registerDescriptor = Object.getOwnPropertyDescriptor(AuthController.prototype, 'register');
 Post('register')(AuthController.prototype, 'register', registerDescriptor);
 Body()(AuthController.prototype, 'register', 0);

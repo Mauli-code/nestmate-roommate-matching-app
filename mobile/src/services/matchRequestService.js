@@ -5,7 +5,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { resolveApiBaseUrl } from '../api/client.js';
+import { sendConnectionRequest } from '../api/connectionRequests';
 
 const STORAGE_KEY = '@nestmate_match_requests';
 
@@ -36,7 +36,7 @@ export const matchRequestService = {
    * Send a match request to a candidate
    * Prevents duplicate requests.
    */
-  async sendMatchRequest(candidate) {
+  async sendMatchRequest(candidate, token) {
     if (!candidate || !candidate.id) {
       throw new Error('Valid candidate profile is required to send match request');
     }
@@ -65,28 +65,16 @@ export const matchRequestService = {
       isMock: true,
     };
 
-    // If a live backend is configured, attempt real API call
-    const API_URL = resolveApiBaseUrl();
-    if (API_URL) {
+    // If authenticated token is available, attempt real backend connection request
+    if (token) {
       try {
-        const response = await fetch(`${API_URL}/api/match-requests`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            candidateId: candidate.id,
-          }),
-        });
-
-        if (response.ok) {
-          const apiData = await response.json();
+        const apiData = await sendConnectionRequest(candidate.id, token);
+        if (apiData && apiData.id) {
           newRequest.isMock = false;
-          newRequest.id = apiData.id || newRequest.id;
+          newRequest.id = apiData.id;
         }
-      } catch (err) {
-        // Fallback to local mock storage when backend endpoint is not yet implemented
-        console.info('Backend API unavailable. Saving match request to local mock storage.');
+      } catch {
+        // Fallback to local storage when candidate is a local mock or network is offline
       }
     }
 

@@ -2,17 +2,14 @@ const {
   CanActivate,
   ExecutionContext,
   Injectable,
+  Inject,
   UnauthorizedException,
 } = require('@nestjs/common');
+const { AuthService } = require('./auth.service');
 
 class AuthGuard {
   constructor(authService) {
-    if (authService) {
-      this.authService = authService;
-    } else {
-      const { AuthService } = require('./auth.service');
-      this.authService = new AuthService();
-    }
+    this.authService = authService || new AuthService();
   }
 
   canActivate(context) {
@@ -39,5 +36,6 @@ class AuthGuard {
 }
 
 Injectable()(AuthGuard);
+Inject(AuthService)(AuthGuard, undefined, 0);
 
 module.exports = { AuthGuard };

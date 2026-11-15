@@ -1,42 +1,25 @@
-import { API_BASE_URL } from './client.js';
-
-async function request(path, method, token) {
-  let response;
-  try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
-      method,
-      headers: { Authorization: `Bearer ${token}` },
-    });
-  } catch {
-    throw new Error('The backend could not be reached. Check that it is running.');
-  }
-  const body = await response.json().catch(() => null);
-  if (!response.ok) {
-    throw new Error(body?.message || `The request failed (${response.status}).`);
-  }
-  return body;
-}
+import { request } from './client';
 
 export function sendConnectionRequest(receiverId, token) {
-  return request(`/api/connection-requests/${encodeURIComponent(receiverId)}`, 'POST', token);
+  return request(`/api/connection-requests/${encodeURIComponent(receiverId)}`, { method: 'POST', token });
 }
 
 export function fetchReceivedRequests(token) {
-  return request('/api/connection-requests/received', 'GET', token);
+  return request('/api/connection-requests/received', { method: 'GET', token });
 }
 
 export function fetchSentRequests(token) {
-  return request('/api/connection-requests/sent', 'GET', token);
+  return request('/api/connection-requests/sent', { method: 'GET', token });
 }
 
 export function acceptConnectionRequest(requestId, token) {
-  return request(`/api/connection-requests/${encodeURIComponent(requestId)}/accept`, 'PATCH', token);
+  return request(`/api/connection-requests/${encodeURIComponent(requestId)}/accept`, { method: 'PATCH', token });
 }
 
 export function rejectConnectionRequest(requestId, token) {
-  return request(`/api/connection-requests/${encodeURIComponent(requestId)}/reject`, 'PATCH', token);
+  return request(`/api/connection-requests/${encodeURIComponent(requestId)}/reject`, { method: 'PATCH', token });
 }
 
 export function cancelConnectionRequest(requestId, token) {
-  return request(`/api/connection-requests/${encodeURIComponent(requestId)}/cancel`, 'DELETE', token);
+  return request(`/api/connection-requests/${encodeURIComponent(requestId)}/cancel`, { method: 'DELETE', token });
 }

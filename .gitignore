@@ -1,10 +1,26 @@
 node_modules/
-dist/
+mobile/node_modules/
+mobile/dist/
 uploads/
 data/
 mobile/.expo/
 
-# Local environment secrets
+# environment variables
 .env
 .env.*
 !.env.example
+.env.local
+.env.*.local
+mobile/.env
+mobile/.env.local
+mobile/.env.*.local
+!mobile/.env.example
+
+# system files
+.DS_Store
+Thumbs.db
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
