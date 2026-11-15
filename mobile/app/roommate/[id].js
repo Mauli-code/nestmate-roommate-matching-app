@@ -27,6 +27,8 @@ import {
 } from '../../src/components';
 import { useMatchRequests } from '../../src/hooks/useMatchRequests';
 import { useSavedRoommates } from '../../src/hooks/useSavedRoommates';
+import { useAuth } from '../../src/context/AuthContext';
+import { toMatchCards } from '../../src/match-display';
 import { MOCK_RECOMMENDED_ROOMMATES } from '../../src/data/mockData';
 
 export default function RoommateDetailsScreen() {
@@ -34,11 +36,17 @@ export default function RoommateDetailsScreen() {
   const { id } = useLocalSearchParams();
   const [showModal, setShowModal] = useState(false);
 
+  const { matches } = useAuth() || {};
+  const liveMatches = React.useMemo(() => toMatchCards(matches), [matches]);
+
   const { isRequested, sendRequest } = useMatchRequests();
   const { isSaved, toggleSave } = useSavedRoommates();
 
-  // Find roommate by id
-  const roommate = MOCK_RECOMMENDED_ROOMMATES.find((r) => r.id === id) || MOCK_RECOMMENDED_ROOMMATES[0];
+  // Find roommate by id from live backend matches first, then mock recommendations
+  const roommate =
+    liveMatches.find((r) => r.id === id) ||
+    MOCK_RECOMMENDED_ROOMMATES.find((r) => r.id === id) ||
+    MOCK_RECOMMENDED_ROOMMATES[0];
   const requested = isRequested(roommate.id);
   const saved = isSaved(roommate.id);
 

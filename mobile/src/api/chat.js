@@ -1,55 +1,30 @@
-import { API_BASE_URL } from './client.js';
-
-async function request(path, method, token, body) {
-  let response;
-  try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      ...(body ? { body: JSON.stringify(body) } : {}),
-    });
-  } catch {
-    throw new Error('The backend could not be reached. Check that it is running.');
-  }
-  const result = await response.json().catch(() => null);
-  if (!response.ok) {
-    throw new Error(result?.message || `The request failed (${response.status}).`);
-  }
-  return result;
-}
+import { request } from './client';
 
 export function getOrCreateConversation(otherUserId, token) {
-  return request(`/api/chat/conversations/${encodeURIComponent(otherUserId)}`, 'POST', token);
+  return request(`/api/chat/conversations/${encodeURIComponent(otherUserId)}`, { method: 'POST', token });
 }
 
 export function fetchConversations(token) {
-  return request('/api/chat/conversations', 'GET', token);
+  return request('/api/chat/conversations', { method: 'GET', token });
 }
 
 export function fetchMessages(conversationId, token) {
   return request(
     `/api/chat/conversations/${encodeURIComponent(conversationId)}/messages`,
-    'GET',
-    token,
+    { method: 'GET', token },
   );
 }
 
 export function sendMessage(conversationId, content, token) {
   return request(
     `/api/chat/conversations/${encodeURIComponent(conversationId)}/messages`,
-    'POST',
-    token,
-    { content },
+    { method: 'POST', token, body: { content } },
   );
 }
 
 export function markMessagesRead(conversationId, token) {
   return request(
     `/api/chat/conversations/${encodeURIComponent(conversationId)}/read`,
-    'PATCH',
-    token,
+    { method: 'PATCH', token },
   );
 }

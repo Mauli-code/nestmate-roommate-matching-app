@@ -1,20 +1,15 @@
 export function resolveApiBaseUrl() {
   // ─── 1. Explicit .env override (optional, for production or staging) ───────
-  if (process.env.EXPO_PUBLIC_API_BASE_URL) {
-    return process.env.EXPO_PUBLIC_API_BASE_URL;
-  }
-  if (process.env.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL;
+  if (typeof process !== 'undefined' && process.env) {
+    if (process.env.EXPO_PUBLIC_API_BASE_URL) {
+      return process.env.EXPO_PUBLIC_API_BASE_URL;
+    }
+    if (process.env.EXPO_PUBLIC_API_URL) {
+      return process.env.EXPO_PUBLIC_API_URL;
+    }
   }
 
   // ─── 2. Auto-detect from Expo Metro host (Expo Go on physical devices) ─────
-  //
-  // When a teammate scans the QR code, Expo Go knows the IP of the machine
-  // running Metro (the laptop that ran `npx expo start`). We reuse that same
-  // IP to reach the NestJS backend, which is assumed to also run on that
-  // laptop on port 3000. This requires ZERO manual configuration — every
-  // teammate just runs `npm start` (backend) + `npx expo start` (mobile) on
-  // their own machine and it works automatically.
   try {
     if (typeof navigator !== 'undefined' && navigator.product === 'ReactNative') {
       // eslint-disable-next-line global-require
@@ -33,6 +28,13 @@ export function resolveApiBaseUrl() {
         if (ip && ip !== 'localhost' && ip !== '127.0.0.1') {
           return `http://${ip}:3000`;
         }
+      }
+
+      // Android emulator fallback
+      // eslint-disable-next-line global-require
+      const { Platform } = require('react-native');
+      if (Platform?.OS === 'android') {
+        return 'http://10.0.2.2:3000';
       }
     }
   } catch {

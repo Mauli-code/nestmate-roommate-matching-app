@@ -22,3 +22,15 @@ test('route guard protects signed-out routes and redirects completed onboarding'
     profile: { preferences: { id: 'user-1' } },
   }), '/(tabs)');
 });
+
+test('route guard redirects root route to tabs when preferences exist', async () => {
+  const { getAuthRedirect } = await import('./route-guard.js');
+  assert.equal(getAuthRedirect({
+    token: 'token', section: undefined, profileChecked: true, profileLoaded: true,
+    profile: { preferences: { id: 'user-1' } },
+  }), '/(tabs)');
+  assert.equal(getAuthRedirect({
+    token: 'token', section: undefined, profileChecked: true, profileLoaded: true,
+    profile: { preferences: null },
+  }), '/onboarding');
+});
