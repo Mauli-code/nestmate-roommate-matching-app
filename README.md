@@ -1,174 +1,184 @@
-# NestMate — Smart Roommate Matching & Accommodation Application
+# NestMate — Smart Roommate Matching & Accommodation Platform
+### Final College Project Submission — Full-Stack Engineering & PostgreSQL Database Architecture
 
-NestMate is a modern full-stack mobile application designed to help students and working professionals find compatible roommates based on budget, location, lifestyle, habits, and preferences, while discovering verified accommodation options (flats, PGs, and shared rooms).
-
----
-
-## 1. Problem Statement
-
-Finding a suitable roommate or shared housing in urban centers and near university campuses is traditionally an unorganized, high-friction process. Seekers face:
-* Mismatched lifestyle expectations (cleanliness, sleep cycles, dietary and smoking habits).
-* Incompatible budget splits and geographic requirements.
-* Unverified listings and scattered communication channels.
-* Cluttered, unfiltered classifieds with no quantitative measure of roommate compatibility.
+NestMate is an enterprise-grade full-stack mobile and web application designed to help university students and young professionals discover compatible roommates and verified housing accommodations (flats, PGs, and shared rooms). The platform combines a multi-factor algorithmic compatibility engine, interactive 360° virtual room tours, and an ACID-compliant PostgreSQL relational database.
 
 ---
 
-## 2. Project Objectives
+## 1. Project Overview
 
-1. **Algorithmic Compatibility Matching**: Automatically compute a multi-factor compatibility score (0–100%) between candidates across four pillars (Budget, Location, Lifestyle, and Habits).
-2. **Comprehensive Accommodation Discovery**: Enable seekers to discover verified PGs, flats, private rooms, and shared apartments with detailed specs (rent in ₹, furnishing, BHK, amenities, house rules).
-3. **Structured Social Connection**: Provide match requests, connection requests, and booking inquiries without exposing private contact info prematurely.
-4. **Intuitive Mobile Experience**: Deliver a responsive, native-feeling mobile app built on React Native & Expo Router with persistent bookmarks, real-time search, multi-factor filtering, and customizable profile preferences.
+Finding safe, affordable student housing and compatible roommates in major Indian tech hubs (Pune, Bengaluru, Mumbai, Delhi) is traditionally an unorganized, high-friction process. NestMate replaces scattered classifieds and unreliable social media groups with a centralized platform that pairs seekers based on objective lifestyle compatibility while listing verified properties with transparent pricing, amenity catalogs, and immersive virtual tours.
 
 ---
 
-## 3. Technology Stack
+## 2. Problem Statement
+
+Seekers in urban student hubs face significant challenges:
+* **Lifestyle & Habit Clashes**: Incompatible sleep cycles (night-owls vs early-birds), cleanliness standards, dietary restrictions (vegetarian/vegan/non-veg), and smoking/drinking habits often lead to broken leases and personal friction.
+* **Unverified Listings & Rental Fraud**: Misleading property descriptions, hidden security deposits, and non-existent amenities.
+* **Data Fragility in Naive Systems**: Unstructured flat JSON files (`store.json`) or transient in-memory stores lose state upon server restarts and lack transactional integrity.
+* **Concurrency Conflicts**: Simultaneous booking attempts by multiple applicants often lead to double-booking when the database lacks row-level locking.
+
+---
+
+## 3. Project Objectives
+
+1. **4-Pillar Algorithmic Compatibility Engine**: Compute a quantitative 0–100% compatibility score across Budget (25%), Location (25%), Lifestyle (25%), and Habits (25%) with transparent match explanations.
+2. **Verified Housing Discovery**: Provide detailed listings across Indian metro cities with monthly rent in ₹, security deposit, room counts, furnishing details, and house rules.
+3. **Interactive 360° Virtual Room Tours**: Allow prospective tenants to inspect panoramic WebGL scenes of bedrooms, living rooms, and kitchens before scheduling a visit.
+4. **Relational Database Engineering**: Establish an 18-table normalized (3NF/BCNF) PostgreSQL schema with connection pooling, foreign key integrity (`ON DELETE CASCADE`), domain CHECK constraints, and row-level concurrency locking (`SELECT ... FOR UPDATE`).
+5. **High-Assurance Automated Testing**: Maintain 100% test pass rate across unit, integration, mobile, end-to-end lifecycle, and SQL evaluation suites.
+
+---
+
+## 4. Main Features
+
+### A. Roommate Discovery & Matching
+* **Smart Match Score**: 0–100% weighted score breakdown with clear compatibility highlights.
+* **Dynamic Search & Filtering**: Filter candidates by maximum budget, preferred neighborhood, sleep cycle, food habits, cleanliness, smoking, and pet tolerance.
+* **Social Connections**: Send, accept, reject, or cancel connection requests without prematurely revealing private phone numbers.
+* **Favorites / Bookmarks**: Save candidate profiles with persistent database storage.
+
+### B. Accommodation Management ("Places")
+* **Comprehensive Listings**: Verified flats, PGs, and shared rooms priced in INR (₹).
+* **Multi-Factor Filters**: Filter by city (Pune, Bengaluru, Mumbai, Delhi), rent range, and accommodation type.
+* **Atomic Booking Requests**: Request to book with move-in date selection and status tracking (pending, accepted, rejected, cancelled).
+* **Host Dashboard & Concurrency Safety**: Host booking acceptance atomically locks accommodation records, decrements available rooms, and automatically rejects competing pending requests.
+
+### C. 360° Virtual Room Tour
+* **WebGL Panoramic Viewer**: Seamless 360-degree rotation (yaw, pitch) across multiple rooms.
+* **Interactive Scene Switching**: Transition between Living Room, Master Bedroom, Balcony, and Kitchen.
+* **Database-Driven Hotspots**: Scene orientation and interactive navigation hotspots stored in PostgreSQL `JSONB`.
+
+### D. Communication & Safety
+* **1-on-1 In-App Messaging**: Threaded messaging with canonical conversation uniqueness (`CHECK user1_id < user2_id`).
+* **Privacy & Notification Controls**: Granular user toggles for email alerts, push notifications, and phone/email concealment.
+* **Community Moderation**: User blocking and categorized moderation report filing.
+
+---
+
+## 5. Technology Stack
 
 ### Mobile Frontend (`mobile/`)
 * **Framework**: React Native with **Expo SDK 58**
-* **Routing**: **Expo Router** (file-based navigation with tab bar and nested stack routes)
+* **Routing**: **Expo Router** (file-based stack and bottom tab navigation)
 * **Language**: JavaScript (ES Modules)
-* **Styling**: React Native `StyleSheet` with centralized design tokens (`COLORS`, `RADII`, `TYPOGRAPHY`, `SHADOWS`)
-* **Icons**: `@expo/vector-icons` (Ionicons)
-* **Persistence**: `@react-native-async-storage/async-storage` for saved properties, bookmarked roommates, and local session profile state
-* **Web Bundling**: `react-native-web` for cross-platform browser support
+* **360° Panorama Engine**: `react-native-webview` rendering an HTML5 WebGL three.js panoramic canvas
+* **Local Persistence**: `@react-native-async-storage/async-storage` for offline caching and fast UI hydration
+* **Styling**: Centralized design system (`COLORS`, `RADII`, `TYPOGRAPHY`, `SHADOWS`)
 
 ### Backend API (`src/`)
-* **Framework**: **NestJS 11** with `@nestjs/platform-express` HTTP driver
-* **Architecture**: Modular Domain-Driven Design (Controllers, Services, In-Memory Repositories, Guards)
-* **Security & Auth**: `jsonwebtoken` (JWT), `bcryptjs` password hashing, token revocation, account lifecycle guards
-* **CORS**: Enabled for seamless cross-origin requests from web and mobile clients
-* **Testing**: Node.js built-in test runner (`node:test` and `node:assert/strict`)
+* **Framework**: **NestJS 11** with Express HTTP platform
+* **Authentication**: JSON Web Tokens (`jsonwebtoken`) with `bcryptjs` password hashing and token invalidation
+* **Database Driver**: Native `pg` (node-postgres) with connection pooling and parameterized queries
+* **Architecture**: Domain-Driven Modular Design (Controllers, Services, Repositories, Guards)
+
+### Database (`database/`)
+* **RDBMS**: **PostgreSQL 18.4** (`nestmate_db`)
+* **Schema Design**: 18 normalized tables in Third Normal Form (3NF)
+* **Integrity Enforcement**: 29 Foreign Keys (`ON DELETE CASCADE`), 25 Domain CHECK constraints, 35 B-Tree indexes
 
 ---
 
-## 4. Project Architecture
-
-NestMate uses a decoupled, clean two-tier architecture:
+## 6. System Architecture
 
 ```text
 ┌────────────────────────────────────────────────────────┐
 │               NestMate Mobile Client                   │
-│   (Expo Router • 5 Tabs • Dynamic Stack Routes)        │
+│         (React Native • Expo Router SDK 58)            │
 │                                                        │
 │  [Home]  [Discover]  [Places]  [Saved]  [Profile]      │
 └──────────────┬─────────────────────────┬───────────────┘
-               │ HTTP / JSON             │ Local Storage
+               │ HTTP / JSON             │ Local Storage Cache
                ▼                         ▼
 ┌──────────────────────────────┐  ┌──────────────────────┐
 │     NestJS Backend API       │  │ AsyncStorage Cache   │
-│  (14 Modules • Controllers)  │  │ - Saved Properties   │
-│                              │  │ - Bookmarked Matches │
-│  • Auth & User Management    │  │ - Sent Requests      │
-│  • 4-Pillar Matching Engine  │  │ - Edited Profile     │
-│  • Accommodations & Bookings │  └──────────────────────┘
-│  • Favorites & Connections   │
+│   (14 Domain Modules)        │  └──────────────────────┘
+│                              │
+│  • Auth & User Management    │
+│  • 4-Pillar Matching Engine  │
+│  • Accommodations & Bookings │
 │  • Chat, Reviews, Dashboard  │
-│  • Health Check API          │
+│  • 360° Virtual Tour Engine  │
 └──────────────┬───────────────┘
                │
-               ▼
-┌──────────────────────────────┐
-│ In-Memory Repository Layer   │
-│ (Seeded Demo Datasets)       │
-└──────────────────────────────┘
+       ┌───────┴───────┐
+       │ STORAGE_MODE  │
+       └───┬───────┬───┘
+           │       │
+ STORAGE_MODE=memory│       │ STORAGE_MODE=postgres
+           ▼       ▼
+┌──────────────┐ ┌────────────────────────────────────────┐
+│ In-Memory    │ │ PostgreSQL 18.4 (nestmate_db)          │
+│ Repository   │ │ • Native Connection Pool (pg.Pool)     │
+│ (Unit Tests) │ │ • Parameterized SQL ($1, $2, ...)      │
+└──────────────┘ │ • 18 Tables in 3NF / BCNF              │
+                 │ • Row-Level Locking (SELECT FOR UPDATE)│
+                 └────────────────────────────────────────┘
 ```
 
 ---
 
-## 5. Folder Structure
+## 7. Database Architecture
 
-```text
-nestmate-roommate-matching-app-main/
-├── src/                          # NestJS Backend Modules
-│   ├── main.js                   # Server bootstrap & CORS configuration
-│   ├── app.module.js             # Root module aggregating all domain modules
-│   ├── health/                   # Health-check endpoint (/api/health)
-│   ├── auth/                     # JWT authentication, register, login, photo upload
-│   ├── matching/                 # Compatibility scoring, ranking & profile repository
-│   ├── accommodations/           # Accommodation listings, filters & recommendations
-│   ├── booking-requests/         # Booking inquiry workflow
-│   ├── connection-requests/      # Roommate connection workflow
-│   ├── favorites/                # Roommate favorites API
-│   ├── chat/                     # In-app messaging & blocking controls
-│   ├── dashboard/                # User metrics & profile completion statistics
-│   ├── notifications/            # Notification center & preference controls
-│   ├── privacy/                  # Profile visibility & field concealment
-│   ├── moderation/               # User reporting & safety blocks
-│   ├── reviews/                  # Roommate & accommodation rating reviews
-│   └── search/                   # Global multi-parameter seeker search
-│
-├── mobile/                       # React Native Mobile Application (Expo SDK 58)
-│   ├── app/                      # Expo Router navigation routes
-│   │   ├── _layout.js            # Root Stack layout
-│   │   ├── index.js              # Entry redirect to (tabs)
-│   │   ├── (tabs)/               # Bottom tab navigator
-│   │   │   ├── _layout.js        # Tab configuration (Home, Discover, Places, Saved, Profile)
-│   │   │   ├── index.js          # Home screen (Greeting, Stats, Smart Match Overview)
-│   │   │   ├── discover.js       # Roommate discovery (Search, Sort, Filters)
-│   │   │   ├── accommodations.js # Accommodation listings (PGs, Flats, Rooms)
-│   │   │   ├── saved.js          # Segmented saved bookmarks (Roommates & Properties)
-│   │   │   └── profile.js        # User profile, preferences editor & logout
-│   │   ├── roommate/[id].js      # Roommate details & compatibility breakdown
-│   │   └── property/[id].js      # Accommodation property details & contact CTA
-│   │
-│   ├── src/
-│   │   ├── api/                  # Backend REST API client services
-│   │   ├── components/           # Reusable UI component library (13 components)
-│   │   ├── constants/theme.js    # Design system palette, typography, radii, spacing
-│   │   ├── data/mockData.js      # Seeded realistic datasets (users, roommates, properties)
-│   │   ├── hooks/                # Custom hooks (useMatchRequests, useSavedProperties, useSavedRoommates)
-│   │   └── services/             # Client persistence and backend fallback services
-│   └── test/                     # Mobile automated journey verification tests
-│
-├── .env.example                  # Backend environment variable template
-├── mobile/.env.example           # Mobile client environment variable template
-├── package.json                  # Root backend scripts & dependencies
-└── README.md                     # Project documentation
-```
+The relational schema consists of **18 tables**:
+1. `users`: Master user account records, credentials, and profile bio.
+2. `roommate_preferences`: Strict 1:1 user matching profile (budget, lifestyle, habits).
+3. `accommodations`: Housing inventory, rental rates, room counts, and host references.
+4. `amenities`: Normalized catalog of property amenities.
+5. `accommodation_amenities`: Composite M:N junction table (`accommodation_id`, `amenity_id`).
+6. `virtual_tour_scenes`: 360° panoramic rooms with JSONB navigation hotspots.
+7. `booking_requests`: Application records with anti-self-booking CHECK constraints.
+8. `connection_requests`: Roommate match invitations.
+9. `saved_accommodations`: Property bookmarks (composite PK: `user_id`, `listing_id`).
+10. `saved_roommates`: Roommate bookmarks (composite PK: `user_id`, `roommate_id`).
+11. `reviews`: Polymorphic reviews for roommates or accommodations with CHECK constraint.
+12. `conversations`: Canonical 1-on-1 chat rooms with `CHECK (user1_id < user2_id)`.
+13. `messages`: Threaded in-app chat log.
+14. `notifications`: Real-time user alert records.
+15. `notification_preferences`: 1:1 user toggle preferences.
+16. `privacy_settings`: 1:1 user visibility controls.
+17. `user_blocks`: Bidirectional safety blocks with anti-reflexive checks.
+18. `user_reports`: Community moderation tickets with category taxonomy.
+
+For the comprehensive Entity-Relationship diagram, see [**docs/ER_DIAGRAM.md**](docs/ER_DIAGRAM.md).  
+For the complete technical report, see [**docs/DATABASE_PROJECT_REPORT.md**](docs/DATABASE_PROJECT_REPORT.md).
 
 ---
 
-## 6. Features Overview
-
-### A. Mobile Application Features
-* **Home Screen**: Personalized greeting, live active match counts, Smart Match explanation card, horizontal top roommate carousel, and quick category pills.
-* **Roommate Discovery**: Instant keyword search (name, role, area, vibe), horizontal sorting pills (Highest Match, Budget Asc/Desc, Location), multi-criteria filter modal (Budget, Sleep, Cleanliness, Smoking, Pets), and pull-to-refresh.
-* **Roommate Profile Details**: Profile hero image, verified status, 4-pillar compatibility breakdown bars, lifestyle tags, habit preferences, match request modal action, and persistent bookmarking.
-* **Accommodation Listings ("Places")**: Dedicated listings for 10 realistic properties across Indian metro hubs (Bangalore, Mumbai, Delhi, Hyderabad, Pune, Noida, Chennai). Includes rent in ₹, property type (PG, Flat, Shared Room, Private Room), BHK, furnishing chips, availability indicator, search bar, sort selector, and filter modal.
-* **Property Details**: Hero image, full street address, specifications grid (BHK, baths, deposit, furnishing), description, amenity chips (WiFi, AC, Power Backup, Gym), house rules, and fixed bottom "Contact Owner" CTA.
-* **Segmented Saved Screen**: Segmented control switching between **Bookmarked Roommates & Match Requests** and **Saved Accommodation Properties**, backed by persistent device storage (`AsyncStorage`).
-* **Profile & Preferences Editor**: Complete profile screen showing personal details, housing preferences, lifestyle habits, notification toggles, privacy toggles, an interactive **Edit Preferences Modal**, and session reset/logout.
-
-### B. Backend API Features
-* **Compatibility Scoring Engine**: Quantitative 0–100% calculation factoring budget proximity (25%), location match (25%), sleep/cleanliness alignment (25%), and smoking/pets habits (25%) with human-readable match explanations.
-* **Authentication**: User registration, login with bcrypt password comparison, JWT token issuance, profile editing, photo upload, and account deactivation/deletion requests.
-* **Connection & Match Requests**: Create, list sent, list received, accept, reject, and cancel pending requests.
-* **Accommodation Management**: CRUD endpoints for housing listings with suitability scoring and recommendations.
-* **Health Check**: High-availability health status endpoint at `/api/health`.
-
----
-
-## 7. Installation Instructions (Fresh Clone)
+## 8. PostgreSQL Setup
 
 ### Prerequisites
-* **Node.js**: v18.0.0 or newer (Node v20+ / v24 verified)
-* **npm**: v9.0.0 or newer
-* **Expo Go**: Available on iOS App Store & Android Google Play Store (for physical phone testing)
+* **PostgreSQL**: Version 14 or higher installed (PostgreSQL 18.4 verified on port 5432)
+* PostgreSQL service running:
+```bash
+# macOS (Homebrew)
+brew services start postgresql@18
+```
 
-### Step 1: Clone the repository
+### Create the Database
+```bash
+# Open psql terminal
+psql -U postgres -h localhost -c "CREATE DATABASE nestmate_db;"
+psql -U postgres -h localhost -c "CREATE DATABASE nestmate_test_db;"
+```
+
+---
+
+## 9. Installation Instructions
+
+### Step 1: Clone the Repository
 ```bash
 git clone https://github.com/Mauli-code/nestmate-roommate-matching-app.git
 cd nestmate-roommate-matching-app
 ```
 
-### Step 2: Install Root & Backend Dependencies
+### Step 2: Install Backend Dependencies
 ```bash
 npm install
 ```
 
-### Step 3: Install Mobile Dependencies
+### Step 3: Install Mobile Client Dependencies
 ```bash
 cd mobile
 npm install
@@ -177,166 +187,179 @@ cd ..
 
 ---
 
-## 8. Backend Startup Instructions
+## 10. Environment Variable Configuration
 
-Start the NestJS backend from the repository root:
-
-```bash
-npm start
+### Backend Configuration (`.env`)
+Create a `.env` file in the project root:
+```env
+PORT=3000
+JWT_SECRET=nestmate-jwt-secret-for-demo
+STORAGE_MODE=postgres
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/nestmate_db
 ```
+*(For running unit tests without PostgreSQL, set `STORAGE_MODE=memory`)*
 
-The backend starts on port 3000:
-```text
-[Nest] LOG [NestApplication] Nest application successfully started
-```
+### Mobile Client Configuration (`mobile/.env`)
+Create a `.env` file in the `mobile/` directory:
+```env
+# Web Browser / iOS Simulator:
+EXPO_PUBLIC_API_BASE_URL=http://localhost:3000
 
-To verify the backend is running, query the health-check endpoint:
-```bash
-curl http://localhost:3000/api/health
-```
+# Android Emulator:
+# EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:3000
 
-Expected response:
-```json
-{
-  "status": "ok",
-  "service": "nestmate-backend",
-  "timestamp": "2026-11-12T09:00:07.236Z",
-  "uptime": 12.34
-}
+# Physical Device via Local Wi-Fi:
+# EXPO_PUBLIC_API_BASE_URL=http://<YOUR_LOCAL_IP>:3000
 ```
 
 ---
 
-## 9. Mobile Startup Instructions
+## 11. Backend Startup Commands
 
-Start the Expo mobile app:
+Verify database connectivity:
+```bash
+npm run db:check
+```
 
+Start the NestJS backend:
+```bash
+node --env-file=.env src/main.js
+# Or using npm:
+npm start
+```
+*The backend starts at `http://localhost:3000`.*  
+Verify health check:
+```bash
+curl http://localhost:3000/api/health
+```
+
+---
+
+## 12. Mobile Startup Commands
+
+From the project root:
 ```bash
 cd mobile
 npx expo start --clear
 ```
 
 ### Target Options:
-* **Web Browser**: Press `w` in the terminal or open `http://localhost:8081` in Chrome/Safari.
-* **Physical Device (Expo Go)**:
-  1. Ensure your mobile phone and computer are on the **same Wi-Fi network**.
-  2. Open the **Expo Go** app on your phone.
-  3. Scan the terminal's QR code (on Android, scan via Expo Go's built-in "Scan QR code"; on iOS, scan with the Camera app).
-* **iOS Simulator**: Press `i` (macOS with Xcode required).
-* **Android Emulator**: Press `a` (Android Studio required).
+* **Web Browser**: Press `w` in terminal or open `http://localhost:8081` in Chrome/Safari.
+* **Physical Device (Expo Go)**: Scan terminal QR code with Expo Go (Android) or Camera app (iOS).
+* **iOS Simulator**: Press `i` (macOS with Xcode).
+* **Android Emulator**: Press `a` (Android Studio).
 
 ---
 
-## 10. Environment Variable Setup
+## 13. Database Migration Commands
 
-### Backend (`.env`)
-Copy the template in the root directory:
+Apply the 18-table relational schema to `nestmate_db`:
 ```bash
-cp .env.example .env
+npm run db:migrate
 ```
-Default values:
-```env
-PORT=3000
-JWT_SECRET=nestmate-jwt-secret-for-demo
-```
-
-### Mobile Frontend (`mobile/.env`)
-Copy the template in the `mobile/` directory:
-```bash
-cp mobile/.env.example mobile/.env
-```
-Configuration guide:
-* **Web / iOS Simulator**: `EXPO_PUBLIC_API_BASE_URL=http://localhost:3000`
-* **Android Emulator**: `EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:3000`
-* **Physical Device via Wi-Fi**: `EXPO_PUBLIC_API_BASE_URL=http://<YOUR_COMPUTER_LOCAL_IP>:3000` (e.g. `http://192.168.1.102:3000`)
+*Executes `database/schema.sql` idempotently.*
 
 ---
 
-## 11. Backend API Overview
+## 14. Database Seeding Commands
+
+Populate `nestmate_db` with realistic demonstration data (14 users, 16 accommodations, 64 amenity links, 6 virtual tour scenes, reviews, and bookings):
+```bash
+npm run db:seed
+```
+
+---
+
+## 15. Testing & Evaluation Commands
+
+### 1. Run Complete Automated Test Suite (251 Tests)
+```bash
+# 1. Run backend unit tests (156 pass in memory mode)
+npm test
+
+# 2. Run mobile client tests (43 pass)
+npm run test:mobile
+
+# 3. Run PostgreSQL Stage 2/2B integration tests (14 pass)
+node --env-file=.env --test src/database/postgres-stage2-integration.test.js
+
+# 4. Run 20-step End-to-End User Journey test (20 pass)
+# Ensure backend is running in a separate terminal: node --env-file=.env src/main.js
+node --env-file=.env --test src/database/e2e-user-journey.test.js
+```
+
+### 2. Run SQL Evaluation Suite (15 Advanced Queries)
+```bash
+npm run db:evaluate
+```
+*Executes JOINs, CTEs, Window functions, aggregations, and subqueries against `nestmate_db`.*
+
+---
+
+## 16. Backend REST API Overview
 
 | Method | Endpoint | Description | Auth Required |
 | :--- | :--- | :--- | :---: |
 | `GET` | `/api/health` | Service health status and uptime | No |
 | `POST` | `/api/auth/register` | Register new user account | No |
 | `POST` | `/api/auth/login` | Authenticate with email/password (returns JWT) | No |
-| `POST` | `/api/auth/logout` | Revoke the current token | Yes (Bearer) |
+| `POST` | `/api/auth/logout` | Revoke the active JWT token | Yes (Bearer) |
 | `GET` | `/api/auth/profile` | Retrieve authenticated user profile | Yes (Bearer) |
-| `PATCH`| `/api/auth/profile` | Update profile attributes and bio | Yes (Bearer) |
-| `PUT` | `/api/auth/profile` | Same profile update for existing clients | Yes (Bearer) |
-| `POST` | `/api/auth/change-password` | Change password and revoke earlier tokens | Yes (Bearer) |
-| `POST` | `/api/auth/profile/photo` | Upload a JPEG, PNG, or WebP profile photo (up to 5 MB) | Yes (Bearer) |
-| `PUT` | `/api/matches/:profileId/preferences` | Save the signed-in user's matching preferences | Yes (Bearer) |
-| `GET` | `/api/matches?profileId=:id` | Paginated ranked roommate compatibility matches | Yes (Bearer) |
+| `PATCH`| `/api/auth/profile` | Update profile bio and lifestyle attributes | Yes (Bearer) |
+| `PUT` | `/api/matches/:profileId/preferences` | Update matching preferences | Yes (Bearer) |
+| `GET` | `/api/matches?profileId=:id` | Paginated ranked compatible roommates | Yes (Bearer) |
 | `GET` | `/api/accommodations` | Filtered accommodation listings | Yes (Bearer) |
-| `GET` | `/api/accommodations/recommendations` | Ranked housing recommendations | Yes (Bearer) |
 | `GET` | `/api/accommodations/:id` | Accommodation listing detail by ID | Yes (Bearer) |
+| `POST` | `/api/booking-requests` | Send booking request for accommodation | Yes (Bearer) |
+| `GET` | `/api/booking-requests/sent` | List booking requests sent by user | Yes (Bearer) |
+| `GET` | `/api/booking-requests/received`| List booking requests received by host | Yes (Bearer) |
+| `PATCH`| `/api/booking-requests/:id/accept` | Accept booking atomically (row lock) | Yes (Bearer) |
 | `POST` | `/api/connection-requests/:id` | Send roommate connection request | Yes (Bearer) |
-| `GET` | `/api/connection-requests/sent` | List connection requests sent by user | Yes (Bearer) |
+| `GET` | `/api/connection-requests/sent` | List sent connection requests | Yes (Bearer) |
 | `GET` | `/api/connection-requests/received`| List received connection requests | Yes (Bearer) |
 | `GET` | `/api/favorites` | List user's bookmarked favorite roommates | Yes (Bearer) |
 | `POST` | `/api/favorites/:id` | Add roommate to favorites | Yes (Bearer) |
 | `DELETE`| `/api/favorites/:id` | Remove roommate from favorites | Yes (Bearer) |
+| `GET` | `/api/conversations` | List user conversations | Yes (Bearer) |
+| `GET` | `/api/conversations/:id/messages` | Retrieve threaded chat messages | Yes (Bearer) |
+| `POST` | `/api/conversations/:id/messages` | Send in-app chat message | Yes (Bearer) |
+| `GET` | `/api/notifications` | Retrieve unread user notifications | Yes (Bearer) |
 | `GET` | `/api/dashboard` | Activity summary and profile completion percentage | Yes (Bearer) |
 
 ---
 
-## 12. Automated Testing
+## 17. 360-Degree Virtual Room Tour Feature
 
-The project includes **228 automated tests**: 153 backend tests and 75 mobile tests. The count is from the command below.
-
-### Run all tests across the entire repository:
-```bash
-npm test && node --test 'mobile/**/*.test.js'
-```
-
-### Run backend tests only:
-```bash
-npm test
-```
-
-### Run mobile tests only:
-```bash
-node --test 'mobile/**/*.test.js'
-```
-
-The backend test script sets `NODE_ENV=test` so user and profile data stays in memory.
-
-### Roommate Matching Module Documentation:
-For comprehensive technical documentation, scoring formulas, API contracts, and architecture of the roommate matching system, see [**docs/ROOMMATE_MATCHING.md**](docs/ROOMMATE_MATCHING.md).
-
-For authentication and profile endpoints, field rules, and mobile screen mappings, see [**docs/AUTH_PROFILE.md**](docs/AUTH_PROFILE.md).
+NestMate includes a built-in WebGL panoramic virtual tour engine:
+* **Multi-Room Scene Navigation**: Prospective tenants can transition between Living Room, Bedroom, Kitchen, and Balcony.
+* **Touch & Mouse Pan Controls**: Users can drag to pan 360° horizontally (yaw) and vertically (pitch) with auto-rotation option.
+* **Database Integration**: Each scene is stored in `virtual_tour_scenes` referencing the parent accommodation, with interactive hotspot overlays stored in PostgreSQL `JSONB`.
 
 ---
 
-## 13. End-to-End Demo Walkthrough
+## 18. UI Screenshots & Visual Inspection
 
-For the auth and profile demo:
-
-1. Start the backend with `npm start` and the app with `cd mobile && npx expo start`.
-2. Open **Create an account**, enter your name, email, and password, then continue to onboarding.
-3. Enter occupation, city, bio, rupee budget, preferred area, lifestyle, and habit choices. Save to open the tabs.
-4. Open **Profile**, tap **Edit**, change a detail or preference, and save. Reopen Profile to see the backend values.
-5. Tap **Log out** and confirm. The app returns to login; sign in again to see the saved profile.
-
----
-
-## 14. Known Limitations
-
-* **Backend Storage**: User accounts and roommate profiles are saved in `data/store.json`. Other domain data is held in memory while the server runs.
-* **Image Uploads**: Profile photo uploads use local file storage in `/uploads`. In a production deployment, this would be wired to an S3 or Google Cloud Storage bucket.
-* **Push Notifications**: Notification preferences and in-app notification state are fully modeled in the backend, while push notifications rely on local device alerts in the mobile demo.
+Live demonstration recordings and screenshots can be generated directly using the mobile web view (`http://localhost:8081`):
+* **Home Screen**: Active match counter, smart match highlight cards, and category pills.
+* **Discover Screen**: Compatibility percentage badges and multi-criteria lifestyle filter modal.
+* **Places Screen**: Accommodation cards with rent in ₹, availability tags, and 360° Virtual Tour badges.
+* **Virtual Tour Viewer**: Full-screen WebGL spherical viewer with room switcher tabs.
+* **Saved Screen**: Segmented control switching between saved roommates and saved properties.
+* **Profile Screen**: Personal details, rupee budget slider, habit choices, and session management.
 
 ---
 
-## 15. Submission Verification Checklist
+## 19. Known Limitations
 
-- [x] Backend starts cleanly with `npm start` without missing driver errors.
-- [x] Health check endpoint `/api/health` returns `200 OK`.
-- [x] Mobile app builds and runs cleanly via Expo SDK 58 on Web and Expo Go.
-- [x] All 5 bottom navigation tabs are responsive and fully functional.
-- [x] Roommate search, filtering, and compatibility scoring work as specified.
-- [x] Accommodation listings, search, rent in ₹, and property details work.
-- [x] Saved items persist using local AsyncStorage.
-- [x] User profile screen allows editing housing and habit preferences.
-- [x] 228 automated tests pass with 0 failures.
-- [x] No secrets, passwords, or sensitive keys are committed.
+1. **Local Media Storage**: Profile photos and static panorama assets currently use local filesystem paths in `/uploads` and `mobile/assets/` rather than a cloud bucket (Amazon S3 / Google Cloud Storage).
+2. **Push Notifications**: Notification preferences and event generation are fully implemented in PostgreSQL; mobile delivery operates via in-app alert toasts rather than Apple APNs / Firebase Cloud Messaging (FCM).
+3. **Geospatial Distance Queries**: Location matching currently relies on normalized city and neighborhood strings rather than PostGIS geospatial radius coordinates (`ST_DWithin`).
+
+---
+
+## 20. Future Improvements
+
+1. **PostGIS Integration**: Add spatial indexing to support radius-based perimeter filtering (e.g. "Find PGs within 1.5 km of Pune University").
+2. **PostgreSQL Full-Text Search (tsvector)**: Implement GIN-indexed natural language search with stemming and ranking across accommodation titles and descriptions.
+3. **WebRTC Video Calling**: Enable secure, in-app video interviews between matched roommates before booking confirmations.
+4. **Automated Rent Split & Payment Gateway**: Integrate UPI/Stripe payment gateway for automated security deposit escrow and monthly rent collection.
