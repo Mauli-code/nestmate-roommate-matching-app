@@ -18,7 +18,25 @@ async function seed(databaseUrl) {
     console.log('[Seed] Seed script executed successfully.');
 
     const counts = {};
-    for (const table of ['users', 'roommate_preferences', 'accommodations', 'amenities', 'booking_requests', 'reviews']) {
+    const tables = [
+      'users',
+      'roommate_preferences',
+      'amenities',
+      'accommodations',
+      'accommodation_amenities',
+      'virtual_tour_scenes',
+      'booking_requests',
+      'connection_requests',
+      'saved_accommodations',
+      'saved_roommates',
+      'reviews',
+      'conversations',
+      'messages',
+      'notifications',
+      'notification_preferences',
+      'privacy_settings',
+    ];
+    for (const table of tables) {
       const res = await client.query(`SELECT COUNT(*)::int AS count FROM ${table};`);
       counts[table] = res.rows[0].count;
     }
