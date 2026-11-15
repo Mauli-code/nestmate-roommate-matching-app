@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getItem, setItem } from '../storage';
+import { fetchFavorites, addFavorite, removeFavorite } from '../api/favorites';
 
 const STORAGE_KEY = '@nestmate_saved_roommates';
 
@@ -9,7 +10,28 @@ export function useSavedRoommates() {
 
   const load = useCallback(async () => {
     try {
-      const data = await AsyncStorage.getItem(STORAGE_KEY);
+      // 1. Try to fetch from persistent PostgreSQL database if authenticated
+      const token = await getItem('auth_token');
+      if (token) {
+        try {
+          const apiFavorites = await fetchFavorites(token);
+          if (Array.isArray(apiFavorites)) {
+            const map = {};
+            for (const fav of apiFavorites) {
+              const rId = fav.roommateId || fav.id;
+              if (rId) map[rId] = fav;
+            }
+            setSavedMap(map);
+            await setItem(STORAGE_KEY, JSON.stringify(map));
+            return;
+          }
+        } catch {
+          // Fall back to hardware/secure storage cache
+        }
+      }
+
+      // 2. Fall back to secure storage
+      const data = await getItem(STORAGE_KEY);
       setSavedMap(data ? JSON.parse(data) : {});
     } catch (e) {
       console.warn('Failed to load saved roommates', e);
@@ -24,14 +46,22 @@ export function useSavedRoommates() {
 
   const toggleSave = async (roommate) => {
     if (!roommate || !roommate.id) return;
+    const token = await getItem('auth_token');
     setSavedMap((prev) => {
       const updated = { ...prev };
-      if (updated[roommate.id]) {
+      const alreadySaved = !!updated[roommate.id];
+      if (alreadySaved) {
         delete updated[roommate.id];
+        if (token) {
+          removeFavorite(roommate.id, token).catch(() => {});
+        }
       } else {
         updated[roommate.id] = roommate;
+        if (token) {
+          addFavorite(roommate.id, token).catch(() => {});
+        }
       }
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated)).catch(console.warn);
+      setItem(STORAGE_KEY, JSON.stringify(updated)).catch(console.warn);
       return updated;
     });
   };

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getItem, setItem } from '../storage';
 
 const STORAGE_KEY = '@nestmate_saved_properties';
 
@@ -9,7 +9,7 @@ export function useSavedProperties() {
 
   const load = useCallback(async () => {
     try {
-      const data = await AsyncStorage.getItem(STORAGE_KEY);
+      const data = await getItem(STORAGE_KEY);
       setSavedMap(data ? JSON.parse(data) : {});
     } catch (e) {
       console.warn('Failed to load saved properties', e);
@@ -18,17 +18,20 @@ export function useSavedProperties() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const toggleSave = async (property) => {
-    setSavedMap(prev => {
+    if (!property || !property.id) return;
+    setSavedMap((prev) => {
       const updated = { ...prev };
       if (updated[property.id]) {
         delete updated[property.id];
       } else {
         updated[property.id] = property;
       }
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated)).catch(console.warn);
+      setItem(STORAGE_KEY, JSON.stringify(updated)).catch(console.warn);
       return updated;
     });
   };

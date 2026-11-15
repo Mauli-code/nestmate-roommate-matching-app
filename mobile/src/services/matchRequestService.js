@@ -1,10 +1,10 @@
 /**
  * Match Request Service
  * Handles sending and tracking roommate match requests.
- * Uses centralized AsyncStorage with prepared endpoints for backend integration.
+ * Uses persistent storage and backend database connection requests API.
  */
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getItem, setItem } from '../storage';
 import { sendConnectionRequest } from '../api/connectionRequests';
 
 const STORAGE_KEY = '@nestmate_match_requests';
@@ -15,7 +15,7 @@ export const matchRequestService = {
    */
   async getSentRequests() {
     try {
-      const data = await AsyncStorage.getItem(STORAGE_KEY);
+      const data = await getItem(STORAGE_KEY);
       return data ? JSON.parse(data) : {};
     } catch (e) {
       console.warn('Failed to load match requests from storage', e);
@@ -48,20 +48,21 @@ export const matchRequestService = {
       return {
         success: false,
         duplicate: true,
-        message: `A request to ${candidate.name} has already been sent.`,
-        request: currentRequests[candidate.id],
+        message: 'You have already sent a request to this roommate.',
       };
     }
 
+    // Prepare request record
     const newRequest = {
       id: `req-${Date.now()}`,
       candidateId: candidate.id,
       candidateName: candidate.name,
-      candidateAvatar: candidate.avatar,
       candidateRole: candidate.role,
+      candidateAvatar: candidate.avatar,
+      candidateBudget: candidate.budget,
       candidateScore: candidate.score,
-      status: 'pending', // 'pending' | 'accepted' | 'rejected'
-      sentAt: new Date().toISOString(),
+      status: 'pending',
+      timestamp: new Date().toISOString(),
       isMock: true,
     };
 
@@ -78,17 +79,26 @@ export const matchRequestService = {
       }
     }
 
-    // Persist to local storage
     currentRequests[candidate.id] = newRequest;
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(currentRequests));
+    await setItem(STORAGE_KEY, JSON.stringify(currentRequests));
 
     return {
       success: true,
       duplicate: false,
-      isMock: newRequest.isMock,
-      message: `Match request sent to ${candidate.name}!`,
-      request: newRequest,
+      data: newRequest,
     };
+  },
+
+  /**
+   * Reset/clear requests (useful for tests or demo resets)
+   */
+  async resetRequests(initialRequests = []) {
+    const initialMap = {};
+    for (const req of initialRequests) {
+      initialMap[req.candidateId] = req;
+    }
+    await setItem(STORAGE_KEY, JSON.stringify(initialMap));
+    return initialMap;
   },
 };
 
