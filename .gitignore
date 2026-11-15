@@ -20,6 +20,7 @@ mobile/.env.*.local
 # system files
 .DS_Store
 Thumbs.db
+*.apk
 
 # logs
 npm-debug.log*
