@@ -37,7 +37,7 @@ if [ ! -f data/store.json ]; then
       "id": "user-1",
       "fullName": "Alex Rivera",
       "email": "alex@example.com",
-      "passwordHash": "$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi",
+      "passwordHash": "$2b$10$YsJHrdgZM63BTQgWuXfy3e0UeDfrclt/QBH./JVDSbvUJa0f7msOW",
       "isActive": true,
       "authVersion": 0,
       "createdAt": "2026-01-01T00:00:00.000Z"

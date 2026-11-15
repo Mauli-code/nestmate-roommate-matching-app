@@ -6,7 +6,9 @@ const usersById = new Map();
 const userIdsByEmail = new Map();
 for (const user of readStore().users || []) {
   usersById.set(user.id, user);
-  userIdsByEmail.set(user.email, user.id);
+  if (user.email) {
+    userIdsByEmail.set(user.email.trim().toLowerCase(), user.id);
+  }
 }
 
 function mapUserRow(row) {
@@ -37,7 +39,8 @@ async function findByEmail(email) {
     return mapUserRow(res.rows[0]);
   }
 
-  const userId = userIdsByEmail.get(email);
+  const normalized = email ? email.trim().toLowerCase() : '';
+  const userId = userIdsByEmail.get(normalized);
   return userId ? usersById.get(userId) || null : null;
 }
 
@@ -91,7 +94,9 @@ async function save(user) {
   }
 
   usersById.set(user.id, { ...user });
-  userIdsByEmail.set(user.email, user.id);
+  if (user.email) {
+    userIdsByEmail.set(user.email.trim().toLowerCase(), user.id);
+  }
   writeStore({
     users: [...usersById.values()],
     profiles: readStore().profiles || [],
