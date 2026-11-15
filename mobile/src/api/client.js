@@ -1,5 +1,18 @@
-export const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000';
+function getDefaultBaseUrl() {
+  if (typeof process !== 'undefined' && process.env) {
+    if (process.env.EXPO_PUBLIC_API_BASE_URL) return process.env.EXPO_PUBLIC_API_BASE_URL;
+    if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
+    try {
+      const { Platform } = require('react-native');
+      if (Platform?.OS === 'android') return 'http://10.0.2.2:3000';
+    } catch {
+      // In Node or non-RN environment
+    }
+  }
+  return 'http://localhost:3000';
+}
+
+export const API_BASE_URL = getDefaultBaseUrl();
 
 export async function request(path, { method = 'GET', body, token, headers = {} } = {}) {
   let response;

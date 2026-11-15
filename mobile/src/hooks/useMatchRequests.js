@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import matchRequestService from '../services/matchRequestService';
+import { useAuth } from '../context/AuthContext';
 
 export function useMatchRequests() {
+  const { token } = useAuth() || {};
   const [requestsMap, setRequestsMap] = useState({});
   const [loading, setLoading] = useState(true);
 
@@ -22,7 +24,7 @@ export function useMatchRequests() {
 
   const sendRequest = async (candidate) => {
     try {
-      const result = await matchRequestService.sendMatchRequest(candidate);
+      const result = await matchRequestService.sendMatchRequest(candidate, token);
       if (result.success) {
         setRequestsMap((prev) => ({
           ...prev,
