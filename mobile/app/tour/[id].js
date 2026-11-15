@@ -16,6 +16,7 @@ import { getPropertyById } from '../../src/data/mockData';
 export default function VirtualTourScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
+  const goBack = () => router.canGoBack?.() ? router.back() : router.replace('/(tabs)/accommodations');
 
   const property = getPropertyById(id);
 
@@ -33,7 +34,7 @@ export default function VirtualTourScreen() {
           </Text>
           <TouchableOpacity
             style={styles.backBtnAction}
-            onPress={() => router.back()}
+            onPress={goBack}
             activeOpacity={0.85}
           >
             <Ionicons name="arrow-back" size={18} color={COLORS.textInverse} />
@@ -51,7 +52,7 @@ export default function VirtualTourScreen() {
       <SafeAreaView style={styles.errorSafe} edges={['top', 'bottom']}>
         <StatusBar barStyle="light-content" />
         <View style={styles.topBar}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
+          <TouchableOpacity onPress={goBack} style={styles.iconBtn}>
             <Ionicons name="arrow-back" size={22} color="#F8FAFC" />
           </TouchableOpacity>
           <Text style={styles.topBarTitle} numberOfLines={1}>{property.title}</Text>
@@ -85,7 +86,7 @@ export default function VirtualTourScreen() {
       {/* Top Header */}
       <View style={styles.topBar}>
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={goBack}
           style={styles.iconBtn}
           accessibilityLabel="Go back"
         >

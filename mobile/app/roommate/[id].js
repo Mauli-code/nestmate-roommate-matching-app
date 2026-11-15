@@ -34,6 +34,7 @@ import { MOCK_RECOMMENDED_ROOMMATES } from '../../src/data/mockData';
 export default function RoommateDetailsScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
+  const goBack = () => router.canGoBack?.() ? router.back() : router.replace('/(tabs)');
   const [showModal, setShowModal] = useState(false);
 
   const { matches } = useAuth() || {};
@@ -62,7 +63,7 @@ export default function RoommateDetailsScreen() {
       {/* Top Navigation Bar */}
       <View style={styles.topBar}>
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={goBack}
           style={styles.circleButton}
           activeOpacity={0.7}
           accessibilityLabel="Go back"

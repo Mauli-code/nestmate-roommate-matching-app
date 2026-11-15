@@ -28,6 +28,7 @@ function InfoRow({ icon, label, value }) {
 export default function PropertyDetailsScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
+  const goBack = () => router.canGoBack?.() ? router.back() : router.replace('/(tabs)/accommodations');
   const { isSaved, toggleSave } = useSavedProperties();
   const property = MOCK_PROPERTIES.find(p => p.id === id);
 
@@ -36,7 +37,7 @@ export default function PropertyDetailsScreen() {
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ color: COLORS.textSecondary }}>Property not found.</Text>
-          <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 16 }}>
+          <TouchableOpacity onPress={goBack} style={{ marginTop: 16 }}>
             <Text style={{ color: COLORS.primary }}>Go Back</Text>
           </TouchableOpacity>
         </View>
@@ -55,7 +56,7 @@ export default function PropertyDetailsScreen() {
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       {/* Back bar */}
       <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={goBack} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color={COLORS.navyDark} />
         </TouchableOpacity>
         <Text style={styles.topBarTitle} numberOfLines={1}>Property Details</Text>
