@@ -2,7 +2,8 @@ node_modules/
 mobile/node_modules/
 mobile/dist/
 uploads/
-data/
+/data/
+!mobile/src/data/
 mobile/.expo/
 
 # environment variables
