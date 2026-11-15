@@ -12,6 +12,7 @@
     "db:check": "node src/database/check-connection.js",
     "db:migrate": "node src/database/migrate.js",
     "db:seed": "node src/database/seed.js",
+    "db:evaluate": "node --env-file=.env src/database/evaluate-queries.js",
     "mobile": "cd mobile && npx expo start",
     "mobile:clear": "cd mobile && npx expo start --clear"
   },
