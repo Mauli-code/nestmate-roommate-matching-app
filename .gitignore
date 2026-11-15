@@ -3,3 +3,8 @@ dist/
 uploads/
 data/
 mobile/.expo/
+
+# Local environment secrets
+.env
+.env.*
+!.env.example
