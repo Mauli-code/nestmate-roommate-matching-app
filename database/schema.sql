@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS accommodations (
   city VARCHAR(100) NOT NULL,
   preferred_area VARCHAR(100) NOT NULL,
   type VARCHAR(50) NOT NULL
-    CHECK (type IN ('shared_room', 'private_room', 'entire_apartment', 'pg')),
+    CHECK (type IN ('shared_room', 'private_room', 'entire_apartment', 'pg', 'flat', 'apartment', 'shared-room')),
   monthly_rent NUMERIC(10, 2) NOT NULL CHECK (monthly_rent > 0),
   security_deposit NUMERIC(10, 2) NOT NULL DEFAULT 0 CHECK (security_deposit >= 0),
   available_rooms INT NOT NULL DEFAULT 1 CHECK (available_rooms >= 1),
