@@ -1,18 +1,5 @@
-const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000';
+import { request } from './client';
 
-export async function fetchDashboard(token) {
-  let response;
-  try {
-    response = await fetch(`${API_BASE_URL}/api/dashboard`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-  } catch {
-    throw new Error('The backend could not be reached. Check that it is running.');
-  }
-  const result = await response.json().catch(() => null);
-  if (!response.ok) {
-    throw new Error(result?.message || `The request failed (${response.status}).`);
-  }
-  return result;
+export function fetchDashboard(token) {
+  return request('/api/dashboard', { method: 'GET', token });
 }

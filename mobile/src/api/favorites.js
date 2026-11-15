@@ -1,32 +1,13 @@
-const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000';
-
-async function request(path, method, token) {
-  let response;
-  try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
-      method,
-      headers: { Authorization: `Bearer ${token}` },
-    });
-  } catch {
-    throw new Error('The backend could not be reached. Check that it is running.');
-  }
-
-  const body = await response.json().catch(() => null);
-  if (!response.ok) {
-    throw new Error(body?.message || `The request failed (${response.status}).`);
-  }
-  return body;
-}
+import { request } from './client';
 
 export function fetchFavorites(token) {
-  return request('/api/favorites', 'GET', token);
+  return request('/api/favorites', { method: 'GET', token });
 }
 
 export function addFavorite(roommateId, token) {
-  return request(`/api/favorites/${encodeURIComponent(roommateId)}`, 'POST', token);
+  return request(`/api/favorites/${encodeURIComponent(roommateId)}`, { method: 'POST', token });
 }
 
 export function removeFavorite(roommateId, token) {
-  return request(`/api/favorites/${encodeURIComponent(roommateId)}`, 'DELETE', token);
+  return request(`/api/favorites/${encodeURIComponent(roommateId)}`, { method: 'DELETE', token });
 }
