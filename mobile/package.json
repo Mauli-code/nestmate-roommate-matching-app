@@ -28,5 +28,8 @@
     "web": "expo start --web",
     "test": "node --test \"src/**/*.test.js\" \"test/**/*.test.js\""
   },
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "eas-cli": "^27.10.0"
+  }
 }
