@@ -32,17 +32,17 @@ CREATE TABLE IF NOT EXISTS roommate_preferences (
   max_budget NUMERIC(10, 2) NOT NULL CHECK (max_budget >= min_budget),
   preferred_area VARCHAR(100) NOT NULL,
   sleep_schedule VARCHAR(20) NOT NULL
-    CHECK (sleep_schedule IN ('early', 'night', 'flexible')),
+    CHECK (sleep_schedule IN ('early', 'night', 'flexible', 'early-bird', 'night-owl', 'late')),
   food_habits VARCHAR(20) NOT NULL
     CHECK (food_habits IN ('vegetarian', 'non-vegetarian', 'vegan', 'any')),
   cleanliness VARCHAR(20) NOT NULL
-    CHECK (cleanliness IN ('low', 'moderate', 'high')),
+    CHECK (cleanliness IN ('low', 'moderate', 'medium', 'high')),
   smoking VARCHAR(20) NOT NULL
-    CHECK (smoking IN ('no', 'yes', 'outside')),
+    CHECK (smoking IN ('no', 'yes', 'outside', 'never', 'socially', 'regularly')),
   drinking VARCHAR(20) NOT NULL
-    CHECK (drinking IN ('never', 'socially', 'regularly')),
+    CHECK (drinking IN ('never', 'socially', 'regularly', 'no', 'yes')),
   pets VARCHAR(20) NOT NULL
-    CHECK (pets IN ('none', 'dog', 'cat', 'any')),
+    CHECK (pets IN ('no', 'yes', 'dogs_only', 'cats_only', 'not-specified', 'none', 'dog', 'cat', 'any')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
