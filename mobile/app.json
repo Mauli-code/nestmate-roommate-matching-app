@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "NestMate",
-    "slug": "nestmate-mobile",
+    "slug": "nestmate-roommate-matching-app",
     "scheme": "nestmate",
     "version": "1.0.0",
     "orientation": "portrait",
