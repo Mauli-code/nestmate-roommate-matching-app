@@ -1,4 +1,4 @@
-import { request } from './client';
+import { request } from './client.js';
 import { getItem, removeItem, setItem } from '../storage';
 
 const TOKEN_KEY = 'nestmate_access_token';

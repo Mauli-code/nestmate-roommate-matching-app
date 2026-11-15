@@ -1,5 +1,4 @@
-const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000';
+import { API_BASE_URL } from './client.js';
 
 export async function fetchMatches(profileId, token, page = 1, limit = 10) {
   if (typeof profileId === 'string' && token === undefined && profileId.split('.').length === 3) {
