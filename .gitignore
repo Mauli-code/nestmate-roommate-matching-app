@@ -6,16 +6,11 @@ uploads/
 !mobile/src/data/
 mobile/.expo/
 
-# environment variables
+# environment variables — never commit any .env file anywhere
 .env
 .env.*
-.env.example
-.env.local
-.env.*.local
-mobile/.env
-mobile/.env.local
-mobile/.env.*.local
-!mobile/.env.example
+**/.env
+**/.env.*
 
 # system files
 .DS_Store
