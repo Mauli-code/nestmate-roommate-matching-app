@@ -127,8 +127,13 @@ app.use((err, req, res, next) => {
   res.status(status).json(body);
 });
 
-// ── Start ─────────────────────────────────────────────────────────────────────
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`NestMate backend running on http://0.0.0.0:${PORT}`);
-});
+// ── Export for Vercel (serverless) ───────────────────────────────────────────
+module.exports = app;
+
+// ── Start locally when run directly ──────────────────────────────────────────
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`NestMate backend running on http://0.0.0.0:${PORT}`);
+  });
+}
