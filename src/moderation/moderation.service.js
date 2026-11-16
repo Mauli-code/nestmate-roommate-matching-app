@@ -2,9 +2,8 @@ const crypto = require('node:crypto');
 const {
   BadRequestException,
   ConflictException,
-  Injectable,
   NotFoundException,
-} = require('@nestjs/common');
+} = require('../common/exceptions');
 const userRepository = require('../auth/user-repository');
 const repository = require('./moderation.repository');
 
@@ -121,7 +120,5 @@ class ModerationService {
     }
   }
 }
-
-Injectable()(ModerationService);
 
 module.exports = { ModerationService, REPORT_CATEGORIES };

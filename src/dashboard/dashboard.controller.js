@@ -1,9 +1,9 @@
-const { Controller, Get, Inject, Req, UseGuards } = require('@nestjs/common');
-const { AuthGuard } = require('../auth/auth.guard');
+const express = require('express');
+const { createAuthMiddleware } = require('../auth/auth.guard');
 const { DashboardService } = require('./dashboard.service');
 
 class DashboardController {
-  constructor(service) {
+  constructor(service = new DashboardService()) {
     this.service = service;
   }
 
@@ -12,12 +12,23 @@ class DashboardController {
   }
 }
 
-Controller('api/dashboard')(DashboardController);
-UseGuards(AuthGuard)(DashboardController);
-Inject(DashboardService)(DashboardController, undefined, 0);
+function createDashboardRouter(service = new DashboardService(), authService) {
+  const router = express.Router();
+  const controller = new DashboardController(service);
+  const requireAuth = createAuthMiddleware(authService);
 
-const descriptor = Object.getOwnPropertyDescriptor(DashboardController.prototype, 'get');
-Get()(DashboardController.prototype, 'get', descriptor);
-Req()(DashboardController.prototype, 'get', 0);
+  router.use(requireAuth);
 
-module.exports = { DashboardController };
+  router.get('/', async (req, res, next) => {
+    try {
+      const result = await controller.get(req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  return router;
+}
+
+module.exports = { DashboardController, createDashboardRouter };

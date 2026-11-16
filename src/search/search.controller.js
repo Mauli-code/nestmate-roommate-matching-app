@@ -1,16 +1,9 @@
-const {
-  Controller,
-  Get,
-  Inject,
-  Query,
-  Req,
-  UseGuards,
-} = require('@nestjs/common');
-const { AuthGuard } = require('../auth/auth.guard');
+const express = require('express');
+const { createAuthMiddleware } = require('../auth/auth.guard');
 const { SearchService } = require('./search.service');
 
 class SearchController {
-  constructor(searchService) {
+  constructor(searchService = new SearchService()) {
     this.searchService = searchService;
   }
 
@@ -19,12 +12,23 @@ class SearchController {
   }
 }
 
-Controller('api/search')(SearchController);
-UseGuards(AuthGuard)(SearchController);
-Inject(SearchService)(SearchController, undefined, 0);
-const searchDescriptor = Object.getOwnPropertyDescriptor(SearchController.prototype, 'search');
-Get()(SearchController.prototype, 'search', searchDescriptor);
-Query()(SearchController.prototype, 'search', 0);
-Req()(SearchController.prototype, 'search', 1);
+function createSearchRouter(searchService, authService) {
+  const router = express.Router();
+  const controller = new SearchController(searchService);
+  const requireAuth = createAuthMiddleware(authService);
 
-module.exports = { SearchController };
+  router.use(requireAuth);
+
+  router.get('/', async (req, res, next) => {
+    try {
+      const result = await controller.search(req.query, req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  return router;
+}
+
+module.exports = { SearchController, createSearchRouter };

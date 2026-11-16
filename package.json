@@ -3,28 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "setup": "bash setup.sh",
-    "build": "node --check src/main.js",
     "start": "node src/main.js",
-    "test": "NODE_ENV=test node --test \"src/**/*.test.js\"",
-    "test:mobile": "node --test \"mobile/test/**/*.test.js\" \"mobile/src/api/client.test.js\"",
-    "test:all": "npm test && npm run test:mobile",
-    "db:check": "node --env-file=.env src/database/check-connection.js",
     "db:migrate": "node --env-file=.env src/database/migrate.js",
-    "db:seed": "node --env-file=.env src/database/seed.js",
-    "db:evaluate": "node --env-file=.env src/database/evaluate-queries.js",
-    "mobile": "cd mobile && npx expo start",
-    "mobile:clear": "cd mobile && npx expo start --clear"
+    "db:seed": "node --env-file=.env src/database/seed.js"
   },
   "dependencies": {
-    "@nestjs/common": "^11.0.0",
-    "@nestjs/core": "^11.0.0",
-    "@nestjs/platform-express": "^11.2.8",
     "bcryptjs": "^3.0.3",
     "express": "^5.3.0",
     "jsonwebtoken": "^9.0.3",
-    "pg": "^8.23.1",
-    "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2"
+    "multer": "^2.0.0",
+    "pg": "^8.23.1"
   }
 }

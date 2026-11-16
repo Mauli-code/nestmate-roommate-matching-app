@@ -2,9 +2,8 @@ const crypto = require('node:crypto');
 const {
   BadRequestException,
   ConflictException,
-  Injectable,
   NotFoundException,
-} = require('@nestjs/common');
+} = require('../common/exceptions');
 const userRepository = require('../auth/user-repository');
 const accommodationRepository = require('../accommodations/accommodations.repository');
 const requestRepository = require('./booking-requests.repository');
@@ -158,7 +157,5 @@ class BookingRequestsService {
     }
   }
 }
-
-Injectable()(BookingRequestsService);
 
 module.exports = { BookingRequestsService };

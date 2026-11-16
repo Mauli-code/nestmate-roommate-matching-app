@@ -1,19 +1,9 @@
-const {
-  Controller,
-  Delete,
-  Get,
-  Inject,
-  Param,
-  Patch,
-  Post,
-  Req,
-  UseGuards,
-} = require('@nestjs/common');
-const { AuthGuard } = require('../auth/auth.guard');
+const express = require('express');
+const { createAuthMiddleware } = require('../auth/auth.guard');
 const { ConnectionRequestsService } = require('./connection-requests.service');
 
 class ConnectionRequestsController {
-  constructor(service) {
+  constructor(service = new ConnectionRequestsService()) {
     this.service = service;
   }
 
@@ -42,30 +32,68 @@ class ConnectionRequestsController {
   }
 }
 
-Controller('api/connection-requests')(ConnectionRequestsController);
-UseGuards(AuthGuard)(ConnectionRequestsController);
-Inject(ConnectionRequestsService)(ConnectionRequestsController, undefined, 0);
+function createConnectionRequestsRouter(service = new ConnectionRequestsService(), authService) {
+  const router = express.Router();
+  const controller = new ConnectionRequestsController(service);
+  const requireAuth = createAuthMiddleware(authService);
 
-const sendDescriptor = Object.getOwnPropertyDescriptor(ConnectionRequestsController.prototype, 'send');
-Post(':receiverId')(ConnectionRequestsController.prototype, 'send', sendDescriptor);
-Param('receiverId')(ConnectionRequestsController.prototype, 'send', 0);
-Req()(ConnectionRequestsController.prototype, 'send', 1);
+  router.use(requireAuth);
 
-for (const method of ['received', 'sent']) {
-  const descriptor = Object.getOwnPropertyDescriptor(ConnectionRequestsController.prototype, method);
-  Get(method)(ConnectionRequestsController.prototype, method, descriptor);
-  Req()(ConnectionRequestsController.prototype, method, 0);
+  router.post('/:receiverId', async (req, res, next) => {
+    try {
+      const result = await controller.send(req.params.receiverId, req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.get('/received', async (req, res, next) => {
+    try {
+      const result = await controller.received(req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.get('/sent', async (req, res, next) => {
+    try {
+      const result = await controller.sent(req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.patch('/:requestId/accept', async (req, res, next) => {
+    try {
+      const result = await controller.accept(req.params.requestId, req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.patch('/:requestId/reject', async (req, res, next) => {
+    try {
+      const result = await controller.reject(req.params.requestId, req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.delete('/:requestId/cancel', async (req, res, next) => {
+    try {
+      const result = await controller.cancel(req.params.requestId, req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  return router;
 }
 
-for (const [method, route] of [['accept', ':requestId/accept'], ['reject', ':requestId/reject'], ['cancel', ':requestId/cancel']]) {
-  const descriptor = Object.getOwnPropertyDescriptor(ConnectionRequestsController.prototype, method);
-  (method === 'cancel' ? Delete(route) : Patch(route))(
-    ConnectionRequestsController.prototype,
-    method,
-    descriptor,
-  );
-  Param('requestId')(ConnectionRequestsController.prototype, method, 0);
-  Req()(ConnectionRequestsController.prototype, method, 1);
-}
-
-module.exports = { ConnectionRequestsController };
+module.exports = { ConnectionRequestsController, createConnectionRequestsRouter };

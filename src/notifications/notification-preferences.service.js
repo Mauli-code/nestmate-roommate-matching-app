@@ -1,4 +1,4 @@
-const { BadRequestException, Injectable } = require('@nestjs/common');
+const { BadRequestException } = require('../common/exceptions');
 const repository = require('./notification-preferences.repository');
 
 const DEFAULT_PREFERENCES = Object.freeze({
@@ -53,7 +53,5 @@ class NotificationPreferencesService {
     }
   }
 }
-
-Injectable()(NotificationPreferencesService);
 
 module.exports = { NotificationPreferencesService, DEFAULT_PREFERENCES };

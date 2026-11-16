@@ -1,11 +1,27 @@
-const { Body, Controller, Get, Post, Patch, Put, Req, UploadedFile, UseInterceptors, UseGuards, Injectable, Inject } = require('@nestjs/common');
-const { FileInterceptor } = require('@nestjs/platform-express');
-const { diskStorage } = require('multer');
+const express = require('express');
+const multer = require('multer');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
-const { AuthGuard } = require('./auth.guard');
+const { createAuthMiddleware } = require('./auth.guard');
 const { AuthService } = require('./auth.service');
+
+const photoDirectory = path.join(process.cwd(), 'uploads', 'profile-photos');
+fs.mkdirSync(photoDirectory, { recursive: true });
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: photoDirectory,
+    filename: (_request, file, callback) => {
+      callback(null, `${crypto.randomUUID()}${path.extname(file.originalname).toLowerCase()}`);
+    },
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_request, file, callback) => {
+    const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+    callback(null, allowedTypes.has(file.mimetype));
+  },
+});
 
 class AuthController {
   constructor(authService) {
@@ -57,86 +73,111 @@ class AuthController {
   }
 }
 
-Injectable()(AuthController);
-Controller('api/auth')(AuthController);
-Inject(AuthService)(AuthController, undefined, 0);
-const registerDescriptor = Object.getOwnPropertyDescriptor(AuthController.prototype, 'register');
-Post('register')(AuthController.prototype, 'register', registerDescriptor);
-Body()(AuthController.prototype, 'register', 0);
-const loginDescriptor = Object.getOwnPropertyDescriptor(AuthController.prototype, 'login');
-Post('login')(AuthController.prototype, 'login', loginDescriptor);
-Body()(AuthController.prototype, 'login', 0);
-const reactivateDescriptor = Object.getOwnPropertyDescriptor(AuthController.prototype, 'reactivate');
-Post('reactivate')(AuthController.prototype, 'reactivate', reactivateDescriptor);
-Body()(AuthController.prototype, 'reactivate', 0);
-const logoutDescriptor = Object.getOwnPropertyDescriptor(AuthController.prototype, 'logout');
-Post('logout')(AuthController.prototype, 'logout', logoutDescriptor);
-Req()(AuthController.prototype, 'logout', 0);
-UseGuards(AuthGuard)(AuthController.prototype, 'logout', logoutDescriptor);
-const getProfileDescriptor = Object.getOwnPropertyDescriptor(
-  AuthController.prototype,
-  'getProfile',
-);
-Get('profile')(AuthController.prototype, 'getProfile', getProfileDescriptor);
-Req()(AuthController.prototype, 'getProfile', 0);
-UseGuards(AuthGuard)(AuthController.prototype, 'getProfile', getProfileDescriptor);
-const updateProfileDescriptor = Object.getOwnPropertyDescriptor(
-  AuthController.prototype,
-  'updateProfile',
-);
-Patch('profile')(AuthController.prototype, 'updateProfile', updateProfileDescriptor);
-Req()(AuthController.prototype, 'updateProfile', 0);
-Body()(AuthController.prototype, 'updateProfile', 1);
-UseGuards(AuthGuard)(AuthController.prototype, 'updateProfile', updateProfileDescriptor);
-const replaceProfileDescriptor = Object.getOwnPropertyDescriptor(
-  AuthController.prototype,
-  'replaceProfile',
-);
-Put('profile')(AuthController.prototype, 'replaceProfile', replaceProfileDescriptor);
-Req()(AuthController.prototype, 'replaceProfile', 0);
-Body()(AuthController.prototype, 'replaceProfile', 1);
-UseGuards(AuthGuard)(AuthController.prototype, 'replaceProfile', replaceProfileDescriptor);
-const changePasswordDescriptor = Object.getOwnPropertyDescriptor(
-  AuthController.prototype,
-  'changePassword',
-);
-Post('change-password')(AuthController.prototype, 'changePassword', changePasswordDescriptor);
-Req()(AuthController.prototype, 'changePassword', 0);
-Body()(AuthController.prototype, 'changePassword', 1);
-UseGuards(AuthGuard)(AuthController.prototype, 'changePassword', changePasswordDescriptor);
-const uploadPhotoDescriptor = Object.getOwnPropertyDescriptor(
-  AuthController.prototype,
-  'uploadPhoto',
-);
-const photoDirectory = path.join(process.cwd(), 'uploads', 'profile-photos');
-fs.mkdirSync(photoDirectory, { recursive: true });
-Post('profile/photo')(AuthController.prototype, 'uploadPhoto', uploadPhotoDescriptor);
-UploadedFile()(AuthController.prototype, 'uploadPhoto', 1);
-UseGuards(AuthGuard)(AuthController.prototype, 'uploadPhoto', uploadPhotoDescriptor);
-UseInterceptors(
-  FileInterceptor('photo', {
-    storage: diskStorage({
-      destination: photoDirectory,
-      filename: (_request, file, callback) => {
-        callback(null, `${crypto.randomUUID()}${path.extname(file.originalname).toLowerCase()}`);
-      },
-    }),
-    limits: { fileSize: 5 * 1024 * 1024 },
-    fileFilter: (_request, file, callback) => {
-      const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
-      callback(null, allowedTypes.has(file.mimetype));
-    },
-  }),
-)(AuthController.prototype, 'uploadPhoto', uploadPhotoDescriptor);
-const deactivateDescriptor = Object.getOwnPropertyDescriptor(AuthController.prototype, 'deactivate');
-Post('deactivate')(AuthController.prototype, 'deactivate', deactivateDescriptor);
-Req()(AuthController.prototype, 'deactivate', 0);
-Body()(AuthController.prototype, 'deactivate', 1);
-UseGuards(AuthGuard)(AuthController.prototype, 'deactivate', deactivateDescriptor);
-const deletionDescriptor = Object.getOwnPropertyDescriptor(AuthController.prototype, 'requestDeletion');
-Post('deletion-request')(AuthController.prototype, 'requestDeletion', deletionDescriptor);
-Req()(AuthController.prototype, 'requestDeletion', 0);
-Body()(AuthController.prototype, 'requestDeletion', 1);
-UseGuards(AuthGuard)(AuthController.prototype, 'requestDeletion', deletionDescriptor);
+function createAuthRouter(authService = new AuthService()) {
+  const router = express.Router();
+  const authController = new AuthController(authService);
+  const requireAuth = createAuthMiddleware(authService);
 
-module.exports = { AuthController };
+  router.post('/register', async (req, res, next) => {
+    try {
+      const result = await authController.register(req.body);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post('/login', async (req, res, next) => {
+    try {
+      const result = await authController.login(req.body);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post('/reactivate', async (req, res, next) => {
+    try {
+      const result = await authController.reactivate(req.body);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post('/logout', requireAuth, async (req, res, next) => {
+    try {
+      const result = await authController.logout(req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.get('/profile', requireAuth, async (req, res, next) => {
+    try {
+      const result = await authController.getProfile(req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.patch('/profile', requireAuth, async (req, res, next) => {
+    try {
+      const result = await authController.updateProfile(req, req.body);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.put('/profile', requireAuth, async (req, res, next) => {
+    try {
+      const result = await authController.replaceProfile(req, req.body);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post('/change-password', requireAuth, async (req, res, next) => {
+    try {
+      const result = await authController.changePassword(req, req.body);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post('/profile/photo', requireAuth, upload.single('photo'), async (req, res, next) => {
+    try {
+      const result = await authController.uploadPhoto(req, req.file);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post('/deactivate', requireAuth, async (req, res, next) => {
+    try {
+      const result = await authController.deactivate(req, req.body);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post('/deletion-request', requireAuth, async (req, res, next) => {
+    try {
+      const result = await authController.requestDeletion(req, req.body);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  return router;
+}
+
+module.exports = { AuthController, createAuthRouter };

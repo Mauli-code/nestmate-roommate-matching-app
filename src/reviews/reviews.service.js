@@ -3,9 +3,8 @@ const {
   BadRequestException,
   ConflictException,
   ForbiddenException,
-  Injectable,
   NotFoundException,
-} = require('@nestjs/common');
+} = require('../common/exceptions');
 const reviewRepository = require('./reviews.repository');
 const userRepository = require('../auth/user-repository');
 const connectionRepository = require('../connection-requests/connection-requests.repository');
@@ -183,7 +182,5 @@ class ReviewsService {
     }
   }
 }
-
-Injectable()(ReviewsService);
 
 module.exports = { ReviewsService };

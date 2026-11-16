@@ -2,9 +2,8 @@ const crypto = require('node:crypto');
 const {
   BadRequestException,
   ForbiddenException,
-  Injectable,
   NotFoundException,
-} = require('@nestjs/common');
+} = require('../common/exceptions');
 const userRepository = require('../auth/user-repository');
 const connectionRepository = require('../connection-requests/connection-requests.repository');
 const bookingRepository = require('../booking-requests/booking-requests.repository');
@@ -216,7 +215,5 @@ class ChatService {
     }
   }
 }
-
-Injectable()(ChatService);
 
 module.exports = { ChatService };

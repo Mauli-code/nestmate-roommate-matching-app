@@ -6,9 +6,8 @@ const jwt = require('jsonwebtoken');
 const {
   BadRequestException,
   ConflictException,
-  Injectable,
   UnauthorizedException,
-} = require('@nestjs/common');
+} = require('../common/exceptions');
 const userRepository = require('./user-repository');
 const profileRepository = require('../matching/profile-repository');
 const { validateRegistration, validateNewPassword, validateProfile } = require('./validators');
@@ -79,66 +78,66 @@ class AuthService {
     return this.profileResponse(user, await profileRepository.findProfile(userId));
   }
 
-    async deactivate(userId, body) {
-      const user = await this.requireUser(userId);
-      if (body?.confirmation !== true) {
-        throw new BadRequestException('Account deactivation must be explicitly confirmed');
-      }
-      if (!this.isActive(user)) {
-        throw new BadRequestException('This account is already unavailable');
-      }
-      await this.repository.save({
-        ...user,
-        accountStatus: 'deactivated',
-        authVersion: (user.authVersion || 0) + 1,
-        deactivatedAt: new Date().toISOString(),
-      });
-      return { message: 'Your account has been deactivated' };
+  async deactivate(userId, body) {
+    const user = await this.requireUser(userId);
+    if (body?.confirmation !== true) {
+      throw new BadRequestException('Account deactivation must be explicitly confirmed');
     }
+    if (!this.isActive(user)) {
+      throw new BadRequestException('This account is already unavailable');
+    }
+    await this.repository.save({
+      ...user,
+      accountStatus: 'deactivated',
+      authVersion: (user.authVersion || 0) + 1,
+      deactivatedAt: new Date().toISOString(),
+    });
+    return { message: 'Your account has been deactivated' };
+  }
 
-    async reactivate(email, password) {
-      if (typeof email !== 'string' || typeof password !== 'string') {
-        throw new UnauthorizedException('Email or password is incorrect');
-      }
-      const user = await this.repository.findByEmail(email.trim().toLowerCase());
-      if (!user || !(await bcrypt.compare(password, user.passwordHash)) ||
-          user.accountStatus !== 'deactivated') {
-        throw new UnauthorizedException('Email or password is incorrect');
-      }
-      const updatedUser = await this.repository.save({
-        ...user,
-        accountStatus: 'active',
-        authVersion: (user.authVersion || 0) + 1,
-        deactivatedAt: null,
-      });
-      return {
-        user: this.publicUser(updatedUser),
-        accessToken: this.createToken(updatedUser),
-      };
+  async reactivate(email, password) {
+    if (typeof email !== 'string' || typeof password !== 'string') {
+      throw new UnauthorizedException('Email or password is incorrect');
     }
+    const user = await this.repository.findByEmail(email.trim().toLowerCase());
+    if (!user || !(await bcrypt.compare(password, user.passwordHash)) ||
+        user.accountStatus !== 'deactivated') {
+      throw new UnauthorizedException('Email or password is incorrect');
+    }
+    const updatedUser = await this.repository.save({
+      ...user,
+      accountStatus: 'active',
+      authVersion: (user.authVersion || 0) + 1,
+      deactivatedAt: null,
+    });
+    return {
+      user: this.publicUser(updatedUser),
+      accessToken: this.createToken(updatedUser),
+    };
+  }
 
-    async requestDeletion(userId, body) {
-      const user = await this.requireUser(userId);
-      if (body?.confirmation !== 'DELETE') {
-        throw new BadRequestException('Type DELETE to confirm permanent account deletion');
-      }
-      if (typeof body.password !== 'string' ||
-          !(await bcrypt.compare(body.password, user.passwordHash))) {
-        throw new UnauthorizedException('Password confirmation failed');
-      }
-      if (!this.isActive(user)) {
-        throw new BadRequestException('This account is already unavailable');
-      }
-      await this.repository.save({
-        ...user,
-        accountStatus: 'deletion_requested',
-        authVersion: (user.authVersion || 0) + 1,
-        deletionRequestedAt: new Date().toISOString(),
-      });
-      return {
-        message: 'Account deletion requested. Your account is now unavailable while the request is reviewed.',
-      };
+  async requestDeletion(userId, body) {
+    const user = await this.requireUser(userId);
+    if (body?.confirmation !== 'DELETE') {
+      throw new BadRequestException('Type DELETE to confirm permanent account deletion');
     }
+    if (typeof body.password !== 'string' ||
+        !(await bcrypt.compare(body.password, user.passwordHash))) {
+      throw new UnauthorizedException('Password confirmation failed');
+    }
+    if (!this.isActive(user)) {
+      throw new BadRequestException('This account is already unavailable');
+    }
+    await this.repository.save({
+      ...user,
+      accountStatus: 'deletion_requested',
+      authVersion: (user.authVersion || 0) + 1,
+      deletionRequestedAt: new Date().toISOString(),
+    });
+    return {
+      message: 'Account deletion requested. Your account is now unavailable while the request is reviewed.',
+    };
+  }
 
   async updateProfile(userId, body) {
     const user = await this.repository.findById(userId);
@@ -290,7 +289,5 @@ class AuthService {
       : user?.accountStatus === undefined || user.accountStatus === 'active';
   }
 }
-
-Injectable()(AuthService);
 
 module.exports = { AuthService };

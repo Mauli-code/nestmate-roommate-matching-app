@@ -1,18 +1,9 @@
-const {
-  Controller,
-  Delete,
-  Get,
-  Inject,
-  Param,
-  Post,
-  Req,
-  UseGuards,
-} = require('@nestjs/common');
-const { AuthGuard } = require('../auth/auth.guard');
+const express = require('express');
+const { createAuthMiddleware } = require('../auth/auth.guard');
 const { FavoritesService } = require('./favorites.service');
 
 class FavoritesController {
-  constructor(favoritesService) {
+  constructor(favoritesService = new FavoritesService()) {
     this.favoritesService = favoritesService;
   }
 
@@ -29,35 +20,41 @@ class FavoritesController {
   }
 }
 
-Controller('api/favorites')(FavoritesController);
-UseGuards(AuthGuard)(FavoritesController);
-Inject(FavoritesService)(FavoritesController, undefined, 0);
+function createFavoritesRouter(favoritesService = new FavoritesService(), authService) {
+  const router = express.Router();
+  const controller = new FavoritesController(favoritesService);
+  const requireAuth = createAuthMiddleware(authService);
 
-const addDescriptor = Object.getOwnPropertyDescriptor(
-  FavoritesController.prototype,
-  'addFavorite',
-);
-Post(':roommateId')(FavoritesController.prototype, 'addFavorite', addDescriptor);
-Param('roommateId')(FavoritesController.prototype, 'addFavorite', 0);
-Req()(FavoritesController.prototype, 'addFavorite', 1);
+  router.use(requireAuth);
 
-const removeDescriptor = Object.getOwnPropertyDescriptor(
-  FavoritesController.prototype,
-  'removeFavorite',
-);
-Delete(':roommateId')(
-  FavoritesController.prototype,
-  'removeFavorite',
-  removeDescriptor,
-);
-Param('roommateId')(FavoritesController.prototype, 'removeFavorite', 0);
-Req()(FavoritesController.prototype, 'removeFavorite', 1);
+  router.post('/:roommateId', async (req, res, next) => {
+    try {
+      const result = await controller.addFavorite(req.params.roommateId, req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
 
-const getDescriptor = Object.getOwnPropertyDescriptor(
-  FavoritesController.prototype,
-  'getFavorites',
-);
-Get()(FavoritesController.prototype, 'getFavorites', getDescriptor);
-Req()(FavoritesController.prototype, 'getFavorites', 0);
+  router.delete('/:roommateId', async (req, res, next) => {
+    try {
+      const result = await controller.removeFavorite(req.params.roommateId, req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
 
-module.exports = { FavoritesController };
+  router.get('/', async (req, res, next) => {
+    try {
+      const result = await controller.getFavorites(req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  return router;
+}
+
+module.exports = { FavoritesController, createFavoritesRouter };

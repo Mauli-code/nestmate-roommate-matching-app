@@ -1,19 +1,9 @@
-const {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Inject,
-  Param,
-  Post,
-  Req,
-  UseGuards,
-} = require('@nestjs/common');
-const { AuthGuard } = require('../auth/auth.guard');
+const express = require('express');
+const { createAuthMiddleware } = require('../auth/auth.guard');
 const { ModerationService } = require('./moderation.service');
 
 class ModerationController {
-  constructor(service) {
+  constructor(service = new ModerationService()) {
     this.service = service;
   }
 
@@ -34,25 +24,50 @@ class ModerationController {
   }
 }
 
-Controller('api')(ModerationController);
-UseGuards(AuthGuard)(ModerationController);
-Inject(ModerationService)(ModerationController, undefined, 0);
+function createModerationRouter(service = new ModerationService(), authService) {
+  const router = express.Router();
+  const controller = new ModerationController(service);
+  const requireAuth = createAuthMiddleware(authService);
 
-const listDescriptor = Object.getOwnPropertyDescriptor(ModerationController.prototype, 'listBlocked');
-Get('blocks')(ModerationController.prototype, 'listBlocked', listDescriptor);
-Req()(ModerationController.prototype, 'listBlocked', 0);
+  router.use(requireAuth);
 
-for (const [method, decorator] of [['block', Post], ['unblock', Delete]]) {
-  const descriptor = Object.getOwnPropertyDescriptor(ModerationController.prototype, method);
-  decorator(`blocks/:userId`)(ModerationController.prototype, method, descriptor);
-  Param('userId')(ModerationController.prototype, method, 0);
-  Req()(ModerationController.prototype, method, 1);
+  router.get('/blocks', async (req, res, next) => {
+    try {
+      const result = await controller.listBlocked(req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post('/blocks/:userId', async (req, res, next) => {
+    try {
+      const result = await controller.block(req.params.userId, req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.delete('/blocks/:userId', async (req, res, next) => {
+    try {
+      const result = await controller.unblock(req.params.userId, req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post('/reports/:userId', async (req, res, next) => {
+    try {
+      const result = await controller.report(req.params.userId, req.body, req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  return router;
 }
 
-const reportDescriptor = Object.getOwnPropertyDescriptor(ModerationController.prototype, 'report');
-Post('reports/:userId')(ModerationController.prototype, 'report', reportDescriptor);
-Param('userId')(ModerationController.prototype, 'report', 0);
-Body()(ModerationController.prototype, 'report', 1);
-Req()(ModerationController.prototype, 'report', 2);
-
-module.exports = { ModerationController };
+module.exports = { ModerationController, createModerationRouter };

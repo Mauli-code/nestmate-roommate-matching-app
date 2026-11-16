@@ -1,4 +1,4 @@
-const { BadRequestException, Injectable } = require('@nestjs/common');
+const { BadRequestException } = require('../common/exceptions');
 const repository = require('./privacy.repository');
 
 const DEFAULT_PRIVACY = Object.freeze({
@@ -52,7 +52,5 @@ class PrivacyService {
     }
   }
 }
-
-Injectable()(PrivacyService);
 
 module.exports = { PrivacyService, DEFAULT_PRIVACY };

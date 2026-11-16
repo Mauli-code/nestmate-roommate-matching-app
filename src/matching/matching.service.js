@@ -1,8 +1,7 @@
 const {
   BadRequestException,
-  Injectable,
   NotFoundException,
-} = require('@nestjs/common');
+} = require('../common/exceptions');
 const { rankMatches } = require('./rank-matches');
 const { validatePreferences } = require('../auth/validators');
 
@@ -186,7 +185,5 @@ class MatchingService {
     };
   }
 }
-
-Injectable()(MatchingService);
 
 module.exports = { MatchingService };

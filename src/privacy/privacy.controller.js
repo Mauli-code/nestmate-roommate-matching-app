@@ -1,9 +1,9 @@
-const { Body, Controller, Get, Inject, Patch, Req, UseGuards } = require('@nestjs/common');
-const { AuthGuard } = require('../auth/auth.guard');
+const express = require('express');
+const { createAuthMiddleware } = require('../auth/auth.guard');
 const { PrivacyService } = require('./privacy.service');
 
 class PrivacyController {
-  constructor(service) {
+  constructor(service = new PrivacyService()) {
     this.service = service;
   }
 
@@ -16,17 +16,32 @@ class PrivacyController {
   }
 }
 
-Controller('api/privacy')(PrivacyController);
-UseGuards(AuthGuard)(PrivacyController);
-Inject(PrivacyService)(PrivacyController, undefined, 0);
+function createPrivacyRouter(service = new PrivacyService(), authService) {
+  const router = express.Router();
+  const controller = new PrivacyController(service);
+  const requireAuth = createAuthMiddleware(authService);
 
-const getDescriptor = Object.getOwnPropertyDescriptor(PrivacyController.prototype, 'get');
-Get('preferences')(PrivacyController.prototype, 'get', getDescriptor);
-Req()(PrivacyController.prototype, 'get', 0);
+  router.use(requireAuth);
 
-const updateDescriptor = Object.getOwnPropertyDescriptor(PrivacyController.prototype, 'update');
-Patch('preferences')(PrivacyController.prototype, 'update', updateDescriptor);
-Body()(PrivacyController.prototype, 'update', 0);
-Req()(PrivacyController.prototype, 'update', 1);
+  router.get('/preferences', async (req, res, next) => {
+    try {
+      const result = await controller.get(req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
 
-module.exports = { PrivacyController };
+  router.patch('/preferences', async (req, res, next) => {
+    try {
+      const result = await controller.update(req.body, req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  return router;
+}
+
+module.exports = { PrivacyController, createPrivacyRouter };

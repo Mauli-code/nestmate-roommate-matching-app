@@ -3,9 +3,8 @@ const path = require('node:path');
 const {
   BadRequestException,
   ConflictException,
-  Injectable,
   NotFoundException,
-} = require('@nestjs/common');
+} = require('../common/exceptions');
 const { calculateCompatibility } = require('../matching/compatibility-score');
 const userRepository = require('../auth/user-repository');
 const profileRepository = require('../matching/profile-repository');
@@ -173,7 +172,5 @@ class ConnectionRequestsService {
     };
   }
 }
-
-Injectable()(ConnectionRequestsService);
 
 module.exports = { ConnectionRequestsService };

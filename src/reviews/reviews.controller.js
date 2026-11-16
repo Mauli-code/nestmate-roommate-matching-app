@@ -1,20 +1,9 @@
-const {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Inject,
-  Param,
-  Patch,
-  Post,
-  Req,
-  UseGuards,
-} = require('@nestjs/common');
-const { AuthGuard } = require('../auth/auth.guard');
+const express = require('express');
+const { createAuthMiddleware } = require('../auth/auth.guard');
 const { ReviewsService } = require('./reviews.service');
 
 class ReviewsController {
-  constructor(service) {
+  constructor(service = new ReviewsService()) {
     this.service = service;
   }
 
@@ -43,39 +32,66 @@ class ReviewsController {
   }
 }
 
-Controller('api/reviews')(ReviewsController);
-UseGuards(AuthGuard)(ReviewsController);
-Inject(ReviewsService)(ReviewsController, undefined, 0);
+function createReviewsRouter(service = new ReviewsService(), authService) {
+  const router = express.Router();
+  const controller = new ReviewsController(service);
+  const requireAuth = createAuthMiddleware(authService);
 
-for (const [method, route, param, target] of [
-  ['createRoommate', 'roommates/:roommateId', 'roommateId', 0],
-  ['createAccommodation', 'accommodations/:listingId', 'listingId', 0],
-]) {
-  const descriptor = Object.getOwnPropertyDescriptor(ReviewsController.prototype, method);
-  Post(route)(ReviewsController.prototype, method, descriptor);
-  Param(param)(ReviewsController.prototype, method, 0);
-  require('@nestjs/common').Body()(ReviewsController.prototype, method, 1);
-  Req()(ReviewsController.prototype, method, 2);
+  router.post('/roommates/:roommateId', requireAuth, async (req, res, next) => {
+    try {
+      const result = await controller.createRoommate(req.params.roommateId, req.body, req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post('/accommodations/:listingId', requireAuth, async (req, res, next) => {
+    try {
+      const result = await controller.createAccommodation(req.params.listingId, req.body, req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.get('/roommates/:roommateId', async (req, res, next) => {
+    try {
+      const result = await controller.listRoommate(req.params.roommateId);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.get('/accommodations/:listingId', async (req, res, next) => {
+    try {
+      const result = await controller.listAccommodation(req.params.listingId);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.patch('/:reviewId', requireAuth, async (req, res, next) => {
+    try {
+      const result = await controller.update(req.params.reviewId, req.body, req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.delete('/:reviewId', requireAuth, async (req, res, next) => {
+    try {
+      const result = await controller.remove(req.params.reviewId, req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  return router;
 }
 
-for (const [method, route, param] of [
-  ['listRoommate', 'roommates/:roommateId', 'roommateId'],
-  ['listAccommodation', 'accommodations/:listingId', 'listingId'],
-]) {
-  const descriptor = Object.getOwnPropertyDescriptor(ReviewsController.prototype, method);
-  Get(route)(ReviewsController.prototype, method, descriptor);
-  Param(param)(ReviewsController.prototype, method, 0);
-}
-
-const updateDescriptor = Object.getOwnPropertyDescriptor(ReviewsController.prototype, 'update');
-Patch(':reviewId')(ReviewsController.prototype, 'update', updateDescriptor);
-Param('reviewId')(ReviewsController.prototype, 'update', 0);
-Body()(ReviewsController.prototype, 'update', 1);
-Req()(ReviewsController.prototype, 'update', 2);
-
-const removeDescriptor = Object.getOwnPropertyDescriptor(ReviewsController.prototype, 'remove');
-Delete(':reviewId')(ReviewsController.prototype, 'remove', removeDescriptor);
-Param('reviewId')(ReviewsController.prototype, 'remove', 0);
-Req()(ReviewsController.prototype, 'remove', 1);
-
-module.exports = { ReviewsController };
+module.exports = { ReviewsController, createReviewsRouter };

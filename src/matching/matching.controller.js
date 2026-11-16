@@ -1,16 +1,6 @@
-const {
-  Body,
-  Controller,
-  ForbiddenException,
-  Get,
-  Inject,
-  Param,
-  Put,
-  Query,
-  Req,
-  UseGuards,
-} = require('@nestjs/common');
-const { AuthGuard } = require('../auth/auth.guard');
+const express = require('express');
+const { ForbiddenException } = require('../common/exceptions');
+const { createAuthMiddleware } = require('../auth/auth.guard');
 const { MatchingService } = require('./matching.service');
 
 class MatchingController {
@@ -64,29 +54,34 @@ class MatchingController {
   }
 }
 
-Controller('api/matches')(MatchingController);
-UseGuards(AuthGuard)(MatchingController);
-Inject(MatchingService)(MatchingController, undefined, 0);
-const getMatchesDescriptor = Object.getOwnPropertyDescriptor(
-  MatchingController.prototype,
-  'getMatches',
-);
-Get()(MatchingController.prototype, 'getMatches', getMatchesDescriptor);
-Query('profileId')(MatchingController.prototype, 'getMatches', 0);
-Query('page')(MatchingController.prototype, 'getMatches', 1);
-Query('limit')(MatchingController.prototype, 'getMatches', 2);
-Req()(MatchingController.prototype, 'getMatches', 3);
-const savePreferencesDescriptor = Object.getOwnPropertyDescriptor(
-  MatchingController.prototype,
-  'savePreferences',
-);
-Put(':profileId/preferences')(
-  MatchingController.prototype,
-  'savePreferences',
-  savePreferencesDescriptor,
-);
-Param('profileId')(MatchingController.prototype, 'savePreferences', 0);
-Body()(MatchingController.prototype, 'savePreferences', 1);
-Req()(MatchingController.prototype, 'savePreferences', 2);
+function createMatchingRouter(matchingService, authService) {
+  const router = express.Router();
+  const controller = new MatchingController(matchingService);
+  const requireAuth = createAuthMiddleware(authService);
 
-module.exports = { MatchingController };
+  router.use(requireAuth);
+
+  router.get('/', async (req, res, next) => {
+    try {
+      const { profileId, page, limit } = req.query;
+      const result = await controller.getMatches(profileId, page, limit, req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.put('/:profileId/preferences', async (req, res, next) => {
+    try {
+      const { profileId } = req.params;
+      const result = await controller.savePreferences(profileId, req.body, req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  return router;
+}
+
+module.exports = { MatchingController, createMatchingRouter };

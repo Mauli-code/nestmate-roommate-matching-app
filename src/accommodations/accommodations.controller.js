@@ -1,21 +1,9 @@
-const {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Inject,
-  Param,
-  Post,
-  Put,
-  Query,
-  Req,
-  UseGuards,
-} = require('@nestjs/common');
-const { AuthGuard } = require('../auth/auth.guard');
+const express = require('express');
+const { createAuthMiddleware } = require('../auth/auth.guard');
 const { AccommodationsService } = require('./accommodations.service');
 
 class AccommodationsController {
-  constructor(service) {
+  constructor(service = new AccommodationsService()) {
     this.service = service;
   }
 
@@ -44,43 +32,68 @@ class AccommodationsController {
   }
 }
 
-Controller('api/accommodations')(AccommodationsController);
-UseGuards(AuthGuard)(AccommodationsController);
-Inject(AccommodationsService)(AccommodationsController, undefined, 0);
+function createAccommodationsRouter(service = new AccommodationsService(), authService) {
+  const router = express.Router();
+  const controller = new AccommodationsController(service);
+  const requireAuth = createAuthMiddleware(authService);
 
-const createDescriptor = Object.getOwnPropertyDescriptor(AccommodationsController.prototype, 'create');
-Post()(AccommodationsController.prototype, 'create', createDescriptor);
-Body()(AccommodationsController.prototype, 'create', 0);
-Req()(AccommodationsController.prototype, 'create', 1);
+  router.use(requireAuth);
 
-const listDescriptor = Object.getOwnPropertyDescriptor(AccommodationsController.prototype, 'findAvailable');
-Get()(AccommodationsController.prototype, 'findAvailable', listDescriptor);
-Query()(AccommodationsController.prototype, 'findAvailable', 0);
+  router.post('/', async (req, res, next) => {
+    try {
+      const result = await controller.create(req.body, req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
 
-const recommendationsDescriptor = Object.getOwnPropertyDescriptor(
-  AccommodationsController.prototype,
-  'recommendations',
-);
-Get('recommendations')(
-  AccommodationsController.prototype,
-  'recommendations',
-  recommendationsDescriptor,
-);
-Req()(AccommodationsController.prototype, 'recommendations', 0);
+  router.get('/', async (req, res, next) => {
+    try {
+      const result = await controller.findAvailable(req.query);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
 
-const oneDescriptor = Object.getOwnPropertyDescriptor(AccommodationsController.prototype, 'findOne');
-Get(':id')(AccommodationsController.prototype, 'findOne', oneDescriptor);
-Param('id')(AccommodationsController.prototype, 'findOne', 0);
+  router.get('/recommendations', async (req, res, next) => {
+    try {
+      const result = await controller.recommendations(req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
 
-const updateDescriptor = Object.getOwnPropertyDescriptor(AccommodationsController.prototype, 'update');
-Put(':id')(AccommodationsController.prototype, 'update', updateDescriptor);
-Param('id')(AccommodationsController.prototype, 'update', 0);
-Body()(AccommodationsController.prototype, 'update', 1);
-Req()(AccommodationsController.prototype, 'update', 2);
+  router.get('/:id', async (req, res, next) => {
+    try {
+      const result = await controller.findOne(req.params.id);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
 
-const removeDescriptor = Object.getOwnPropertyDescriptor(AccommodationsController.prototype, 'remove');
-Delete(':id')(AccommodationsController.prototype, 'remove', removeDescriptor);
-Param('id')(AccommodationsController.prototype, 'remove', 0);
-Req()(AccommodationsController.prototype, 'remove', 1);
+  router.put('/:id', async (req, res, next) => {
+    try {
+      const result = await controller.update(req.params.id, req.body, req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
 
-module.exports = { AccommodationsController };
+  router.delete('/:id', async (req, res, next) => {
+    try {
+      const result = await controller.remove(req.params.id, req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  return router;
+}
+
+module.exports = { AccommodationsController, createAccommodationsRouter };

@@ -1,5 +1,5 @@
 const path = require('node:path');
-const { Injectable, UnauthorizedException } = require('@nestjs/common');
+const { UnauthorizedException } = require('../common/exceptions');
 const userRepository = require('../auth/user-repository');
 const profileRepository = require('../matching/profile-repository');
 const favoriteRepository = require('../favorites/favorites.repository');
@@ -117,7 +117,5 @@ class DashboardService {
     };
   }
 }
-
-Injectable()(DashboardService);
 
 module.exports = { DashboardService };

@@ -1,4 +1,4 @@
-const { BadRequestException } = require('@nestjs/common');
+const { BadRequestException } = require('../common/exceptions');
 
 function invalid(errors, message = 'Please check the highlighted fields') {
   throw new BadRequestException({ message, errors });

@@ -1,4 +1,4 @@
-const { Controller, Get } = require('@nestjs/common');
+const express = require('express');
 
 class HealthController {
   getHealth() {
@@ -11,11 +11,15 @@ class HealthController {
   }
 }
 
-Controller('api/health')(HealthController);
-Get()(
-  HealthController.prototype,
-  'getHealth',
-  Object.getOwnPropertyDescriptor(HealthController.prototype, 'getHealth'),
-);
+function createHealthRouter() {
+  const router = express.Router();
+  const controller = new HealthController();
 
-module.exports = { HealthController };
+  router.get('/', (req, res) => {
+    res.json(controller.getHealth());
+  });
+
+  return router;
+}
+
+module.exports = { HealthController, createHealthRouter };

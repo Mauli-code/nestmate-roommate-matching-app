@@ -2,8 +2,7 @@ const crypto = require('node:crypto');
 const {
   BadRequestException,
   NotFoundException,
-  Injectable,
-} = require('@nestjs/common');
+} = require('../common/exceptions');
 const notificationRepository = require('./notifications.repository');
 const preferenceRepository = require('./notification-preferences.repository');
 const { DEFAULT_PREFERENCES } = require('./notification-preferences.service');
@@ -77,7 +76,5 @@ class NotificationsService {
     }
   }
 }
-
-Injectable()(NotificationsService);
 
 module.exports = { NotificationsService };

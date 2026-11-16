@@ -1,19 +1,9 @@
-const {
-  Body,
-  Controller,
-  Get,
-  Inject,
-  Param,
-  Patch,
-  Post,
-  Req,
-  UseGuards,
-} = require('@nestjs/common');
-const { AuthGuard } = require('../auth/auth.guard');
+const express = require('express');
+const { createAuthMiddleware } = require('../auth/auth.guard');
 const { ChatService } = require('./chat.service');
 
 class ChatController {
-  constructor(service) {
+  constructor(service = new ChatService()) {
     this.service = service;
   }
 
@@ -38,37 +28,59 @@ class ChatController {
   }
 }
 
-Controller('api/chat')(ChatController);
-UseGuards(AuthGuard)(ChatController);
-Inject(ChatService)(ChatController, undefined, 0);
+function createChatRouter(service = new ChatService(), authService) {
+  const router = express.Router();
+  const controller = new ChatController(service);
+  const requireAuth = createAuthMiddleware(authService);
 
-const createDescriptor = Object.getOwnPropertyDescriptor(ChatController.prototype, 'createConversation');
-Post('conversations/:otherUserId')(ChatController.prototype, 'createConversation', createDescriptor);
-Param('otherUserId')(ChatController.prototype, 'createConversation', 0);
-Req()(ChatController.prototype, 'createConversation', 1);
+  router.use(requireAuth);
 
-const listDescriptor = Object.getOwnPropertyDescriptor(ChatController.prototype, 'listConversations');
-Get('conversations')(ChatController.prototype, 'listConversations', listDescriptor);
-Req()(ChatController.prototype, 'listConversations', 0);
+  router.post('/conversations/:otherUserId', async (req, res, next) => {
+    try {
+      const result = await controller.createConversation(req.params.otherUserId, req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
 
-const sendDescriptor = Object.getOwnPropertyDescriptor(ChatController.prototype, 'sendMessage');
-Post('conversations/:conversationId/messages')(ChatController.prototype, 'sendMessage', sendDescriptor);
-Param('conversationId')(ChatController.prototype, 'sendMessage', 0);
-Body()(ChatController.prototype, 'sendMessage', 1);
-Req()(ChatController.prototype, 'sendMessage', 2);
+  router.get('/conversations', async (req, res, next) => {
+    try {
+      const result = await controller.listConversations(req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
 
-for (const [method, route] of [
-  ['messages', 'conversations/:conversationId/messages'],
-  ['markRead', 'conversations/:conversationId/read'],
-]) {
-  const descriptor = Object.getOwnPropertyDescriptor(ChatController.prototype, method);
-  (method === 'messages' ? Get(route) : Patch(route))(
-    ChatController.prototype,
-    method,
-    descriptor,
-  );
-  Param('conversationId')(ChatController.prototype, method, 0);
-  Req()(ChatController.prototype, method, 1);
+  router.post('/conversations/:conversationId/messages', async (req, res, next) => {
+    try {
+      const result = await controller.sendMessage(req.params.conversationId, req.body, req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.get('/conversations/:conversationId/messages', async (req, res, next) => {
+    try {
+      const result = await controller.messages(req.params.conversationId, req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.patch('/conversations/:conversationId/read', async (req, res, next) => {
+    try {
+      const result = await controller.markRead(req.params.conversationId, req);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  return router;
 }
 
-module.exports = { ChatController };
+module.exports = { ChatController, createChatRouter };

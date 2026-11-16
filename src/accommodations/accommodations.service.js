@@ -2,9 +2,8 @@ const crypto = require('node:crypto');
 const {
   BadRequestException,
   ForbiddenException,
-  Injectable,
   NotFoundException,
-} = require('@nestjs/common');
+} = require('../common/exceptions');
 const repository = require('./accommodations.repository');
 const profileRepository = require('../matching/profile-repository');
 
@@ -242,7 +241,5 @@ class AccommodationsService {
     return Number.isNaN(moveIn) || Number.isNaN(available) || available <= moveIn ? 1 : 0;
   }
 }
-
-Injectable()(AccommodationsService);
 
 module.exports = { AccommodationsService };

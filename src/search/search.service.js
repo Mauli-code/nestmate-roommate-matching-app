@@ -1,8 +1,5 @@
 const path = require('node:path');
-const {
-  BadRequestException,
-  Injectable,
-} = require('@nestjs/common');
+const { BadRequestException } = require('../common/exceptions');
 const { calculateCompatibility } = require('../matching/compatibility-score');
 const userRepository = require('../auth/user-repository');
 
@@ -148,7 +145,5 @@ class SearchService {
     };
   }
 }
-
-Injectable()(SearchService);
 
 module.exports = { SearchService };
