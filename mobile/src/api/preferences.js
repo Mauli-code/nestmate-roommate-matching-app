@@ -7,7 +7,7 @@ export async function savePreferences(profileId, preferences, token) {
   const id = typeof profileId === 'string' ? profileId.trim() : '';
   if (!id) throw new Error('Enter a profile ID before saving preferences.');
 
-  const result = await request(`/api/matches/${encodeURIComponent(id)}/preferences`, {
+  const result = await request(`/api/matching/${encodeURIComponent(id)}/preferences`, {
     method: 'PUT', token: token.trim(), body: preferences,
   });
   if (!result?.profile || result.profile.id !== id) {

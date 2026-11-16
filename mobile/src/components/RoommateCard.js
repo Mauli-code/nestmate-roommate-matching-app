@@ -90,7 +90,7 @@ export default function RoommateCard({
           <View style={styles.metaItem}>
             <Ionicons name="wallet-outline" size={15} color={COLORS.primaryDark} />
             <Text style={styles.metaLabel}>Budget</Text>
-            <Text style={styles.metaValue}>${budget}/mo</Text>
+            <Text style={styles.metaValue}>₹{typeof budget === 'number' ? budget.toLocaleString('en-IN') : budget}/mo</Text>
           </View>
 
           <View style={styles.metaDivider} />

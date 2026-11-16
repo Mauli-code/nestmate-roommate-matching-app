@@ -120,7 +120,7 @@ export default function RoommateDetailsScreen() {
             <View style={styles.infoBox}>
               <Ionicons name="wallet-outline" size={18} color={COLORS.primary} />
               <Text style={styles.infoLabel}>Monthly Budget</Text>
-              <Text style={styles.infoValue}>${roommate.budget}/mo</Text>
+              <Text style={styles.infoValue}>₹{typeof roommate.budget === 'number' ? roommate.budget.toLocaleString('en-IN') : roommate.budget}/mo</Text>
             </View>
 
             <View style={styles.infoBox}>

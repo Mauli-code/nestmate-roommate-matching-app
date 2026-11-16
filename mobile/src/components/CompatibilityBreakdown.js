@@ -39,7 +39,7 @@ export default function CompatibilityBreakdown({
       title: 'Budget Compatibility',
       points: budgetPts,
       icon: 'wallet-outline',
-      reason: budgetPts >= 24 ? 'Exact budget match ($1,200/mo)' : 'Close budget range (+/- 10%)',
+      reason: budgetPts >= 24 ? 'Exact budget match (₹1,200/mo)' : 'Close budget range (+/- 10%)',
     },
     {
       id: 'location',

@@ -22,7 +22,7 @@ export async function fetchMatches(profileId, token, page = 1, limit = 10) {
   let response;
   try {
     response = await fetch(
-      `${API_BASE_URL}/api/matches?${queryParts.join('&')}`,
+      `${API_BASE_URL}/api/matching?${queryParts.join('&')}`,
       { headers: { Authorization: `Bearer ${cleanToken}` } },
     );
   } catch {

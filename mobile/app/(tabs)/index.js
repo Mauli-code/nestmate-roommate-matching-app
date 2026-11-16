@@ -39,7 +39,7 @@ import {
 const FILTER_PILLS = [
   'All',
   'Near Campus',
-  'Under $1,200',
+  'Under ₹1,200',
   'Private Room',
   'Pet Friendly',
 ];
@@ -317,7 +317,7 @@ export default function HomeScreen() {
                     <View style={styles.roommateMetaRow}>
                       <View style={styles.metaItem}>
                         <Ionicons name="wallet-outline" size={13} color={COLORS.textSecondary} />
-                        <Text style={styles.metaText}>${roommate.budget}/mo</Text>
+                        <Text style={styles.metaText}>₹{typeof roommate.budget === 'number' ? roommate.budget.toLocaleString('en-IN') : roommate.budget}/mo</Text>
                       </View>
                       <View style={styles.metaItem}>
                         <Ionicons name="location-outline" size={13} color={COLORS.textSecondary} />
@@ -402,7 +402,7 @@ export default function HomeScreen() {
                         </TouchableOpacity>
                       </View>
                       <View style={styles.accomRentTag}>
-                        <Text style={styles.rentAmount}>${accom.rent}</Text>
+                        <Text style={styles.rentAmount}>₹{typeof accom.rent === 'number' ? accom.rent.toLocaleString('en-IN') : accom.rent}</Text>
                         <Text style={styles.rentPeriod}>/month</Text>
                       </View>
                     </View>
