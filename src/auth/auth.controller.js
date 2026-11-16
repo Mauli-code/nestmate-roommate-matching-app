@@ -7,25 +7,38 @@ const { createAuthMiddleware } = require('./auth.guard');
 const { AuthService } = require('./auth.service');
 
 const photoDirectory = path.join(process.cwd(), 'uploads', 'profile-photos');
+let diskAvailable = false;
 try {
   fs.mkdirSync(photoDirectory, { recursive: true });
+  diskAvailable = true;
 } catch {
-  // Read-only filesystem (e.g. Vercel) — photo uploads won't persist
+  // Read-only filesystem (e.g. Vercel) — fall back to memory storage
 }
 
-const upload = multer({
-  storage: multer.diskStorage({
-    destination: photoDirectory,
-    filename: (_request, file, callback) => {
-      callback(null, `${crypto.randomUUID()}${path.extname(file.originalname).toLowerCase()}`);
-    },
-  }),
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (_request, file, callback) => {
-    const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
-    callback(null, allowedTypes.has(file.mimetype));
-  },
-});
+const upload = multer(
+  diskAvailable
+    ? {
+        storage: multer.diskStorage({
+          destination: photoDirectory,
+          filename: (_request, file, callback) => {
+            callback(null, `${crypto.randomUUID()}${path.extname(file.originalname).toLowerCase()}`);
+          },
+        }),
+        limits: { fileSize: 5 * 1024 * 1024 },
+        fileFilter: (_request, file, callback) => {
+          const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+          callback(null, allowedTypes.has(file.mimetype));
+        },
+      }
+    : {
+        storage: multer.memoryStorage(),
+        limits: { fileSize: 5 * 1024 * 1024 },
+        fileFilter: (_request, file, callback) => {
+          const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+          callback(null, allowedTypes.has(file.mimetype));
+        },
+      },
+);
 
 class AuthController {
   constructor(authService) {
