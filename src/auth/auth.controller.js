@@ -7,7 +7,11 @@ const { createAuthMiddleware } = require('./auth.guard');
 const { AuthService } = require('./auth.service');
 
 const photoDirectory = path.join(process.cwd(), 'uploads', 'profile-photos');
-fs.mkdirSync(photoDirectory, { recursive: true });
+try {
+  fs.mkdirSync(photoDirectory, { recursive: true });
+} catch {
+  // Read-only filesystem (e.g. Vercel) — photo uploads won't persist
+}
 
 const upload = multer({
   storage: multer.diskStorage({
