@@ -1,56 +1,6 @@
 export function resolveApiBaseUrl() {
-  // ─── 1. Explicit .env override (optional, for production or staging) ───────
-  if (typeof process !== 'undefined' && process.env) {
-    if (process.env.EXPO_PUBLIC_API_BASE_URL) {
-      return process.env.EXPO_PUBLIC_API_BASE_URL;
-    }
-    if (process.env.EXPO_PUBLIC_API_URL) {
-      return process.env.EXPO_PUBLIC_API_URL;
-    }
-  }
-
-  // ─── 2. Auto-detect from Expo Metro host (Expo Go on physical devices) ─────
-  try {
-    if (typeof navigator !== 'undefined' && navigator.product === 'ReactNative') {
-      // eslint-disable-next-line global-require
-      const Constants = require('expo-constants');
-      const c = Constants?.default || Constants;
-
-      const hostUri =
-        c?.expoConfig?.hostUri ||            // Expo SDK 49+
-        c?.expoGoConfig?.debuggerHost ||     // Expo Go legacy manifest
-        c?.manifest2?.extra?.expoGo?.debuggerHost || // new manifest v2
-        c?.manifest?.debuggerHost;           // old manifest v1
-
-      if (hostUri) {
-        const ip = hostUri.split(':')[0];
-        // hostUri looks like "10.254.204.14:8081"
-        if (ip && ip !== 'localhost' && ip !== '127.0.0.1') {
-          return `http://${ip}:3000`;
-        }
-      }
-
-      // Android emulator fallback
-      // eslint-disable-next-line global-require
-      const { Platform } = require('react-native');
-      if (Platform?.OS === 'android') {
-        return 'http://10.0.2.2:3000';
-      }
-    }
-  } catch {
-    // Running outside Expo (e.g. Node.js test runner) — safe to ignore
-  }
-
-  // ─── 3. Web browser — use the same host that served the page ──────────────
-  if (typeof window !== 'undefined' && window.location?.hostname) {
-    const hostname = window.location.hostname;
-    if (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1') {
-      return `http://${hostname}:3000`;
-    }
-  }
-
-  // ─── 4. Fallback: localhost (Expo web / iOS Simulator / Jest) ─────────────
-  return 'http://localhost:3000';
+  // ─── Production backend (Vercel) ──────────────────────────────────────────
+  return 'https://nestmate-roommate-matching-app-eight.vercel.app';
 }
 
 // Pre-resolved at module load time (re-resolves dynamically in request() too)
