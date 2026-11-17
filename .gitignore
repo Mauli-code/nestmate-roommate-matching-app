@@ -11,6 +11,9 @@ mobile/.expo/
 .env.*
 **/.env
 **/.env.*
+# but allow .env.example files (safe to commit — no real secrets)
+!.env.example
+!**/.env.example
 
 # system files
 .DS_Store
